@@ -360,7 +360,7 @@ enum dio200_layout {
 	pc215_layout,
 	pc218_layout,
 	pc272_layout,
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	pcie215_layout,
 	pcie236_layout,
 	pcie296_layout,
@@ -401,7 +401,7 @@ static const dio200_board dio200_boards[] = {
 	      layout:	pc215_layout,
 	      mainsize:	DIO200_IO_SIZE,
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"pci215",
 	      devid:	PCI_DEVICE_ID_AMPLICON_PCI215,
@@ -412,7 +412,7 @@ static const dio200_board dio200_boards[] = {
 	      mainbar:	2,
 		},
 #endif
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"pcie215",
 	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE215,
@@ -431,7 +431,7 @@ static const dio200_board dio200_boards[] = {
 	      layout:	pc218_layout,
 	      mainsize:	DIO200_IO_SIZE,
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"pcie236",
 	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE236,
@@ -450,7 +450,7 @@ static const dio200_board dio200_boards[] = {
 	      layout:	pc272_layout,
 	      mainsize:	DIO200_IO_SIZE,
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"pci272",
 	      devid:	PCI_DEVICE_ID_AMPLICON_PCI272,
@@ -461,7 +461,7 @@ static const dio200_board dio200_boards[] = {
 	      mainbar:	2,
 		},
 #endif
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"pcie296",
 	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE296,
@@ -473,7 +473,7 @@ static const dio200_board dio200_boards[] = {
 	      mainshift: 3,
 		},
 #endif
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	DIO200_DRIVER_NAME,
 	      devid:	PCI_DEVICE_ID_INVALID,
@@ -554,7 +554,7 @@ static const dio200_layout dio200_layouts[] = {
 	      has_clk_gat_sce:0,
 	      has_enhancements:0,
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	[pcie215_layout] = {
 	      n_subdevs:8,
 	      sdtype:	{sd_8255, sd_none, sd_8255, sd_none, sd_8254, sd_8254,
@@ -589,7 +589,7 @@ static const dio200_layout dio200_layouts[] = {
  * PCI driver table.
  */
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -605,7 +605,7 @@ static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
 };
 
 MODULE_DEVICE_TABLE(pci, dio200_pci_table);
-#endif /* CONFIG_COMEDI_PCI */
+#endif /* COMEDI_CONFIG_PCI */
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -617,7 +617,7 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	struct pci_dev *pci_dev;	/* PCI device */
 #endif
 	struct dio200_region io;	/* Register region */
@@ -668,7 +668,7 @@ static comedi_driver driver_amplc_dio200 = {
       num_names:sizeof(dio200_boards) / sizeof(dio200_board),
 };
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 COMEDI_PCI_INITCLEANUP(driver_amplc_dio200, dio200_pci_table);
 #else
 COMEDI_INITCLEANUP(driver_amplc_dio200);
@@ -702,7 +702,7 @@ static void dio200_write8(comedi_device * dev, unsigned int offset,
 /*
  * Read 32-bit register.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static unsigned int dio200_read32(comedi_device * dev, unsigned int offset)
 {
 	offset <<= devpriv->io.regshift;
@@ -716,7 +716,7 @@ static unsigned int dio200_read32(comedi_device * dev, unsigned int offset)
 /*
  * Write 32-bit register.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static void dio200_write32(comedi_device * dev, unsigned int offset,
 		unsigned int val)
 {
@@ -732,7 +732,7 @@ static void dio200_write32(comedi_device * dev, unsigned int offset,
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int
 dio200_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
@@ -1736,7 +1736,7 @@ dio200_subdev_8255_cleanup(comedi_device * dev, comedi_subdevice * s)
 /*
  * Handle 'insn_read' for a timer subdevice.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int
 dio200_subdev_timer_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
@@ -1753,7 +1753,7 @@ dio200_subdev_timer_read(comedi_device * dev, comedi_subdevice * s,
 /*
  * Reset timer subdevice.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static void
 dio200_subdev_timer_reset(comedi_device * dev, comedi_subdevice * s)
 {
@@ -1768,7 +1768,7 @@ dio200_subdev_timer_reset(comedi_device * dev, comedi_subdevice * s)
 /*
  * Get timer subdevice clock source and period.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static void
 dio200_subdev_timer_get_clock_src(comedi_device * dev, comedi_subdevice * s,
 		lsampl_t *src, lsampl_t *period)
@@ -1785,7 +1785,7 @@ dio200_subdev_timer_get_clock_src(comedi_device * dev, comedi_subdevice * s,
 /*
  * Set timer subdevice clock source.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int
 dio200_subdev_timer_set_clock_src(comedi_device * dev, comedi_subdevice * s,
 		lsampl_t src)
@@ -1801,7 +1801,7 @@ dio200_subdev_timer_set_clock_src(comedi_device * dev, comedi_subdevice * s,
 /*
  * Handle 'insn_config' for a timer subdevice.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int
 dio200_subdev_timer_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
@@ -1833,7 +1833,7 @@ dio200_subdev_timer_config(comedi_device * dev, comedi_subdevice * s,
  *
  * Uses the timestamp timer registers.  There is only one timestamp timer.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int
 dio200_subdev_timer_init(comedi_device * dev, comedi_subdevice * s)
 {
@@ -1850,7 +1850,7 @@ dio200_subdev_timer_init(comedi_device * dev, comedi_subdevice * s)
 /*
  * This function cleans up a timer subdevice.
  */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static void
 dio200_subdev_timer_cleanup(comedi_device * dev, comedi_subdevice * s)
 {
@@ -1858,7 +1858,7 @@ dio200_subdev_timer_cleanup(comedi_device * dev, comedi_subdevice * s)
 }
 #endif
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 /*
  * This function does some special set-up for the PCIe boards
  * PCIe215, PCIe236, PCIe296.
@@ -1914,7 +1914,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 #endif
@@ -1940,7 +1940,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		share_irq = 0;
 		break;
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	case pci_bustype:
 		bus = it->options[0];
 		slot = it->options[1];
@@ -1964,7 +1964,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->io.regshift = thisboard->mainshift;
 
 	/* Enable device and reserve I/O spaces. */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	if (pci_dev) {
 		resource_size_t base, len;
 		unsigned int bar;
@@ -2012,7 +2012,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	switch (thisboard->model) {
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	case pcie215_model:
 	case pcie236_model:
 	case pcie296_model:
@@ -2067,7 +2067,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			break;
 		case sd_timer:
 			/* timer subdevice */
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 			ret = dio200_subdev_timer_init(dev, s);
 			if (ret < 0) {
 				return ret;
@@ -2106,7 +2106,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	if (thisboard->bustype == isa_bustype) {
 		printk("(base %#lx) ", iobase);
 	} else {
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 		printk("(pci %s) ", pci_name(pci_dev));
 #endif
 	}
@@ -2155,7 +2155,7 @@ static int dio200_detach(comedi_device * dev)
 				dio200_subdev_intr_cleanup(dev, s);
 				break;
 			case sd_timer:
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 				dio200_subdev_timer_cleanup(dev, s);
 #endif
 				break;
@@ -2168,7 +2168,7 @@ static int dio200_detach(comedi_device * dev)
 		if (devpriv->io.regtype == mmio_regtype) {
 			iounmap(devpriv->io.u.membase);
 		}
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 		if (devpriv->pci_dev) {
 			if (devpriv->io.regtype != no_regtype) {
 				comedi_pci_disable(devpriv->pci_dev);

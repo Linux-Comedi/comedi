@@ -21,7 +21,7 @@
 
 #include <linux/comedi-config.h>
 
-#ifndef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
+#ifndef COMEDI_COMPAT_HAVE_GENERIC_BOOL_TYPE
 enum {
 	false,
 	true

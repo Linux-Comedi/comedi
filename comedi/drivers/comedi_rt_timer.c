@@ -56,11 +56,11 @@ TODO:
 
 #include "comedi_fc.h"
 
-#ifdef CONFIG_COMEDI_RTL_V1
+#ifdef COMEDI_CONFIG_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>
 #endif
-#ifdef CONFIG_COMEDI_RTL
+#ifdef COMEDI_CONFIG_RTL
 #include <rtl.h>
 #include <rtl_sched.h>
 #include <rtl_compat.h>
@@ -107,7 +107,7 @@ static inline RTIME nano2count(long long ns)
 #define comedi_rt_task_context_t	int
 
 #endif
-#ifdef CONFIG_COMEDI_RTAI
+#ifdef COMEDI_CONFIG_RTAI
 #include <rtai.h>
 #include <rtai_sched.h>
 #include <rtai_version.h>

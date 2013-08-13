@@ -76,11 +76,11 @@ static inline int USB_BULK_MSG(struct usb_device *usb_dev, unsigned int pipe,
 
 /*
  * Determine whether we need the "owner" member of struct usb_driver and
- * define COMEDI_HAVE_USB_DRIVER_OWNER if we need it.
+ * define COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER if we need it.
  */
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,19) \
        && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16)
-#define COMEDI_HAVE_USB_DRIVER_OWNER
+#define COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER
 #endif
 
 #endif

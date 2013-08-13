@@ -476,7 +476,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		// error in the ISOchronous data
 		// we don't copy the data into the transfer buffer
 		// and recycle the last data byte
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 		printk("comedi%d: usbdux: CRC error in ISO IN stream.\n",
 			this_usbduxsub->comedidev->minor);
 #endif
@@ -2270,7 +2270,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 {
 	int i;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: tiding up\n");
 #endif
 	if (!usbduxsub_tmp) {
@@ -2538,7 +2538,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	int index;
 	int ret;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux_: finding a free structure for the usb-device\n");
 #endif
 	mutex_lock(&start_stop_mutex);
@@ -2557,7 +2557,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-EMFILE);
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: usbduxsub[%d] is ready to connect to comedi.\n", index);
 #endif
 
@@ -2578,7 +2578,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	usb_set_intfdata(uinterf, &(usbduxsub[index]));
 #endif
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: ifnum=%d\n", usbduxsub[index].ifnum);
 #endif
 	// test if it is high speed (USB 2.0)
@@ -2817,7 +2817,7 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 	tidy_up(usbduxsub_tmp);
 	mutex_unlock(&usbduxsub_tmp->mutex);
 	mutex_unlock(&start_stop_mutex);
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: disconnected from the usb\n");
 #endif
 }
@@ -2988,7 +2988,7 @@ static int usbdux_detach(comedi_device * dev)
 {
 	usbduxsub_t *usbduxsub_tmp;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbdux: detach usb device\n", dev->minor);
 #endif
 
@@ -3009,7 +3009,7 @@ static int usbdux_detach(comedi_device * dev)
 	dev->private = NULL;
 	usbduxsub_tmp->attached = 0;
 	usbduxsub_tmp->comedidev = NULL;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbdux: detach: successfully removed\n", dev->minor);
 #endif
 	mutex_unlock(&usbduxsub_tmp->mutex);
@@ -3027,7 +3027,7 @@ static comedi_driver driver_usbdux = {
 static void init_usb_devices(void)
 {
 	int index;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: setting all possible devs to invalid\n");
 #endif
 	// all devices entries are invalid to begin with
@@ -3061,7 +3061,7 @@ MODULE_DEVICE_TABLE(usb, usbduxsub_table);
 
 // The usbduxsub-driver
 static struct usb_driver usbduxsub_driver = {
-#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
+#ifdef COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER
       owner:THIS_MODULE,
 #endif
       name:BOARDNAME,

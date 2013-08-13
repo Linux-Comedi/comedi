@@ -46,10 +46,10 @@ IRQ is assigned but not used.
 #include <linux/ioport.h>
 #include <linux/version.h>
 
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 #include <pcmcia/cs.h>
 #endif
 #include <pcmcia/cistpl.h>
@@ -374,13 +374,13 @@ static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		iobase = link->io.BasePort1;
 #else
 		iobase = link->resource[0]->start;
 #endif
 #ifdef incomplete
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		irq = link->irq.AssignedIRQ;
 #else
 		irq = link->irq;
@@ -486,7 +486,7 @@ static void dio700_cs_detach(struct pcmcia_device *);
    database.
 */
 
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 static const dev_info_t devname = "ni_daq_700";
 #else
 static const char devname[] = "ni_daq_700";
@@ -494,7 +494,7 @@ static const char devname[] = "ni_daq_700";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -528,16 +528,16 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 #endif
 	link->irq.Handler = NULL;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -572,7 +572,7 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "dio700_cs_detach(0x%p)\n", link);
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	if (link->dev_node)
 #endif
 	{
@@ -594,8 +594,8 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -603,7 +603,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
 	win_req_t *req = priv_data;
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 	memreq_t map;
 #endif
 
@@ -617,7 +617,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 #endif
 	{
@@ -625,7 +625,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* IO window settings */
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
@@ -679,12 +679,12 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		req->AccessSpeed = 0;
 		if (pcmcia_request_window(p_dev, req, &p_dev->win))
 			return -ENODEV;
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
 #endif
 		if (pcmcia_map_mem_page(p_dev, p_dev->win,
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 					&map
 #else
 					mem->win[0].card_addr
@@ -695,7 +695,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	/* If we got this far, we're cool! */
 	return 0;
 }
-#else	/* CONFIG_COMEDI_HAVE_CS_H */
+#else	/* COMEDI_COMPAT_HAVE_CS_H */
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -704,24 +704,24 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	return pcmcia_request_io(p_dev);
 }
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
-#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void dio700_config(struct pcmcia_device *link)
 {
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	local_info_t *dev = link->priv;
 #endif
 	int last_ret;
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	win_req_t req;
 #endif
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_fn;
 	u_char buf[64];
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 	memreq_t map;
 #endif
 	cistpl_cftable_entry_t dflt = { 0 };
@@ -731,14 +731,14 @@ static void dio700_config(struct pcmcia_device *link)
 
 	DEBUG(0, "dio700_config(0x%p)\n", link);
 
-#ifndef CONFIG_COMEDI_HAVE_CS_H
+#ifndef COMEDI_COMPAT_HAVE_CS_H
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
 		CONF_AUTO_SET_IO;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop,
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 			&req
 #else
 			NULL
@@ -810,7 +810,7 @@ static void dio700_config(struct pcmcia_device *link)
 		}
 
 		/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
 #endif
 		{
@@ -818,7 +818,7 @@ static void dio700_config(struct pcmcia_device *link)
 		}
 
 		/* IO window settings */
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
@@ -872,12 +872,12 @@ static void dio700_config(struct pcmcia_device *link)
 			req.AccessSpeed = 0;
 			if (pcmcia_request_window(&link, &req, &link->win))
 				goto next_entry;
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 			map.Page = 0;
 			map.CardOffset = mem->win[0].card_addr;
 #endif
 			if (pcmcia_map_mem_page(link->win,
-#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 						&map
 #else
 						mem->win[0].card_addr
@@ -896,14 +896,14 @@ static void dio700_config(struct pcmcia_device *link)
 	}
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
 #endif
 		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) {
@@ -920,10 +920,10 @@ static void dio700_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	last_ret = pcmcia_request_configuration(link, &link->conf);
 #else
 	last_ret = pcmcia_enable_device(link);
@@ -931,7 +931,7 @@ static void dio700_config(struct pcmcia_device *link)
 	if (last_ret)
 		goto cs_failed;
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	/*
 	   At this point, the dev_node_t structure(s) need to be
 	   initialized and arranged in a linked list at link->dev.
@@ -941,9 +941,9 @@ static void dio700_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/* Finally, report what we've done */
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
 		dev->node.dev_name, link->conf.ConfigIndex);
 #else
@@ -951,13 +951,13 @@ static void dio700_config(struct pcmcia_device *link)
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u",
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
 			link->irq
 #endif
 			);
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -974,12 +974,12 @@ static void dio700_config(struct pcmcia_device *link)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 			req.Base + req.Size - 1);
 	printk("\n");
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
 
       cs_failed:
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	cs_error(link, last_fn, last_ret);
 #endif
 	printk(KERN_INFO "ni_daq_700 cs failed");
@@ -1041,7 +1041,7 @@ struct pcmcia_driver dio700_cs_driver = {
 	.resume = dio700_cs_resume,
 	.id_table = dio700_cs_ids,
 	.owner = THIS_MODULE,
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
 	.name = devname,
 #else
 	.drv = {

@@ -16,69 +16,69 @@
 #undef COMEDI_RELEASE
 
 /* Define if 8255 support is enabled */
-#undef CONFIG_COMEDI_8255
+#undef COMEDI_CONFIG_8255
 
 /* Define if debugging is enabled */
-#undef CONFIG_COMEDI_DEBUG
+#undef COMEDI_CONFIG_DEBUG
 
 /* Define if kernel is RTAI patched */
-#undef CONFIG_COMEDI_FUSION
+#undef COMEDI_CONFIG_FUSION
 
 /* Define if Linux kernel source has pcmcia/cs.h (removed in 2.6.37) */
-#undef CONFIG_COMEDI_HAVE_CS_H
+#undef COMEDI_COMPAT_HAVE_CS_H
 
 /* Define if Linux kernel source has io_req_t in pcmcia/cs.h (removed in
    2.6.36) */
-#undef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#undef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 
 /* Define if Linux kernel source has irq_req_t in pcmcia/cs.h (removed in
    2.6.35) */
-#undef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#undef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 
 /* Define if Linux kernel source has memreq_t in pcmcia/cs.h (removed in
    2.6.36) */
-#undef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+#undef COMEDI_COMPAT_HAVE_CS_MEMREQ_T
 
 /* Define if Linux kernel source has pcmcia/cs_types.h (removed in 2.6.36) */
-#undef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#undef COMEDI_COMPAT_HAVE_CS_TYPES_H
 
 /* Define if Linux kernel source has dev_node_t in pcmcia/ds.h (removed in
    2.6.35) */
-#undef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#undef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 
 /* Define if Linux kernel source has generic 'bool' type in linux/types.h */
-#undef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
+#undef COMEDI_COMPAT_HAVE_GENERIC_BOOL_TYPE
 
 /* Define if Linux kernel has linux/semaphore.h header */
-#undef CONFIG_COMEDI_HAVE_LINUX_SEMAPHORE_H
+#undef COMEDI_COMPAT_HAVE_LINUX_SEMAPHORE_H
 
 /* Define if Linux kernel has mutex.h header */
-#undef CONFIG_COMEDI_HAVE_MUTEX_H
+#undef COMEDI_COMPAT_HAVE_MUTEX_H
 
 /* Define if Linux kernel source has name member in struct pcmcia_driver */
-#undef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+#undef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
 
 /* Define if Linux kernel source has pcmcia_loop_tuple function */
-#undef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#undef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 
 /* Define if PCI support is enabled */
-#undef CONFIG_COMEDI_PCI
+#undef COMEDI_CONFIG_PCI
 
 /* Define if using PCMCIA support */
-#undef CONFIG_COMEDI_PCMCIA
+#undef COMEDI_CONFIG_PCMCIA
 
 /* Define if Linux kernel 'request_firmware_nowait' function has 'gfp'
    parameter */
-#undef CONFIG_COMEDI_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
+#undef COMEDI_COMPAT_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
 
 /* Define to enable Comedi's real-time support */
-#undef CONFIG_COMEDI_RT
+#undef COMEDI_CONFIG_RT
 
 /* Define if kernel is RTAI patched */
-#undef CONFIG_COMEDI_RTAI
+#undef COMEDI_CONFIG_RTAI
 
 /* Define if kernel is RTLinux patched */
-#undef CONFIG_COMEDI_RTL
+#undef COMEDI_CONFIG_RTL
 
 /* Define if using USB support */
-#undef CONFIG_COMEDI_USB
+#undef COMEDI_CONFIG_USB

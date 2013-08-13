@@ -55,7 +55,7 @@ MODULE_AUTHOR("http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 int comedi_debug;
 module_param(comedi_debug, int, 0644);
 #endif
@@ -1189,7 +1189,7 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 
 	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
 
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 	if (async->cmd.flags & TRIG_RT) {
 		if (comedi_switch_to_rt(dev) == 0)
 			comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
@@ -1436,7 +1436,7 @@ static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 		comedi_async *async = s->async;
 
 		if (dev->rt) {
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 			// pend wake up
 			comedi_rt_pend_wakeup(&async->wait_head);
 #else
@@ -1896,7 +1896,7 @@ void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 	comedi_async *async = s->async;
 
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
 		comedi_switch_to_non_rt(dev);
 		comedi_set_subdevice_runflags(s, SRF_RT, 0);
@@ -2208,7 +2208,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
 
 			if (dev->rt) {
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 				// pend wake up
 				comedi_rt_pend_wakeup(&async->wait_head);
 #else

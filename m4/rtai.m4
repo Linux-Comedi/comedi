@@ -27,9 +27,9 @@ AC_DEFUN([DS_RTAI],
 		FUSION_TEST=`${RTAI_DIR}/bin/rtai-config --version | cut -d"-" -f2 `
 		if test "${FUSION_TEST}" = "fusion"
 		then
-			AC_DEFINE([CONFIG_COMEDI_FUSION],[true],[Define if kernel is RTAI patched])
+			AC_DEFINE([COMEDI_CONFIG_FUSION],[true],[Define if kernel is RTAI patched])
 		else
-			AC_DEFINE([CONFIG_COMEDI_RTAI],[true],[Define if kernel is RTAI patched])
+			AC_DEFINE([COMEDI_CONFIG_RTAI],[true],[Define if kernel is RTAI patched])
 		fi
 
 	else

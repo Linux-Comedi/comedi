@@ -297,7 +297,7 @@ struct comedi_device_file_info {
 	comedi_subdevice *write_subdevice;
 };
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 extern int comedi_debug;
 #else
 static const int comedi_debug = 0;
@@ -523,7 +523,7 @@ struct usb_device;	// forward declaration
 int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
 void comedi_usb_auto_unconfig(struct usb_device *usbdev);
 
-//#ifdef CONFIG_COMEDI_RT
+//#ifdef COMEDI_CONFIG_RT
 #include <linux/comedi_rt.h>
 //#endif
 

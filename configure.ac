@@ -53,10 +53,10 @@ else
 	USE_RTAI="no"
 fi
 DS_RTLINUX([USE_RTLINUX=yes],[USE_RTLINUX=no])
-AM_CONDITIONAL([CONFIG_COMEDI_RT],
+AM_CONDITIONAL([COMEDI_CONFIG_RT],
 	[test ${USE_RTAI} = "yes" -o ${USE_RTLINUX} = "yes"])
 if test ${USE_RTAI} = "yes" -o ${USE_RTLINUX} = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_RT],[true],[Define to enable Comedi's real-time support])
+	AC_DEFINE([COMEDI_CONFIG_RT],[true],[Define to enable Comedi's real-time support])
 fi
 
 
@@ -79,7 +79,7 @@ if test "$HAVE_PCI" = "yes" ; then
 		AC_MSG_NOTICE([PCI support disabled])
 		USE_PCI="no"
 	else
-		AC_DEFINE([CONFIG_COMEDI_PCI],[true],[Define if PCI support is enabled])
+		AC_DEFINE([COMEDI_CONFIG_PCI],[true],[Define if PCI support is enabled])
 		USE_PCI="yes"
 	fi
 else
@@ -88,7 +88,7 @@ else
 	fi
 	USE_PCI="no"
 fi
-AM_CONDITIONAL([CONFIG_COMEDI_PCI],[test "$USE_PCI" = "yes"])
+AM_CONDITIONAL([COMEDI_CONFIG_PCI],[test "$USE_PCI" = "yes"])
 
 COMEDI_CHECK_PCMCIA_DRIVER_PROBE([$LINUX_SRC_DIR],
 	[AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_PCMCIA],
@@ -102,7 +102,7 @@ if test "$HAVE_PCMCIA" = "yes" ; then
 		AC_MSG_NOTICE([PCMCIA support disabled])
 		USE_PCMCIA="no"
 	else
-		AC_DEFINE([CONFIG_COMEDI_PCMCIA],[true],[Define if using PCMCIA support])
+		AC_DEFINE([COMEDI_CONFIG_PCMCIA],[true],[Define if using PCMCIA support])
 		USE_PCMCIA="yes"
 	fi
 else
@@ -111,67 +111,67 @@ else
 	fi
 	USE_PCMCIA="no"
 fi
-AM_CONDITIONAL([CONFIG_COMEDI_PCMCIA],[test "$USE_PCMCIA" = "yes"])
+AM_CONDITIONAL([COMEDI_CONFIG_PCMCIA],[test "$USE_PCMCIA" = "yes"])
 
 COMEDI_CHECK_PCMCIA_DRIVER_NAME([$LINUX_SRC_DIR],
       [HAVE_PCMCIA_DRIVER_NAME="yes"], [HAVE_PCMCIA_DRIVER_NAME="no"])
 if test "$HAVE_PCMCIA_DRIVER_NAME" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME],[true],[Define if Linux kernel source has name member in struct pcmcia_driver])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME],[true],[Define if Linux kernel source has name member in struct pcmcia_driver])
 fi
 
 COMEDI_CHECK_PCMCIA_LOOP_TUPLE([$LINUX_SRC_DIR],
       [HAVE_PCMCIA_LOOP_TUPLE="yes"], [HAVE_PCMCIA_LOOP_TUPLE="no"])
 if test "$HAVE_PCMCIA_LOOP_TUPLE" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE],[true],[Define if Linux kernel source has pcmcia_loop_tuple function])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE],[true],[Define if Linux kernel source has pcmcia_loop_tuple function])
 fi
 
 COMEDI_CHECK_DS_DEV_NODE_T([$LINUX_SRC_DIR],
       [HAVE_DS_DEV_NODE_T="yes"], [HAVE_DS_DEV_NODE_T="no"])
 if test "$HAVE_DS_DEV_NODE_T" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_DS_DEV_NODE_T],[true],[Define if Linux kernel source has dev_node_t in pcmcia/ds.h (removed in 2.6.35)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_DS_DEV_NODE_T],[true],[Define if Linux kernel source has dev_node_t in pcmcia/ds.h (removed in 2.6.35)])
 fi
 
 COMEDI_CHECK_CS_IRQ_REQ_T([$LINUX_SRC_DIR],
       [HAVE_CS_IRQ_REQ_T="yes"], [HAVE_CS_IRQ_REQ_T="no"])
 if test "$HAVE_CS_IRQ_REQ_T" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T],[true],[Define if Linux kernel source has irq_req_t in pcmcia/cs.h (removed in 2.6.35)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T],[true],[Define if Linux kernel source has irq_req_t in pcmcia/cs.h (removed in 2.6.35)])
 fi
 
 COMEDI_CHECK_CS_IO_REQ_T([$LINUX_SRC_DIR],
       [HAVE_CS_IO_REQ_T="yes"], [HAVE_CS_IO_REQ_T="no"])
 if test "$HAVE_CS_IO_REQ_T" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_IO_REQ_T],[true],[Define if Linux kernel source has io_req_t in pcmcia/cs.h (removed in 2.6.36)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_CS_IO_REQ_T],[true],[Define if Linux kernel source has io_req_t in pcmcia/cs.h (removed in 2.6.36)])
 fi
 
 COMEDI_CHECK_CS_MEMREQ_T([$LINUX_SRC_DIR],
       [HAVE_CS_MEMREQ_T="yes"], [HAVE_CS_MEMREQ_T="no"])
 if test "$HAVE_CS_MEMREQ_T" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_MEMREQ_T],[true],[Define if Linux kernel source has memreq_t in pcmcia/cs.h (removed in 2.6.36)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_CS_MEMREQ_T],[true],[Define if Linux kernel source has memreq_t in pcmcia/cs.h (removed in 2.6.36)])
 fi
 
 COMEDI_CHECK_HAVE_CS_TYPES_H([$LINUX_SRC_DIR],
       [HAVE_CS_TYPES_H="yes"], [HAVE_CS_TYPES_H="no"])
 if test "$HAVE_CS_TYPES_H" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_TYPES_H],[true],[Define if Linux kernel source has pcmcia/cs_types.h (removed in 2.6.36)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_CS_TYPES_H],[true],[Define if Linux kernel source has pcmcia/cs_types.h (removed in 2.6.36)])
 fi
 
 COMEDI_CHECK_HAVE_CS_H([$LINUX_SRC_DIR],
       [HAVE_CS_H="yes"], [HAVE_CS_H="no"])
 if test "$HAVE_CS_TYPES_H" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_H],[true],[Define if Linux kernel source has pcmcia/cs.h (removed in 2.6.37)])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_CS_H],[true],[Define if Linux kernel source has pcmcia/cs.h (removed in 2.6.37)])
 fi
 
 COMEDI_CHECK_HAVE_GENERIC_BOOL_TYPE([$LINUX_SRC_DIR],
       [HAVE_GENERIC_BOOL_TYPE="yes"], [HAVE_GENERIC_BOOL_TYPE="no"])
 if test "$HAVE_GENERIC_BOOL_TYPE" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE],[true],[Define if Linux kernel source has generic 'bool' type in linux/types.h])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_GENERIC_BOOL_TYPE],[true],[Define if Linux kernel source has generic 'bool' type in linux/types.h])
 fi
 
 COMEDI_CHECK_REQUEST_FIRMWARE_NOWAIT_HAS_GFP([$LINUX_SRC_DIR],
 	[REQUEST_FIRMWARE_NOWAIT_HAS_GFP="yes"],
 	[REQUEST_FIRMWARE_NOWAIT_HAS_GFP="no"])
 if test "$REQUEST_FIRMWARE_NOWAIT_HAS_GFP" = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_REQUEST_FIRMWARE_NOWAIT_HAS_GFP],[true],[Define if Linux kernel 'request_firmware_nowait' function has 'gfp' parameter])
+	AC_DEFINE([COMEDI_COMPAT_REQUEST_FIRMWARE_NOWAIT_HAS_GFP],[true],[Define if Linux kernel 'request_firmware_nowait' function has 'gfp' parameter])
 fi
 
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
@@ -183,7 +183,7 @@ if test "$HAVE_USB" = "yes" ; then
 		AC_MSG_NOTICE([USB support disabled])
 		USE_USB="no"
 	else
-		AC_DEFINE([CONFIG_COMEDI_USB],[true],[Define if using USB support])
+		AC_DEFINE([COMEDI_CONFIG_USB],[true],[Define if using USB support])
 		USE_USB="yes"
 	fi
 else
@@ -192,7 +192,7 @@ else
 	fi
 	USE_USB="no"
 fi
-AM_CONDITIONAL([CONFIG_COMEDI_USB],[test "$USE_USB" = "yes"])
+AM_CONDITIONAL([COMEDI_CONFIG_USB],[test "$USE_USB" = "yes"])
 
 COMEDI_CHECK_LINUX_KBUILD([$LINUX_SRC_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
@@ -200,16 +200,16 @@ AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_SRC_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
 if test ${HAVE_MUTEX_H} = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_MUTEX_H], [true], [Define if Linux kernel has mutex.h header])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_MUTEX_H], [true], [Define if Linux kernel has mutex.h header])
 fi
 COMEDI_CHECK_HAVE_LINUX_SEMAPHORE_H([$LINUX_SRC_DIR], [HAVE_LINUX_SEMAPHORE_H="yes"], [HAVE_LINUX_SEMAPHORE_H="no"])
 if test ${HAVE_LINUX_SEMAPHORE_H} = "yes" ; then
-	AC_DEFINE([CONFIG_COMEDI_HAVE_LINUX_SEMAPHORE_H], [true], [Define if Linux kernel has linux/semaphore.h header])
+	AC_DEFINE([COMEDI_COMPAT_HAVE_LINUX_SEMAPHORE_H], [true], [Define if Linux kernel has linux/semaphore.h header])
 fi
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 
-AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
-AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
+AC_DEFINE(COMEDI_CONFIG_DEBUG, true, [Define if debugging is enabled])
+AC_DEFINE(COMEDI_CONFIG_8255, true, [Define if 8255 support is enabled])
 
 DISTCHECK_CONFIGURE_FLAGS="--with-modulesdir=\\\$\$\(prefix\)/modules"
 AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)

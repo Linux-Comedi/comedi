@@ -49,10 +49,10 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 #include <pcmcia/cs.h>
 #endif
 #include <pcmcia/cistpl.h>
@@ -263,12 +263,12 @@ static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 static const dev_info_t devname = "ni_mio_cs";
 #else
 static const char devname[] = "ni_mio_cs";
 #endif
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 static dev_node_t dev_node = {
 	"ni_mio_cs",
 	COMEDI_MAJOR, 0,
@@ -277,17 +277,17 @@ static dev_node_t dev_node = {
 #endif
 static int cs_attach(struct pcmcia_device *link)
 {
-#ifdef CONFIG_COMEDI_HAVE_CS_H
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
 #else
 	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 	link->resource[0]->end = 16;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 #endif
 #endif
@@ -311,7 +311,7 @@ static void cs_detach(struct pcmcia_device *link)
 {
 	DPRINTK("cs_detach(link=%p)\n", link);
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	if (link->dev_node)
 #endif
 	{
@@ -332,9 +332,9 @@ static int mio_cs_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
 				unsigned int vcc,
@@ -343,8 +343,8 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 {
 	int base, ret;
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;
 	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
 	p_dev->io.NumPorts2 = 0;
@@ -358,7 +358,7 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 #endif
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		p_dev->io.BasePort1 = base;
 		ret = pcmcia_request_io(p_dev, &p_dev->io);
 #else
@@ -374,7 +374,7 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void mio_cs_config(struct pcmcia_device *link)
 {
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	u_short buf[128];
 	cisparse_t parse;
@@ -384,11 +384,11 @@ static void mio_cs_config(struct pcmcia_device *link)
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
 
-#ifndef CONFIG_COMEDI_HAVE_CS_H
+#ifndef COMEDI_COMPAT_HAVE_CS_H
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
@@ -447,7 +447,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->io.IOAddrLines = 5;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 	link->io.IOAddrLines =
 		parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
@@ -461,7 +461,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	{
 		int base;
 		for (base = 0x000; base < 0x400; base += 0x20) {
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 			link->io.BasePort1 = base;
 			ret = pcmcia_request_io(link, &link->io);
 #else
@@ -474,12 +474,12 @@ static void mio_cs_config(struct pcmcia_device *link)
 		}
 	}
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
 #endif
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	ret = pcmcia_request_irq(link, &link->irq);
 	if (ret) {
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
@@ -490,18 +490,18 @@ static void mio_cs_config(struct pcmcia_device *link)
 		dev_info(&link->dev, "no IRQ available\n");
 #endif
 
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->conf.ConfigIndex = 1;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	ret = pcmcia_request_configuration(link, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
 #else
 	ret = pcmcia_enable_device(link);
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	link->dev_node = &dev_node;
 #endif
 }
@@ -519,13 +519,13 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	dev->iobase = link->io.BasePort1;
 #else
 	dev->iobase = link->resource[0]->start;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	irq = link->irq.AssignedIRQ;
 #else
 	irq = link->irq;
@@ -579,7 +579,7 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
@@ -605,7 +605,7 @@ static int ni_getboardtype(comedi_device * dev, struct pcmcia_device *link)
 	int id;
 	int i;
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	id = link->card_id;
 #else
 	id = get_prodid(dev, link);
@@ -644,7 +644,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.resume = &mio_cs_resume,
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
 	.name = devname,
 #else
 	.drv = {

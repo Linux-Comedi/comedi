@@ -17,7 +17,7 @@ AC_DEFUN([DS_RTLINUX],
 			AC_MSG_ERROR([incorrect RTLinux directory?])
 		fi
 		AC_MSG_RESULT([found])
-		AC_DEFINE([CONFIG_COMEDI_RTL],[true],[Define if kernel is RTLinux patched])
+		AC_DEFINE([COMEDI_CONFIG_RTL],[true],[Define if kernel is RTLinux patched])
 		$1
 	else
 		$2

@@ -10,7 +10,7 @@ LINK = $(top_builddir)/modtool --link -o $@ \
 	-i .mods/ni_tio.o.symvers \
 	-i .mods/das08.o.symvers \
 	-i .mods/ni_labpc.o.symvers
-if CONFIG_COMEDI_PCI
+if COMEDI_CONFIG_PCI
 LINK += \
 	-i .mods/mite.o.symvers \
 	-i .mods/ni_tiocmd.o.symvers
@@ -29,7 +29,7 @@ ni_labpc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers \
 	-i .mods/8255.o.symvers \
 	-i .mods/comedi_fc.o.symvers
-if CONFIG_COMEDI_PCI
+if COMEDI_CONFIG_PCI
 ni_labpc_ko_LINK += \
 	-i .mods/mite.o.symvers
 endif
@@ -79,13 +79,13 @@ EXTRA_DIST = \
 
 # mpc8260cpm.ko
 
-if CONFIG_COMEDI_RT
+if COMEDI_CONFIG_RT
 rt_modules = comedi_rt_timer.ko
 else
 rt_modules =
 endif
 
-if CONFIG_COMEDI_PCI
+if COMEDI_CONFIG_PCI
 # split to build modules in correct order (for non-Kbuild builds)
 pci_modules1= \
  mite.ko \
@@ -146,7 +146,7 @@ pci_modules2=
 endif
 
 
-if CONFIG_COMEDI_PCMCIA
+if COMEDI_CONFIG_PCMCIA
 pcmcia_modules= \
  cb_das16_cs.ko \
  das08_cs.ko \
@@ -159,7 +159,7 @@ else
 pcmcia_modules=
 endif
 
-if CONFIG_COMEDI_USB
+if COMEDI_CONFIG_USB
 usb_modules= \
  usbdux.ko \
  usbduxfast.ko \

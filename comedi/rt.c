@@ -38,15 +38,15 @@
 
 #include "rt_pend_tq.h"
 
-#ifdef CONFIG_COMEDI_RTAI
+#ifdef COMEDI_CONFIG_RTAI
 #include <rtai.h>
 #endif
 
-#ifdef CONFIG_COMEDI_FUSION
+#ifdef COMEDI_CONFIG_FUSION
 #include <nucleus/asm/hal.h>
 #endif
 
-#ifdef CONFIG_COMEDI_RTL
+#ifdef COMEDI_CONFIG_RTL
 #include <rtl_core.h>
 #include <rtl_sync.h>
 #endif
@@ -176,7 +176,7 @@ void comedi_rt_pend_wakeup(wait_queue_head_t * q)
 }
 
 /* RTAI section */
-#ifdef CONFIG_COMEDI_RTAI
+#ifdef COMEDI_CONFIG_RTAI
 
 #ifndef HAVE_RT_REQUEST_IRQ_WITH_ARG
 #define DECLARE_VOID_IRQ(irq) \
@@ -302,7 +302,7 @@ void comedi_rt_cleanup(void)
 #endif
 
 /* Fusion section */
-#ifdef CONFIG_COMEDI_FUSION
+#ifdef COMEDI_CONFIG_FUSION
 
 static void fusion_handle_irq(unsigned int irq, void *cookie)
 {
@@ -336,10 +336,10 @@ void comedi_rt_cleanup(void)
 	rt_pend_tq_cleanup();
 }
 
-#endif /*CONFIG_COMEDI_FUSION */
+#endif /*COMEDI_CONFIG_FUSION */
 
 /* RTLinux section */
-#ifdef CONFIG_COMEDI_RTL
+#ifdef COMEDI_CONFIG_RTL
 
 static unsigned int handle_rtl_irq(unsigned int irq PT_REGS_ARG)
 {
@@ -377,7 +377,7 @@ void comedi_rt_cleanup(void)
 
 #endif
 
-#ifdef CONFIG_COMEDI_PIRQ
+#ifdef COMEDI_CONFIG_PIRQ
 static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	int ret;

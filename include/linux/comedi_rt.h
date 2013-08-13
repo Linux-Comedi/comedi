@@ -38,14 +38,14 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 
-#ifdef CONFIG_COMEDI_RTAI
+#ifdef COMEDI_CONFIG_RTAI
 #include <rtai.h>
 #include <rtai_sched.h>
 #include <rtai_version.h>
 #endif
-#ifdef CONFIG_COMEDI_RTL
+#ifdef COMEDI_CONFIG_RTL
 #include <rtl_core.h>
 #include <rtl_time.h>
 //#ifdef RTLINUX_VERSION_CODE
@@ -53,9 +53,9 @@
 //#endif
 #define rt_printk rtl_printf
 #endif
-#ifdef CONFIG_COMEDI_FUSION
+#ifdef COMEDI_CONFIG_FUSION
 #define rt_printk(format, args...) printk(format , ## args )
-#endif /* CONFIG_COMEDI_FUSION */
+#endif /* COMEDI_CONFIG_FUSION */
 #ifdef CONFIG_PRIORITY_IRQ
 #define rt_printk printk
 #endif
@@ -96,16 +96,16 @@ static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t * lock_ptr)
 {
 	unsigned long flags;
 
-#if defined(CONFIG_COMEDI_RTAI)
+#if defined(COMEDI_CONFIG_RTAI)
 	flags = rt_spin_lock_irqsave(lock_ptr);
 
-#elif defined(CONFIG_COMEDI_RTL)
+#elif defined(COMEDI_CONFIG_RTL)
 	rtl_spin_lock_irqsave(lock_ptr, flags);
 
-#elif defined(CONFIG_COMEDI_RTL_V1)
+#elif defined(COMEDI_CONFIG_RTL_V1)
 	rtl_spin_lock_irqsave(lock_ptr, flags);
 
-#elif defined(CONFIG_COMEDI_FUSION)
+#elif defined(COMEDI_CONFIG_FUSION)
 	rthal_spin_lock_irqsave(lock_ptr, flags);
 #else
 	spin_lock_irqsave(lock_ptr, flags);
@@ -119,15 +119,15 @@ static inline void comedi_spin_unlock_irqrestore(spinlock_t * lock_ptr,
 	unsigned long flags)
 {
 
-#if defined(CONFIG_COMEDI_RTAI)
+#if defined(COMEDI_CONFIG_RTAI)
 	rt_spin_unlock_irqrestore(flags, lock_ptr);
 
-#elif defined(CONFIG_COMEDI_RTL)
+#elif defined(COMEDI_CONFIG_RTL)
 	rtl_spin_unlock_irqrestore(lock_ptr, flags);
 
-#elif defined(CONFIG_COMEDI_RTL_V1)
+#elif defined(COMEDI_CONFIG_RTL_V1)
 	rtl_spin_unlock_irqrestore(lock_ptr, flags);
-#elif defined(CONFIG_COMEDI_FUSION)
+#elif defined(COMEDI_CONFIG_FUSION)
 	rthal_spin_unlock_irqrestore(lock_ptr, flags);
 #else
 	spin_unlock_irqrestore(lock_ptr, flags);
@@ -139,10 +139,10 @@ static inline void comedi_spin_unlock_irqrestore(spinlock_t * lock_ptr,
 /* define a RT safe udelay */
 static inline void comedi_udelay(unsigned int usec)
 {
-#if defined(CONFIG_COMEDI_RTAI)
+#if defined(COMEDI_CONFIG_RTAI)
 	static const int nanosec_per_usec = 1000;
 	rt_busy_sleep(usec * nanosec_per_usec);
-#elif defined(CONFIG_COMEDI_RTL)
+#elif defined(COMEDI_CONFIG_RTL)
 	static const int nanosec_per_usec = 1000;
 	rtl_delay(usec * nanosec_per_usec);
 #else

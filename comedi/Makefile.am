@@ -53,7 +53,7 @@ EXTRA_DIST = \
  comedi_fops.h \
  comedi_compat32.h
 
-if CONFIG_COMEDI_RT
+if COMEDI_CONFIG_RT
 RT_SOURCES = rt_pend_tq.c rt.c
 else
 RT_SOURCES =

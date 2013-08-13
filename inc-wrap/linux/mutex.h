@@ -28,7 +28,7 @@
 #include <linux/config.h>
 #include <linux/comedi-config.h>
 
-#ifdef CONFIG_COMEDI_HAVE_MUTEX_H
+#ifdef COMEDI_COMPAT_HAVE_MUTEX_H
 
 #include_next <linux/mutex.h>
 
@@ -39,7 +39,7 @@
 #endif
 #endif
 
-#else /* HAVE_MUTEX_H */
+#else /* COMEDI_COMPAT_HAVE_MUTEX_H */
 
 #include <asm/semaphore.h>
 
@@ -54,6 +54,6 @@
  * code using 'mutex' as an identifier has to be careful with include order. */
 #define mutex semaphore		/* "struct mutex" becomes "struct semaphore" */
 
-#endif /* HAVE_MUTEX_H */
+#endif /* COMEDI_COMPAT_HAVE_MUTEX_H */
 
 #endif /* __COMPAT_LINUX_MUTEX_H_ */

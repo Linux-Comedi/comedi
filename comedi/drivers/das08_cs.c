@@ -48,10 +48,10 @@ Command support does not exist, but could be added for this board.
 #include "das08.h"
 
 // pcmcia includes
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 #include <pcmcia/cs.h>
 #endif
 #include <pcmcia/cistpl.h>
@@ -91,7 +91,7 @@ static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it)
 			printk(" no pcmcia cards found\n");
 			return -EIO;
 		}
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		iobase = link->io.BasePort1;
 #else
 		iobase = link->resource[0]->start;
@@ -163,7 +163,7 @@ static void das08_pcmcia_detach(struct pcmcia_device *);
    database.
 */
 
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 static const dev_info_t devname = "pcm-das08";
 #else
 static const char devname[] = "pcm-das08";
@@ -171,7 +171,7 @@ static const char devname[] = "pcm-das08";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -203,16 +203,16 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 #endif
 	link->irq.Handler = NULL;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -245,7 +245,7 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "das08_pcmcia_detach(0x%p)\n", link);
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	if (link->dev_node)
 #endif
 	{
@@ -267,8 +267,8 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -279,7 +279,7 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 #endif
 	{
@@ -287,7 +287,7 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* IO window settings */
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
@@ -328,7 +328,7 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 #endif
 	return 0;
 }
-#else	/* CONFIG_COMEDI_HAVE_CS_H */
+#else	/* COMEDI_COMPAT_HAVE_CS_H */
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -337,16 +337,16 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	return pcmcia_request_io(p_dev);
 }
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
-#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void das08_pcmcia_config(struct pcmcia_device *link)
 {
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	local_info_t *dev = link->priv;
 #endif
 	int last_ret;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_fn;
@@ -356,12 +356,12 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 
 	DEBUG(0, "das08_pcmcia_config(0x%p)\n", link);
 
-#ifndef CONFIG_COMEDI_HAVE_CS_H
+#ifndef COMEDI_COMPAT_HAVE_CS_H
 	/* Do we need to allocate an interrupt? */
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_ret = pcmcia_loop_config(link, das08_pcmcia_config_loop, NULL);
 	if (last_ret) {
 		dev_warn(&link->dev, "no configuration found\n");
@@ -425,7 +425,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	}
 */
 		/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
 #endif
 		{
@@ -433,7 +433,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 		}
 
 		/* IO window settings */
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
@@ -485,9 +485,9 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	}
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
 #endif
 		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
@@ -504,10 +504,10 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	last_ret = pcmcia_request_configuration(link, &link->conf);
 #else
 	last_ret = pcmcia_enable_device(link);
@@ -515,7 +515,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	if (last_ret)
 		goto cs_failed;
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	/*
 	   At this point, the dev_node_t structure(s) need to be
 	   initialized and arranged in a linked list at link->dev.
@@ -525,9 +525,9 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/* Finally, report what we've done */
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
 		dev->node.dev_name, link->conf.ConfigIndex);
 #else
@@ -535,13 +535,13 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u",
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
 			link->irq
 #endif
 			);
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -555,12 +555,12 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 		printk(" & %pR", link->resource[1]);
 #endif
 	printk("\n");
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
 
       cs_failed:
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	cs_error(link, last_fn, last_ret);
 #endif
 	das08_pcmcia_release(link);
@@ -626,7 +626,7 @@ struct pcmcia_driver das08_cs_driver = {
 	.resume = das08_pcmcia_resume,
 	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
 	.name = devname,
 #else
 	.drv = {

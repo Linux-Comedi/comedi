@@ -189,7 +189,7 @@ static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int labpc_find_device(comedi_device *dev, int bus, int slot);
 #endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
@@ -397,7 +397,7 @@ static const labpc_board labpc_boards[] = {
 	      ai_scan_up:0,
 	      memory_mapped_io:0,
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 		name:	"pci-1200",
 		device_id:0x161,
@@ -439,14 +439,14 @@ static comedi_driver driver_labpc = {
 	.offset = sizeof(labpc_board),
 };
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
-#endif /* CONFIG_COMEDI_PCI */
+#endif /* COMEDI_CONFIG_PCI */
 
 static inline int labpc_counter_load(comedi_device * dev,
 	unsigned long base_address, unsigned int counter_number,
@@ -649,7 +649,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	int retval;
 #endif
 
@@ -665,7 +665,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 		dma_chan = it->options[2];
 		break;
 	case pci_bustype:
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 		retval = labpc_find_device(dev, it->options[0], it->options[1]);
 		if (retval < 0) {
 			return retval;
@@ -694,7 +694,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 }
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static int labpc_find_device(comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
@@ -741,7 +741,7 @@ int labpc_common_detach(comedi_device * dev)
 		comedi_free_irq(dev->irq, dev);
 	if (thisboard->bustype == isa_bustype && dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	if (devpriv->mite)
 		mite_unsetup(devpriv->mite);
 #endif
@@ -2016,7 +2016,7 @@ static void write_caldac(comedi_device * dev, unsigned int channel,
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 COMEDI_PCI_INITCLEANUP(driver_labpc, labpc_pci_table);
 #else
 COMEDI_INITCLEANUP(driver_labpc);

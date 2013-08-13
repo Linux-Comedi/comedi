@@ -729,7 +729,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: rtd520 attaching.\n", dev->minor);
 
-#if defined (CONFIG_COMEDI_DEBUG) && defined (USE_DMA)
+#if defined (COMEDI_CONFIG_DEBUG) && defined (USE_DMA)
 	/* You can set this a load time: modprobe comedi comedi_debug=1 */
 	if (0 == comedi_debug)	/* force DMA debug printks */
 		comedi_debug = 1;

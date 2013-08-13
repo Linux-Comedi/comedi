@@ -26,7 +26,7 @@
 
 #include <linux/comedidev.h>
 
-#if defined(CONFIG_COMEDI_8255) || defined(CONFIG_COMEDI_8255_MODULE)
+#if defined(COMEDI_CONFIG_8255) || defined(COMEDI_CONFIG_8255_MODULE)
 
 int subdev_8255_init(comedi_device * dev, comedi_subdevice * s,
 	int (*cb) (int, int, int, unsigned long), unsigned long arg);

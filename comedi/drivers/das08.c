@@ -388,7 +388,7 @@ static const struct das08_board_struct das08_boards[] = {
 	      i8254_offset:0x04,
 	      iosize:	16,	// unchecked
 		},
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	{
 	      name:	"das08",	// pci-das08
 	      id:	PCI_DEVICE_ID_PCIDAS08,
@@ -457,7 +457,7 @@ static const struct das08_board_struct das08_boards[] = {
 #endif
 };
 
-#ifdef CONFIG_COMEDI_PCMCIA
+#ifdef COMEDI_CONFIG_PCMCIA
 struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	{
 	      name:	"pcm-das08",
@@ -497,7 +497,7 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 };
 #endif
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_PCIDAS08, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, 0},
@@ -960,7 +960,7 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	unsigned long pci_iobase = 0;
 	struct pci_dev *pdev;
 #endif
@@ -971,7 +971,7 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: das08: ", dev->minor);
 	// deal with a pci board
 	if (thisboard->bustype == pci) {
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 		if (it->options[0] || it->options[1]) {
 			printk("bus %i slot %i ",
 				it->options[0], it->options[1]);
@@ -1020,10 +1020,10 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 		/* Enable local interrupt 1 and pci interrupt */
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
 #endif
-#else	/* CONFIG_COMEDI_PCI */
+#else	/* COMEDI_CONFIG_PCI */
 		printk("this driver has not been built with PCI support.\n");
 		return -EINVAL;
-#endif	/* CONFIG_COMEDI_PCI */
+#endif	/* COMEDI_CONFIG_PCI */
 	} else {
 		iobase = it->options[0];
 	}
@@ -1045,7 +1045,7 @@ int das08_common_detach(comedi_device * dev)
 			release_region(dev->iobase, thisboard->iosize);
 	}
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 	if (devpriv) {
 		if (devpriv->pdev) {
 			if (devpriv->pci_iobase) {
@@ -1059,7 +1059,7 @@ int das08_common_detach(comedi_device * dev)
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef COMEDI_CONFIG_PCI
 COMEDI_PCI_INITCLEANUP(driver_das08, das08_pci_table);
 #else
 COMEDI_INITCLEANUP(driver_das08);
@@ -1067,6 +1067,6 @@ COMEDI_INITCLEANUP(driver_das08);
 
 EXPORT_SYMBOL_GPL(das08_common_attach);
 EXPORT_SYMBOL_GPL(das08_common_detach);
-#ifdef CONFIG_COMEDI_PCMCIA
+#ifdef COMEDI_CONFIG_PCMCIA
 EXPORT_SYMBOL_GPL(das08_cs_boards);
 #endif

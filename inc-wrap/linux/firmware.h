@@ -8,7 +8,7 @@
 
 #include_next <linux/firmware.h>
 
-#ifdef CONFIG_COMEDI_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
+#ifdef COMEDI_COMPAT_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
 
 /* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
  * of request_firmware_nowait().  This version just calls

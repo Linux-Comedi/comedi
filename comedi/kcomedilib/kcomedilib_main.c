@@ -150,7 +150,7 @@ int comedi_command(comedi_t * d, comedi_cmd * cmd)
 
 	runflags = SRF_RUNNING;
 
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 	if (comedi_switch_to_rt(dev) == 0)
 		runflags |= SRF_RT;
 #endif
@@ -446,7 +446,7 @@ int comedi_cancel(comedi_t * d, unsigned int subdevice)
 	if ((ret = s->cancel(dev, s)))
 		return ret;
 
-#ifdef CONFIG_COMEDI_RT
+#ifdef COMEDI_CONFIG_RT
 	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
 		comedi_switch_to_non_rt(dev);
 	}

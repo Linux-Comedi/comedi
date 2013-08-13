@@ -90,8 +90,8 @@ Configuration options:
 #include <linux/usb.h>
 
 // (un)comment this if you want to have debug info.
-//#define CONFIG_COMEDI_DEBUG
-#undef  CONFIG_COMEDI_DEBUG
+//#define COMEDI_CONFIG_DEBUG
+#undef  COMEDI_CONFIG_DEBUG
 
 #define BOARDNAME "usbduxfast"
 
@@ -223,7 +223,7 @@ static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 {
 	int result, nsent;
 	this_usbduxfastsub->dux_commands[0] = cmd_type;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	int i;
 	printk("comedi%d: usbduxfast: dux_commands: ",
 		this_usbduxfastsub->comedidev->minor);
@@ -263,7 +263,7 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t * usbduxfastsub_tmp)
 		j = 0;
 #endif
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi: usbduxfast: unlinked InURB: res=%d\n", j);
 #endif
 	return err;
@@ -281,7 +281,7 @@ static int usbduxfast_ai_stop(usbduxfastsub_t * this_usbduxfastsub,
 		printk("comedi?: usbduxfast_ai_stop: this_usbduxfastsub=NULL!\n");
 		return -EFAULT;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi: usbduxfast_ai_stop\n");
 #endif
 
@@ -304,7 +304,7 @@ static int usbduxfast_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 	int res = 0;
 
 	// force unlink of all urbs
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi: usbduxfast_ai_cancel\n");
 #endif
 	this_usbduxfastsub = dev->private;
@@ -587,7 +587,7 @@ int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 		usbduxfastsub->transfer_buffer,
 		SIZEINBUF, usbduxfastsub_ai_Irq, usbduxfastsub->comedidev);
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
 		usbduxfastsub->comedidev->minor,
 		(int)(usbduxfastsub->urbIn->context),
@@ -613,7 +613,7 @@ static int usbduxfast_ai_cmdtest(comedi_device * dev,
 	if (!(this_usbduxfastsub->probed)) {
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast_ai_cmdtest\n", dev->minor);
 	printk("comedi%d: usbduxfast: convert_arg=%u scan_begin_arg=%u\n",
 		dev->minor, cmd->convert_arg, cmd->scan_begin_arg);
@@ -752,7 +752,7 @@ static int usbduxfast_ai_inttrig(comedi_device * dev,
 		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast_ai_inttrig\n", dev->minor);
 #endif
 
@@ -796,7 +796,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	int result;
 	long steps, steps_tmp;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast_ai_cmd\n", dev->minor);
 #endif
 	if (!this_usbduxfastsub) {
@@ -866,7 +866,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast: steps=%ld, convert_arg=%u, ai_timer=%u\n",
 		dev->minor,
 		steps, cmd->convert_arg, this_usbduxfastsub->ai_timer);
@@ -1120,7 +1120,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -EFAULT;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi %d: sending commands to the usb device\n", dev->minor);
 #endif
 	// 0 means that the AD commands are sent
@@ -1180,7 +1180,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		printk("comedi%d: ai_insn_read: no usb dev.\n", dev->minor);
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: ai_insn_read, insn->n=%d, insn->subdev=%d\n",
 		dev->minor, insn->n, insn->subdev);
 #endif
@@ -1241,7 +1241,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	usbduxfastsub->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE + 0] = 0;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi %d: sending commands to the usb device\n", dev->minor);
 #endif
 	// 0 means that the AD commands are sent
@@ -1251,7 +1251,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		mutex_unlock(&usbduxfastsub->mutex);
 		return err;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
 		usbduxfastsub->comedidev->minor,
 		(int)(usbduxfastsub->urbIn->context),
@@ -1418,7 +1418,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 
 static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 {
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: tiding up\n");
 #endif
 	if (!usbduxfastsub_tmp) {
@@ -1513,7 +1513,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast_: This driver needs USB 2.0 to operate. Aborting...\n");
 		return PROBE_ERR_RETURN(-ENODEV);
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast_: finding a free structure for the usb-device\n");
 #endif
 	mutex_lock(&start_stop_mutex);
@@ -1532,7 +1532,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-EMFILE);
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: usbduxfastsub[%d] is ready to connect to comedi.\n", index);
 #endif
 
@@ -1553,7 +1553,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	usb_set_intfdata(uinterf, &(usbduxfastsub[index]));
 #endif
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: ifnum=%d\n", usbduxfastsub[index].ifnum);
 #endif
 	// create space for the commands going to the usb device
@@ -1653,7 +1653,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 	tidy_up(usbduxfastsub_tmp);
 	mutex_unlock(&usbduxfastsub_tmp->mutex);
 	mutex_unlock(&start_stop_mutex);
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: disconnected from the usb\n");
 #endif
 }
@@ -1755,7 +1755,7 @@ static int usbduxfast_detach(comedi_device * dev)
 {
 	usbduxfastsub_t *usbduxfastsub_tmp;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast: detach usb device\n", dev->minor);
 #endif
 
@@ -1777,7 +1777,7 @@ static int usbduxfast_detach(comedi_device * dev)
 	dev->private = NULL;
 	usbduxfastsub_tmp->attached = 0;
 	usbduxfastsub_tmp->comedidev = NULL;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi%d: usbduxfast: detach: successfully removed\n",
 		dev->minor);
 #endif
@@ -1797,7 +1797,7 @@ static comedi_driver driver_usbduxfast = {
 static void init_usb_devices(void)
 {
 	int index;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: setting all possible devs to invalid\n");
 #endif
 	// all devices entries are invalid to begin with
@@ -1834,7 +1834,7 @@ MODULE_DEVICE_TABLE(usb, usbduxfastsub_table);
 
 // The usbduxfastsub-driver
 static struct usb_driver usbduxfastsub_driver = {
-#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
+#ifdef COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER
       owner:THIS_MODULE,
 #endif
       name:BOARDNAME,

@@ -51,10 +51,10 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include <linux/version.h>
 #include <linux/semaphore.h>
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 #include <pcmcia/cs.h>
 #endif
 #include <pcmcia/cistpl.h>
@@ -85,7 +85,7 @@ static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -271,7 +271,7 @@ static int daqp_ai_cancel(comedi_device * dev, comedi_subdevice * s)
  * comedi kernel module, and signal various comedi callback routines,
  * which run pretty quick.
  */
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 typedef irqreturn_t my_irqreturn_t;
 #define MY_IRQ_NONE	IRQ_NONE
 #define MY_IRQ_HANDLED	IRQ_HANDLED
@@ -887,7 +887,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	local_info_t *local = dev_table[it->options[0]];
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	int i;
 #endif
@@ -910,7 +910,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 	strcpy(local->board_name, "DAQP");
 	dev->board_name = local->board_name;
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	if (local->link->prod_id[2]) {
 		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
 			strncpy(local->board_name, local->link->prod_id[2],
@@ -944,7 +944,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	dev->iobase = local->link->io.BasePort1;
 #else
 	dev->iobase = local->link->resource[0]->start;
@@ -1077,7 +1077,7 @@ static void daqp_cs_detach(struct pcmcia_device *);
    database.
 */
 
-#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+#ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 static const dev_info_t devname = "quatech_daqp_cs";
 #else
 static const char devname[] = "quatech_daqp_cs";
@@ -1120,19 +1120,19 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 #endif
 	link->irq.Handler = daqp_interrupt;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.Instance = local;
 #endif
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -1164,7 +1164,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	if (link->dev_node)
 #endif
 	{
@@ -1187,8 +1187,8 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -1199,14 +1199,14 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 #endif
 	{
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 	}
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
@@ -1250,7 +1250,7 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 #endif
 }
-#else	/* CONFIG_COMEDI_HAVE_CS_H */
+#else	/* COMEDI_COMPAT_HAVE_CS_H */
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
@@ -1259,16 +1259,16 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	return pcmcia_request_io(p_dev);
 }
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
-#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	local_info_t *dev = link->priv;
 #endif
 	int last_ret;
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_fn;
@@ -1277,12 +1277,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 
 	DEBUG(0, "daqp_cs_config(0x%p)\n", link);
 
-#ifndef CONFIG_COMEDI_HAVE_CS_H
+#ifndef COMEDI_COMPAT_HAVE_CS_H
 	/* Do we need to allocate an interrupt? */
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
 	if (last_ret) {
 		dev_warn(&link->dev, "no configuration found\n");
@@ -1345,14 +1345,14 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		link->conf.ConfigIndex = cfg->index;
 
 		/* Do we need to allocate an interrupt? */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
 #endif
 		{
 			link->conf.Attributes |= CONF_ENABLE_IRQ;
 		}
 
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 		/* IO window settings */
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
@@ -1414,14 +1414,14 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 #endif
 	{
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		last_ret = pcmcia_request_irq(link, &link->irq);
 #else
 		last_ret = pcmcia_request_irq(link, daqp_interrupt);
@@ -1435,10 +1435,10 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	last_ret = pcmcia_request_configuration(link, &link->conf);
 #else
 	last_ret = pcmcia_enable_device(link);
@@ -1446,7 +1446,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	if (last_ret)
 		goto cs_failed;
 
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	/*
 	   At this point, the dev_node_t structure(s) need to be
 	   initialized and arranged in a linked list at link->dev.
@@ -1460,9 +1460,9 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
-#ifdef CONFIG_COMEDI_HAVE_CS_H
+#ifdef COMEDI_COMPAT_HAVE_CS_H
 	/* Finally, report what we've done */
-#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef COMEDI_COMPAT_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
 		dev->node.dev_name, link->conf.ConfigIndex);
 #else
@@ -1470,13 +1470,13 @@ static void daqp_cs_config(struct pcmcia_device *link)
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u",
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
 			link->irq
 #endif
 			);
-#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
+#ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -1490,12 +1490,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		printk(" & %pR", link->resource[1]);
 #endif
 	printk("\n");
-#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
 
       cs_failed:
-#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifndef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	cs_error(link, last_fn, last_ret);
 #endif
 	daqp_cs_release(link);
@@ -1557,7 +1557,7 @@ struct pcmcia_driver daqp_cs_driver = {
 	.resume = daqp_cs_resume,
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
-#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+#ifdef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
 	.name = devname,
 #else
 	.drv = {
