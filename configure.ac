@@ -4,7 +4,7 @@ AC_PREREQ(2.53)
 dnl For second parameter of AC_INIT, use [$major.$minor.$micro] for releases,
 dnl otherwise [$major.$minor.$micro.$nano], where $nano is 1 for Git,
 dnl $nano is >= 2 for prereleases.
-AC_INIT([Comedi],[0.7.76],[comedi_list@googlegroups.com],[comedi],
+AC_INIT([Comedi],[0.7.76.1],[comedi_list@googlegroups.com],[comedi],
 	[http://www.comedi.org/])
 AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
