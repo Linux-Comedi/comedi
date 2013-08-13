@@ -1,5 +1,11 @@
 
-AC_INIT([comedi],[0.7.76])
+AC_PREREQ(2.53)
+
+dnl For second parameter of AC_INIT, use [$major.$minor.$micro] for releases,
+dnl otherwise [$major.$minor.$micro.$nano], where $nano is 1 for Git,
+dnl $nano is >= 2 for prereleases.
+AC_INIT([Comedi],[0.7.76],[comedi_list@googlegroups.com],[comedi],
+	[http://www.comedi.org/])
 AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
 
@@ -9,27 +15,21 @@ if test x$prefix = xNONE ; then
   prefix=/
 fi
 
-PACKAGE=comedi
-COMEDI_MAJORVERSION=0
-COMEDI_MINORVERSION=7
-COMEDI_MICROVERSION=76
-# set the nanoversion to 0 for releases, 1 for Git, >= 2 for prereleases
-COMEDI_NANOVERSION=0
-
-if test x$COMEDI_NANOVERSION = x0 ; then
-  VERSION=$COMEDI_MAJORVERSION.$COMEDI_MINORVERSION.$COMEDI_MICROVERSION
-else
-  VERSION=$COMEDI_MAJORVERSION.$COMEDI_MINORVERSION.$COMEDI_MICROVERSION.$COMEDI_NANOVERSION
-fi
+COMEDI_MAJORVERSION=[`expr $PACKAGE_VERSION : '^\([0-9][0-9]*\)' '|' 0 + 0`]
+COMEDI_MINORVERSION=[`expr $PACKAGE_VERSION : \
+	'^[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
+COMEDI_MICROVERSION=[`expr $PACKAGE_VERSION : \
+	'^[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
+COMEDI_NANOVERSION=[`expr $PACKAGE_VERSION : \
+	'^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
 
 AM_INIT_AUTOMAKE([])
 AM_MAINTAINER_MODE
 
-AC_SUBST(PACKAGE)
-AC_SUBST(VERSION)
 AC_DEFINE_UNQUOTED(COMEDI_MAJORVERSION, $COMEDI_MAJORVERSION, [Comedi major version])
 AC_DEFINE_UNQUOTED(COMEDI_MINORVERSION, $COMEDI_MINORVERSION, [Comedi minor version])
 AC_DEFINE_UNQUOTED(COMEDI_MICROVERSION, $COMEDI_MICROVERSION, [Comedi micro version])
+AC_DEFINE_UNQUOTED(COMEDI_NANOVERSION, $COMEDI_NANOVERSION, [Comedi nano version])
 
 AC_PROG_CC()
 AM_PROG_CC_C_O
