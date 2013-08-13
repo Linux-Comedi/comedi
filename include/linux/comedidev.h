@@ -47,7 +47,7 @@
 
 #include <linux/comedi.h>
 
-#include <config.h>
+#include <linux/comedi-config.h>
 
 #define DPRINTK(format, args...)	do{				\
 	if(comedi_debug)printk("comedi: " format , ## args );		\

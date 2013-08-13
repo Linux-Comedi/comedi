@@ -8,6 +8,7 @@ AC_INIT([Comedi],[0.7.76.1],[comedi_list@googlegroups.com],[comedi],
 	[http://www.comedi.org/])
 AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
+AC_CONFIG_HEADERS(include/linux/comedi-config.h)
 
 AC_CANONICAL_TARGET([])
 
