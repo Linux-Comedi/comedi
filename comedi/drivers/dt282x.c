@@ -1171,10 +1171,21 @@ static int dt282x_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	int mask;
 
 	mask = (CR_CHAN(insn->chanspec) < 8) ? 0x00ff : 0xff00;
-	if (data[0])
-		s->io_bits |= mask;
-	else
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~mask;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (s->io_bits & 0x00ff)
 		devpriv->dacsr |= DT2821_LBOE;
@@ -1187,7 +1198,7 @@ static int dt282x_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return 1;
+	return insn->n;
 }
 
 static const comedi_lrange *const ai_range_table[] = {
