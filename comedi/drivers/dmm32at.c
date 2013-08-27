@@ -1012,9 +1012,6 @@ static int dmm32at_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	unsigned char chanbit;
 	int chan = CR_CHAN(insn->chanspec);
 
-	if (insn->n != 1)
-		return -EINVAL;
-
 	if (chan < 8)
 		chanbit = DMM32AT_DIRA;
 	else if (chan < 16)
@@ -1027,14 +1024,25 @@ static int dmm32at_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	 * value COMEDI_INPUT (INSN_CONFIG_DIO_INPUT) or COMEDI_OUTPUT
+	 * (INSN_CONFIG_DIO_OUTPUT) or INSN_CONFIG_DIO_QUERY. */
 
 	/* if output clear the bit, otherwise set it */
-	if (data[0] == COMEDI_OUTPUT) {
-		devpriv->dio_config &= ~chanbit;
-	} else {
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		devpriv->dio_config |= chanbit;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		devpriv->dio_config &= ~chanbit;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (devpriv->dio_config & chanbit) ?
+			COMEDI_INPUT : COMEDI_OUTPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
 	}
+
 	/* get access to the DIO regs */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_DIOACC);
 	/* set the DIO's to the new configuration setting */
