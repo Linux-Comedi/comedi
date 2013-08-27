@@ -653,14 +653,21 @@ static int atmio16d_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int atmio16d_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int i;
 	int mask;
 
-	for (i = 0; i < insn->n; i++) {
-		mask = (CR_CHAN(insn->chanspec) < 4) ? 0x0f : 0xf0;
+	mask = (CR_CHAN(insn->chanspec) < 4) ? 0x0f : 0xf0;
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~mask;
-		if (data[i])
-			s->io_bits |= mask;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
 	}
 	devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0 | COMREG2_DOUTEN1);
 	if (s->io_bits & 0x0f)
@@ -669,7 +676,7 @@ static int atmio16d_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 		devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
 	outw(devpriv->com_reg_2_state, dev->iobase + COM_REG_2);
 
-	return i;
+	return insn->n;
 }
 
 /*
