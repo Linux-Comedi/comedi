@@ -65,9 +65,6 @@ static int dt2817_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	int chan;
 	int oe = 0;
 
-	if (insn->n != 1)
-		return -EINVAL;
-
 	chan = CR_CHAN(insn->chanspec);
 	if (chan < 8) {
 		mask = 0xff;
@@ -77,10 +74,21 @@ static int dt2817_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 		mask = 0xff0000;
 	} else
 		mask = 0xff000000;
-	if (data[0])
-		s->io_bits |= mask;
-	else
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~mask;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (s->io_bits & 0x000000ff)
 		oe |= 0x1;
@@ -93,7 +101,7 @@ static int dt2817_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 	outb(oe, dev->iobase + DT2817_CR);
 
-	return 1;
+	return insn->n;
 }
 
 static int dt2817_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
