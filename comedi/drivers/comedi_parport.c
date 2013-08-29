@@ -126,16 +126,23 @@ static int parport_insn_a(comedi_device * dev, comedi_subdevice * s,
 static int parport_insn_config_a(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	if (data[0]) {
-		s->io_bits = 0xff;
-		devpriv->c_data &= ~(1 << 5);
-	} else {
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits = 0;
 		devpriv->c_data |= (1 << 5);
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits = 0xff;
+		devpriv->c_data &= ~(1 << 5);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		return s->io_bits ? COMEDI_OUTPUT : COMEDI_INPUT;
+	default:
+		return -EINVAL;
 	}
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	return 1;
+	return insn->n;
 }
 
 static int parport_insn_b(comedi_device * dev, comedi_subdevice * s,
