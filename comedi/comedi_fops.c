@@ -2030,9 +2030,11 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 	mutex_unlock(&dev->mutex);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 	if (file->f_flags & FASYNC) {
 		comedi_fasync(-1, file, 0);
 	}
+#endif
 
 	return 0;
 }
