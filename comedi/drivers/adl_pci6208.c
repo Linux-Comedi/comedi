@@ -222,19 +222,20 @@ static int pci6208_detach(comedi_device * dev)
 static int pci6208_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int i = 0, Data_Read;
+	int i, Data_Read;
 	unsigned short chan = CR_CHAN(insn->chanspec);
-	unsigned long invert = 1 << (16 - 1);
-	unsigned long out_value;
+	lsampl_t invert = 1 << (16 - 1);
+	lsampl_t out_value;
+
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
-		out_value = data[i] ^ invert;
+		out_value = data[i];
 		/* a typical programming sequence */
 		do {
 			Data_Read = (inw(dev->iobase) & 1);
 		} while (Data_Read);
-		outw(out_value, dev->iobase + (0x02 * chan));
+		outw(out_value ^ invert, dev->iobase + (0x02 * chan));
 		devpriv->ao_readback[chan] = out_value;
 	}
 
