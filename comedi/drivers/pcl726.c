@@ -314,7 +314,7 @@ static int pcl726_attach(comedi_device * dev, comedi_devconfig * it)
 	for (i = 0; i < this_board->n_aochan; i++) {
 		int j;
 
-		j = it->options[2 + 1];
+		j = it->options[2 + i];
 		if ((j < 0) || (j >= this_board->num_of_ranges)) {
 			printk("Invalid range for channel %d! Must be 0<=%d<%d\n", i, j, this_board->num_of_ranges - 1);
 			j = 0;
