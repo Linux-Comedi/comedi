@@ -56,10 +56,6 @@ typedef struct pcidio_board_struct {
 	const char *name;	// name of the board
 	int dev_id;
 	int n_8255;		// number of 8255 chips on board
-
-	// indices of base address regions
-	int pcicontroler_badrindex;
-	int dioregs_badrindex;
 } pcidio_board;
 
 static const pcidio_board pcidio_boards[] = {
@@ -67,22 +63,16 @@ static const pcidio_board pcidio_boards[] = {
 	      name:	"pci-dio24",
 	      dev_id:	0x0028,
 	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
 		},
 	{
 	      name:	"pci-dio24h",
 	      dev_id:	0x0014,
 	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
 		},
 	{
 	      name:	"pci-dio48h",
 	      dev_id:	0x000b,
 	      n_8255:	2,
-	      pcicontroler_badrindex:0,
-	      dioregs_badrindex:1,
 		},
 };
 
@@ -240,10 +230,18 @@ static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("cb_pcidio: failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
-	devpriv->dio_reg_base
-		=
-		pci_resource_start(devpriv->pci_dev,
-		pcidio_boards[index].dioregs_badrindex);
+	/*
+	 * At some point, they switched from using AMCC S5933 (I think) PCI
+	 * interface chip with user registers in BAR 1 to using PLX
+	 * PCI9050/PCI9052 chip with user registers in BAR 2, but they kept the
+	 * same PCI device ID (although they did set the PCI subvendor and
+	 * subdevice ID on the newer cards as well).
+	 *
+	 * Use BAR 2 if it exists (for PLX), otherwise use BAR 1 (for AMCC).
+	 */
+	devpriv->dio_reg_base =
+		pci_resource_start(pcidev,
+			(pci_resource_len(pcidev, 2) ? 2 : 1));
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
