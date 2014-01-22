@@ -109,6 +109,7 @@ Configuration options:
 #include "comedi_fc.h"
 #include <linux/comedidev.h>
 #include <linux/usb.h>
+#include <asm/unaligned.h>
 
 #define BOARDNAME "usbduxsigma"
 
@@ -1409,7 +1410,7 @@ static int usbdux_ai_insn_read(comedi_device *dev,
 			return 0;
 		}
 		/* 32 bits big endian from the A/D converter */
-		one = be32_to_cpu(*((int32_t *)
+		one = be32_to_cpu(get_unaligned((int32_t *)
 				    ((this_usbduxsub->insnBuffer)+1)));
 		/* mask out the staus byte */
 		one = one & 0x00ffffff;
@@ -1481,7 +1482,8 @@ static int usbdux_getstatusinfo(comedi_device *dev, int chan)
 		return err;
 
 	/* 32 bits big endian from the A/D converter */
-	one = be32_to_cpu(*((int32_t *)((this_usbduxsub->insnBuffer)+1)));
+	one = be32_to_cpu(get_unaligned(
+				(int32_t *)((this_usbduxsub->insnBuffer)+1)));
 	/* mask out the staus byte */
 	one = one & 0x00ffffff;
 	one = one ^ 0x00800000;
