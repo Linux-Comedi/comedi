@@ -120,6 +120,29 @@ static comedi_device_attribute_t dev_attr_board_name =
 	.store = &store_board_name
 };
 
+static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_bydrivername_index, dev, buf, count);
+static comedi_device_attribute_t dev_attr_bydrivername_index =
+{
+	.attr = {
+			.name = "bydrivername_index",
+			.mode = S_IRUGO
+		},
+	.show = &show_bydrivername_index,
+	.store = &store_bydrivername_index
+};
+
+static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_byboardname_index, dev, buf, count);
+static comedi_device_attribute_t dev_attr_byboardname_index =
+{
+	.attr = {
+			.name = "byboardname_index",
+			.mode = S_IRUGO
+		},
+	.show = &show_byboardname_index,
+	.store = &store_byboardname_index
+};
 
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf);
 static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count);
@@ -2378,6 +2401,20 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		comedi_free_board_minor(i);
 		return retval;
 	}
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_bydrivername_index);
+	if(retval)
+	{
+		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_bydrivername_index.attr.name);
+		comedi_free_board_minor(i);
+		return retval;
+	}
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_byboardname_index);
+	if(retval)
+	{
+		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_byboardname_index.attr.name);
+		comedi_free_board_minor(i);
+		return retval;
+	}
 	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
 	if(retval)
 	{
@@ -2611,6 +2648,58 @@ static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf)
 }
 
 static COMEDI_DECLARE_ATTR_STORE(store_board_name, dev, buf, count)
+{
+	return 0;
+}
+
+static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf)
+{
+	ssize_t retval;
+	int i;
+	int result = 0;
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device_file_info *iter_info = comedi_get_device_file_info(i);
+		if (iter_info == NULL)
+			continue;
+		if (iter_info->device == info->device)
+			break;
+		if (iter_info->device->driver == info->device->driver)
+			++result;
+	}
+	retval = snprintf(buf, PAGE_SIZE, "%d\n", result);
+
+	return retval;
+}
+
+static COMEDI_DECLARE_ATTR_STORE(store_bydrivername_index, dev, buf, count)
+{
+	return 0;
+}
+
+static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf)
+{
+	ssize_t retval;
+	int i;
+	int result = 0;
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device_file_info *iter_info = comedi_get_device_file_info(i);
+		if (iter_info == NULL)
+			continue;
+		if (iter_info->device == info->device)
+			break;
+		if (strncmp(iter_info->device->board_name, info->device->board_name, PAGE_SIZE) == 0)
+			++result;
+	}
+	retval = snprintf(buf, PAGE_SIZE, "%d\n", result);
+
+	return retval;
+}
+
+static COMEDI_DECLARE_ATTR_STORE(store_byboardname_index, dev, buf, count)
 {
 	return 0;
 }
