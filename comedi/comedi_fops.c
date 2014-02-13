@@ -96,6 +96,30 @@ static int resize_async_buffer(comedi_device *dev,
 	comedi_subdevice *s, comedi_async *async, unsigned new_size);
 
 // sysfs attribute files
+static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_driver_name, dev, buf, count);
+static comedi_device_attribute_t dev_attr_driver_name =
+{
+	.attr = {
+			.name = "driver_name",
+			.mode = S_IRUGO
+		},
+	.show = &show_driver_name,
+	.store = &store_driver_name
+};
+
+static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_board_name, dev, buf, count);
+static comedi_device_attribute_t dev_attr_board_name =
+{
+	.attr = {
+			.name = "board_name",
+			.mode = S_IRUGO
+		},
+	.show = &show_board_name,
+	.store = &store_board_name
+};
+
 
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf);
 static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count);
@@ -2340,6 +2364,20 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		info->device->class_dev = csdev;
 	}
 	COMEDI_DEV_SET_DRVDATA(csdev, info);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_driver_name);
+	if(retval)
+	{
+		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_driver_name.attr.name);
+		comedi_free_board_minor(i);
+		return retval;
+	}
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_board_name);
+	if(retval)
+	{
+		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_board_name.attr.name);
+		comedi_free_board_minor(i);
+		return retval;
+	}
 	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
 	if(retval)
 	{
@@ -2546,6 +2584,36 @@ static int resize_async_buffer(comedi_device *dev,
 // sysfs attribute file functions
 
 static const unsigned bytes_per_kibi = 1024;
+
+static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, dev, buf)
+{
+	ssize_t retval;
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+
+	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->driver->driver_name);
+
+	return retval;
+}
+
+static COMEDI_DECLARE_ATTR_STORE(store_driver_name, dev, buf, count)
+{
+	return 0;
+}
+
+static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf)
+{
+	ssize_t retval;
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+
+	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->board_name);
+
+	return retval;
+}
+
+static COMEDI_DECLARE_ATTR_STORE(store_board_name, dev, buf, count)
+{
+	return 0;
+}
 
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf)
 {
