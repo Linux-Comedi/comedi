@@ -95,9 +95,8 @@ static int is_device_busy(comedi_device * dev);
 static int resize_async_buffer(comedi_device *dev,
 	comedi_subdevice *s, comedi_async *async, unsigned new_size);
 
-// sysfs attribute files
+/* sysfs attribute files */
 static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, dev, buf);
-static COMEDI_DECLARE_ATTR_STORE(store_driver_name, dev, buf, count);
 static comedi_device_attribute_t dev_attr_driver_name =
 {
 	.attr = {
@@ -105,11 +104,9 @@ static comedi_device_attribute_t dev_attr_driver_name =
 			.mode = S_IRUGO
 		},
 	.show = &show_driver_name,
-	.store = &store_driver_name
 };
 
 static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf);
-static COMEDI_DECLARE_ATTR_STORE(store_board_name, dev, buf, count);
 static comedi_device_attribute_t dev_attr_board_name =
 {
 	.attr = {
@@ -117,11 +114,9 @@ static comedi_device_attribute_t dev_attr_board_name =
 			.mode = S_IRUGO
 		},
 	.show = &show_board_name,
-	.store = &store_board_name
 };
 
 static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf);
-static COMEDI_DECLARE_ATTR_STORE(store_bydrivername_index, dev, buf, count);
 static comedi_device_attribute_t dev_attr_bydrivername_index =
 {
 	.attr = {
@@ -129,11 +124,9 @@ static comedi_device_attribute_t dev_attr_bydrivername_index =
 			.mode = S_IRUGO
 		},
 	.show = &show_bydrivername_index,
-	.store = &store_bydrivername_index
 };
 
 static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf);
-static COMEDI_DECLARE_ATTR_STORE(store_byboardname_index, dev, buf, count);
 static comedi_device_attribute_t dev_attr_byboardname_index =
 {
 	.attr = {
@@ -141,7 +134,6 @@ static comedi_device_attribute_t dev_attr_byboardname_index =
 			.mode = S_IRUGO
 		},
 	.show = &show_byboardname_index,
-	.store = &store_byboardname_index
 };
 
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf);
@@ -2632,11 +2624,6 @@ static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_driver_name, dev, buf, count)
-{
-	return 0;
-}
-
 static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf)
 {
 	ssize_t retval;
@@ -2645,11 +2632,6 @@ static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf)
 	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->board_name);
 
 	return retval;
-}
-
-static COMEDI_DECLARE_ATTR_STORE(store_board_name, dev, buf, count)
-{
-	return 0;
 }
 
 static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf)
@@ -2673,11 +2655,6 @@ static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_bydrivername_index, dev, buf, count)
-{
-	return 0;
-}
-
 static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf)
 {
 	ssize_t retval;
@@ -2697,11 +2674,6 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf)
 	retval = snprintf(buf, PAGE_SIZE, "%d\n", result);
 
 	return retval;
-}
-
-static COMEDI_DECLARE_ATTR_STORE(store_byboardname_index, dev, buf, count)
-{
-	return 0;
 }
 
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf)
