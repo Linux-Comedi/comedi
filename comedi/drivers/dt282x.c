@@ -620,7 +620,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 #endif
 		comedi_error(dev, "D/A error");
 		dt282x_ao_cancel(dev, s_ao);
-		s->async->events |= COMEDI_CB_ERROR;
+		s_ao->async->events |= COMEDI_CB_ERROR;
 		handled = 1;
 	}
 #if 0
@@ -649,6 +649,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 #endif
 	comedi_event(dev, s);
+	comedi_event(dev, s_ao);
 	/* printk("adcsr=0x%02x dacsr-0x%02x supcsr=0x%02x\n", adcsr, dacsr, supcsr); */
 	return IRQ_RETVAL(handled);
 }
