@@ -673,7 +673,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (devpriv->dma) {
 		bytes = devpriv->hwdmasize[0];
 		if (!devpriv->ai_neverending) {
-			bytes = s->async->cmd.chanlist_len * s->async->cmd.chanlist_len * sizeof(sampl_t);	// how many
+			bytes = devpriv->ai_scans * s->async->cmd.chanlist_len * sizeof(sampl_t);	// how many
 			devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	// how many DMA pages we must fill
 			devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	//on last dma transfer must be moved
 			devpriv->dma_runs_to_end--;
