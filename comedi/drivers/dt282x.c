@@ -1131,7 +1131,9 @@ static int dt282x_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	timer = dt282x_ns_to_timer(&cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
-	devpriv->dacsr = DT2821_SSEL | DT2821_DACLK | DT2821_IDARDY;
+	/* preserve DIO direction bits when setting DACSR */
+	devpriv->dacsr &= (DT2821_LBOE | DT2821_HBOE);
+	devpriv->dacsr |= DT2821_SSEL | DT2821_DACLK | DT2821_IDARDY;
 	update_dacsr(0);
 
 	s->async->inttrig = dt282x_ao_inttrig;
@@ -1143,7 +1145,8 @@ static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	dt282x_disable_dma(dev);
 
-	devpriv->dacsr = 0;
+	/* preserve DIO direction bits when setting DACSR */
+	devpriv->dacsr &= (DT2821_LBOE | DT2821_HBOE);
 	update_dacsr(0);
 
 	devpriv->supcsr = 0;
