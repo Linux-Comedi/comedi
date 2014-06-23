@@ -330,7 +330,7 @@ static int ni_65xx_config_filter(comedi_device * dev, comedi_subdevice * s,
 		data[1] = interval * filter_resolution_ns;
 
 		if (interval != private(dev)->filter_interval) {
-			writeb(interval,
+			writel(interval,
 				private(dev)->mite->daq_io_addr +
 				Filter_Interval);
 			private(dev)->filter_interval = interval;
@@ -736,7 +736,7 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		private(dev)->mite->daq_io_addr + Master_Interrupt_Control);
 
 	/* Set filter interval to 0  (32bit reg) */
-	writeb(0x00000000, private(dev)->mite->daq_io_addr + Filter_Interval);
+	writel(0x00000000, private(dev)->mite->daq_io_addr + Filter_Interval);
 
 	ret = comedi_request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
 		"ni_65xx", dev);
