@@ -968,11 +968,11 @@ static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	if (chan) {
 		/* select channel */
 		devpriv->dacsr |= DT2821_YSEL;
-		if (devpriv->da0_2scomp)
+		if (devpriv->da1_2scomp)
 			d ^= (1 << (boardtype.dabits - 1));
 	} else {
 		devpriv->dacsr &= ~DT2821_YSEL;
-		if (devpriv->da1_2scomp)
+		if (devpriv->da0_2scomp)
 			d ^= (1 << (boardtype.dabits - 1));
 	}
 
