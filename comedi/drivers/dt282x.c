@@ -1360,11 +1360,15 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ |
-		((it->options[opt_diff]) ? SDF_DIFF : SDF_COMMON);
-	s->n_chan =
-		(it->options[opt_diff]) ? boardtype.adchan_di : boardtype.
-		adchan_se;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+	if ((it->options[opt_diff] && boardtype.adchan_di) ||
+	    boardtype.adchan_se == 0) {
+		s->subdev_flags |= SDF_DIFF;
+		s->n_chan = boardtype.adchan_di;
+	} else {
+		s->subdev_flags |= SDF_COMMON;
+		s->n_chan = boardtype.adchan_se;
+	}
 	s->insn_read = dt282x_ai_insn_read;
 	s->do_cmdtest = dt282x_ai_cmdtest;
 	s->do_cmd = dt282x_ai_cmd;
