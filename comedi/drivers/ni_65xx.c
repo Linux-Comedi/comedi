@@ -593,26 +593,26 @@ static int ni_65xx_intr_insn_config(comedi_device * dev, comedi_subdevice * s,
 		Rising_Edge_Detection_Enable(0));
 	writeb(data[1] >> 8,
 		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(0x10));
+		Rising_Edge_Detection_Enable(1));
 	writeb(data[1] >> 16,
 		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(0x20));
+		Rising_Edge_Detection_Enable(2));
 	writeb(data[1] >> 24,
 		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(0x30));
+		Rising_Edge_Detection_Enable(3));
 
 	writeb(data[2],
 		private(dev)->mite->daq_io_addr +
 		Falling_Edge_Detection_Enable(0));
 	writeb(data[2] >> 8,
 		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(0x10));
+		Falling_Edge_Detection_Enable(1));
 	writeb(data[2] >> 16,
 		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(0x20));
+		Falling_Edge_Detection_Enable(2));
 	writeb(data[2] >> 24,
 		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(0x30));
+		Falling_Edge_Detection_Enable(3));
 
 	return 2;
 }
