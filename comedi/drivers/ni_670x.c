@@ -154,7 +154,6 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;
 	}
 	dev->board_name = thisboard->name;
-	dev->irq = mite_irq(devpriv->mite);
 	printk(" %s", dev->board_name);
 
 	if (alloc_subdevices(dev, 2) < 0)
@@ -211,9 +210,6 @@ static int ni_670x_detach(comedi_device * dev)
 	}
 	if (dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
-
-	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
 
 	return 0;
 }
