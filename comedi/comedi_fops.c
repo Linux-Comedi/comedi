@@ -2454,12 +2454,12 @@ void comedi_free_board_minor(unsigned minor)
 		comedi_device *dev = info->device;
 		if(dev)
 		{
+			comedi_device_cleanup(dev);
 			if(dev->class_dev)
 			{
 				COMEDI_DEVICE_DESTROY(comedi_class,
 					MKDEV(COMEDI_MAJOR, dev->minor));
 			}
-			comedi_device_cleanup(dev);
 			kfree(dev);
 		}
 		kfree(info);
