@@ -1066,6 +1066,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		this_usbduxfastsub->dux_commands[OPBASE + 6] = 0;
 		this_usbduxfastsub->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE + 6] = 0;
+		break;
 
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
