@@ -1,6 +1,6 @@
 /*
     comedi/drivers/cb_pcimdas.c
-    Comedi driver for Computer Boards PCIM-DAS1602/16
+    Comedi driver for Computer Boards PCIM-DAS1602/16 & PCIe-DAS1602/16
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -23,12 +23,12 @@
 /*
 Driver: cb_pcimdas
 Description: Measurement Computing PCI Migration series boards
-Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
+Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas), PCIe-DAS1602/16
 Author: Richard Bytheway
-Updated: Wed, 13 Nov 2002 12:34:56 +0000
+Updated: Mon, 13 Oct 2014 11:17:08 +0000
 Status: experimental
 
-Written to support the PCIM-DAS1602/16 on a 2.4 series kernel.
+Written to support the PCIM-DAS1602/16 and PCIe-DAS1602/16.
 
 Configuration Options:
     [0] - PCI bus number
@@ -36,8 +36,11 @@ Configuration Options:
 
 Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
 Only supports DIO, AO and simple AI in it's present form.
-No interrupts, multi channel or FIFO AI, although the card looks like it could support this.
-See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more details.
+No interrupts, multi channel or FIFO AI, although the card looks like it could
+support this.
+
+http://www.mccdaq.com/pci-data-acquisition/PCIM-DAS1602-16.aspx
+http://www.mccdaq.com/pci-data-acquisition/PCIe-DAS1602-16.aspx
 */
 
 #include <linux/comedidev.h>
@@ -51,7 +54,7 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 //#define CBPCIMDAS_DEBUG
 #undef CBPCIMDAS_DEBUG
 
-/* Registers for the PCIM-DAS1602/16 */
+/* Registers for the PCIM-DAS1602/16 and PCIe-DAS1602/16 */
 
 // sizes of io regions (bytes)
 #define BADR0_SIZE 2		//??
@@ -117,19 +120,36 @@ static const cb_pcimdas_board cb_pcimdas_boards[] = {
 	      dio_bits:24,
 	      has_dio:	1,
 //              ranges:         &cb_pcimdas_ranges,
-		},
+	},
+	{
+	      name:	"PCIe-DAS1602/16",
+	      device_id:0x115,
+	      ai_se_chans:16,
+	      ai_diff_chans:8,
+	      ai_bits:	16,
+	      ai_speed:10000,	//??
+	      ao_nchan:2,
+	      ao_bits:	12,
+	      has_ao_fifo:0,	//??
+	      ao_scan_speed:10000,
+			//??
+	      fifo_size:1024,
+	      dio_bits:24,
+	      has_dio:	1,
+//              ranges:         &cb_pcimdas_ranges,
+	},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0115, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 
-#define N_BOARDS 1		// Max number of boards supported
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -224,7 +244,7 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		// loop through cards supported by this driver
-		for (index = 0; index < N_BOARDS; index++) {
+		for (index = 0; index < ARRAY_SIZE(cb_pcimdas_boards); index++) {
 			if (cb_pcimdas_boards[index].device_id !=
 				pcidev->device)
 				continue;
@@ -251,15 +271,6 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcimdas_boards[index].name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
-
-	// Warn about non-tested features
-	switch (thisboard->device_id) {
-	case 0x56:
-		break;
-	default:
-		printk("THIS CARD IS UNSUPPORTED.\n"
-			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
-	};
 
 	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
 		printk(" Failed to enable PCI device and request regions\n");
