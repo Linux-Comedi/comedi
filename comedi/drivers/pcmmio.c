@@ -450,6 +450,8 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 				port = 0;
 				++asic;
 				thisasic_chanct = 0;
+				if (asic >= MAX_ASICS)
+					break;
 			}
 			subpriv->iobases[byte_no] =
 				devpriv->asics[asic].iobase + port;
