@@ -110,6 +110,7 @@ pci_modules2= \
  adl_pci7432.ko \
  adl_pci8164.ko \
  adl_pci9111.ko \
+ adl_pci9112.ko \
  adl_pci9118.ko \
  adv_pci1710.ko \
  adv_pci1723.ko \
@@ -262,6 +263,7 @@ adl_pci7296_ko_SOURCES = adl_pci7296.c
 adl_pci7432_ko_SOURCES = adl_pci7432.c
 adl_pci8164_ko_SOURCES = adl_pci8164.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
+adl_pci9112_ko_SOURCES = adl_pci9112.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
 adq12b_ko_SOURCES = adq12b.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
