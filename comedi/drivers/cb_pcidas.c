@@ -1530,7 +1530,7 @@ static int cb_pcidas_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 		devpriv->ao_count -= num_points;
 	}
 	// write data to board's fifo
-	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes);
+	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_points);
 
 	// enable dac half-full and empty interrupts
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
