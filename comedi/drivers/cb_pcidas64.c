@@ -3324,8 +3324,9 @@ static unsigned int load_ao_dma_buffer(comedi_device * dev,
 	if (num_bytes > DMA_BUFFER_SIZE)
 		num_bytes = DMA_BUFFER_SIZE;
 	if (cmd->stop_src == TRIG_COUNT && num_bytes > priv(dev)->ao_count)
-		num_bytes = priv(dev)->ao_count;
-	num_bytes -= num_bytes % bytes_in_sample;
+		num_bytes = priv(dev)->ao_count * bytes_in_sample;
+	else
+		num_bytes -= num_bytes % bytes_in_sample;
 
 	if (num_bytes == 0)
 		return 0;
@@ -3347,7 +3348,7 @@ static unsigned int load_ao_dma_buffer(comedi_device * dev,
 	priv(dev)->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
 
 	priv(dev)->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
-	priv(dev)->ao_count -= num_bytes;
+	priv(dev)->ao_count -= num_bytes / bytes_in_sample;
 
 	return num_bytes;
 }
