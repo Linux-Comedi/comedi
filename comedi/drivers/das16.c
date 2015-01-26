@@ -934,10 +934,17 @@ static int das16_cmd_exec(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	/* set counter mode and counts */
-	cmd->convert_arg =
-		das16_set_pacer(dev, cmd->convert_arg,
-		cmd->flags & TRIG_ROUND_MASK);
-	DEBUG_PRINT("pacer period: %d ns\n", cmd->convert_arg);
+	if (cmd->convert_src == TRIG_TIMER) {
+		cmd->convert_arg =
+			das16_set_pacer(dev, cmd->convert_arg,
+			cmd->flags & TRIG_ROUND_MASK);
+		DEBUG_PRINT("convert pacer period: %d ns\n", cmd->convert_arg);
+	} else if (cmd->scan_begin_src == TRIG_TIMER) {
+		cmd->scan_begin_arg =
+			das16_set_pacer(dev, cmd->scan_begin_arg,
+			cmd->flags & TRIG_ROUND_MASK);
+		DEBUG_PRINT("scan pacer period: %d ns\n", cmd->scan_begin_arg);
+	}
 
 	/* enable counters */
 	byte = 0;
