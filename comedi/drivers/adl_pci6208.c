@@ -61,34 +61,34 @@ typedef struct {
 	const char *name;
 	unsigned short dev_id;	/* `lspci` will show you this */
 	int ao_chans;
-	//int ao_bits;
 } pci6208_board;
 static const pci6208_board pci6208_boards[] = {
-	/*{
-	   name :  "pci6208v",
-	   dev_id       :  0x6208,      //not sure
-	   ao_chans:  8
-	   //,  ao_bits :  16
-	   },
-	   {
-	   name :  "pci6216v",
-	   dev_id       :  0x6208,      //not sure
-	   ao_chans:  16
-	   //,  ao_bits :  16
-	   }, */
+#if 0
 	{
-	      name:	"pci6208a",
-	      dev_id:	0x6208,
-	      ao_chans:8
-			//,     ao_bits :  16
-		}
+		name:		"pci6208v",
+		dev_id:		0x6208,
+		ao_chans:	8
+	},
+#endif
+#if 1
+	{
+		name:		"pci6216v",
+		dev_id:		0x6208,
+		ao_chans:	16
+	},
+#endif
+#if 0
+	{
+		name:		"pci6208a",
+		dev_id:		0x6208,
+		ao_chans:	8
+	},
+#endif
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
-	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
