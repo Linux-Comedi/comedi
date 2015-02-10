@@ -27,14 +27,27 @@
 */
 /*
 Driver: adl_pci6208
-Description: ADLink PCI-6208A
-Devices: [ADLink] PCI-6208A (adl_pci6208)
+Description: ADLink PCI-6216V
+Devices: [ADLink] PCI-6216V (adl_pci6208)
 Author: nsyeow <nsyeow@pd.jaring.my>
-Updated: Fri, 30 Jan 2004 14:44:27 +0800
+Updated: Tue, 10 Feb 2015 15:29:55 +0000
 Status: untested
 
 Configuration Options:
   none
+
+The driver should work for PCI-6208V, PCI-6208A and PCI-6216V, but all
+devices will be treated as a PCI-6216V.
+
+For PCI-6208V and PCI-6208A, only AO channels 0 to 7 are connected and
+AO channels 8 to 15 will behave as "phantom" outputs.
+
+The current output ranges for PCI-6208A are not supported.  Only Comedi
+sample values 0x8000 to 0xffff should be written to the AO channels on a
+PCI-6208A.  Its voltage to current daughter board (EXP-8A) only supports
+an input range of 0 to 10 volts and negative voltages may damage the
+board.  Comedi sample values 0x0000 to 0x7fff would produce negative
+voltages from -10 to 0 volts.
 
 References:
 	- ni_660x.c
