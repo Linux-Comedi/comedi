@@ -2703,7 +2703,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count)
 	uint64_t new_max_size;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
-	if(strict_strtoul(buf, 10, &new_max_size_kb))
+	if(kstrtoul(buf, 10, &new_max_size_kb))
 	{
 		return -EINVAL;
 	}
@@ -2753,7 +2753,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, dev, buf, count)
 	int retval;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
-	if(strict_strtoul(buf, 10, &new_size_kb))
+	if(kstrtoul(buf, 10, &new_size_kb))
 	{
 		return -EINVAL;
 	}
@@ -2804,7 +2804,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, dev, buf, count)
 	uint64_t new_max_size;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
-	if(strict_strtoul(buf, 10, &new_max_size_kb))
+	if(kstrtoul(buf, 10, &new_max_size_kb))
 	{
 		return -EINVAL;
 	}
@@ -2854,7 +2854,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, dev, buf, count)
 	int retval;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
-	if(strict_strtoul(buf, 10, &new_size_kb))
+	if(kstrtoul(buf, 10, &new_size_kb))
 	{
 		return -EINVAL;
 	}
