@@ -128,4 +128,15 @@ static inline int comedi_strict_strtoll(const char *cp, unsigned int base,
 
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
+#undef kstrtol
+#define kstrtol(s, base, res)	strict_strtol(s, base, res)
+#undef kstrtoul
+#define kstrtoul(s, base, res)	strict_strtoul(s, base, res)
+#undef kstrtoll
+#define kstrtoll(s, base, res)	strict_strtoll(s, base, res)
+#undef kstrtoull
+#define kstrtoull(s, base, res)	strict_strtoull(s, base, res)
+#endif
+
 #endif // _KERNEL_COMPAT_H
