@@ -455,7 +455,7 @@ static int ni_65xx_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 2;
+	comedi_subdevice *s = dev->subdevices + 3;
 	unsigned int status;
 
 	status = readb(private(dev)->mite->daq_io_addr + Change_Status);
