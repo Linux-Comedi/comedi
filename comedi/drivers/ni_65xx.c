@@ -251,6 +251,10 @@ static inline unsigned ni_65xx_total_num_ports(const ni_65xx_board * board)
 {
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
+static inline unsigned ni_65xx_num_input_ports(const ni_65xx_board * board)
+{
+	return board->num_dio_ports + board->num_di_ports;
+}
 
 static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -583,38 +587,49 @@ static int ni_65xx_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int ni_65xx_intr_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int i;
+	unsigned int num_input_ports;
+
 	if (insn->n < 1)
 		return -EINVAL;
 	if (data[0] != INSN_CONFIG_CHANGE_NOTIFY)
 		return -EINVAL;
 
-	writeb(data[1],
-		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(0));
-	writeb(data[1] >> 8,
-		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(1));
-	writeb(data[1] >> 16,
-		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(2));
-	writeb(data[1] >> 24,
-		private(dev)->mite->daq_io_addr +
-		Rising_Edge_Detection_Enable(3));
+	num_input_ports = ni_65xx_num_input_ports(board(dev));
+	for (i = 0; i < num_input_ports; i++) {
+		unsigned val;
 
-	writeb(data[2],
-		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(0));
-	writeb(data[2] >> 8,
-		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(1));
-	writeb(data[2] >> 16,
-		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(2));
-	writeb(data[2] >> 24,
-		private(dev)->mite->daq_io_addr +
-		Falling_Edge_Detection_Enable(3));
+		/*
+		 * Set up rising and falling edge detection on all DIO and DI
+		 * ports.  Each port has 8 inputs.
+		 *
+		 * data[1] contains rising edge detection for ports 0 to 3
+		 * data[2] contains falling edge detection for ports 0 to 3
+		 * data[3] contains rising edge detection for ports 4 to 7
+		 * data[4] contains falling edge detection for ports 4 to 7
+		 * data[5] contains rising edge detection for ports 8 to 11
+		 * data[6] contains falling edge detection for ports 8 to 11
+		 *
+		 * All the above data is optional. Zeros are used if the
+		 * data array is not long enough.
+		 */
+		if (insn->n > 1 + (i / 4))
+			val = data[1 + (i / 4)] >> ((i & 3) * 8);
+		else
+			val = 0;
+		writeb(val,
+			private(dev)->mite->daq_io_addr +
+			Rising_Edge_Detection_Enable(i));
+		if (insn->n > 2 + (i / 4))
+			val = data[2 + (i / 4)] >> ((i & 3) * 8);
+		else
+			val = 0;
+		writeb(val,
+			private(dev)->mite->daq_io_addr +
+			Falling_Edge_Detection_Enable(i));
+	}
 
-	return 2;
+	return insn->n;
 }
 
 static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
