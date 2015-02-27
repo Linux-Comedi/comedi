@@ -460,7 +460,8 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 3;
-	unsigned int status;
+	unsigned int status, i, num_input_ports;
+	sampl_t data = 0;
 
 	status = readb(private(dev)->mite->daq_io_addr + Change_Status);
 	if ((status & MasterInterruptStatus) == 0)
@@ -471,7 +472,24 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 	writeb(ClrEdge | ClrOverflow,
 		private(dev)->mite->daq_io_addr + Clear_Register);
 
-	comedi_buf_put(s->async, 0);
+	num_input_ports = ni_65xx_num_input_ports(board(dev));
+	if (num_input_ports == 0) {
+		comedi_buf_put(s->async, 0);
+	} else {
+		for (i = 0; i < num_input_ports; i++) {
+			unsigned d = readb(private(dev)->mite->daq_io_addr +
+					Port_Data(i));
+
+			if (i & 1) {
+				data |= (d << 8);
+				comedi_buf_put(s->async, data);
+			} else {
+				data = d;
+			}
+		}
+		if (i & 1)
+			comedi_buf_put(s->async, data);
+	}
 	s->async->events |= COMEDI_CB_EOS;
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
@@ -725,8 +743,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 3;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-	s->n_chan = 1;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
+	s->n_chan = ni_65xx_num_input_ports(board(dev));
+	if (s->n_chan == 0)
+		s->n_chan = 1;
 	s->range_table = &range_unknown;
 	s->maxdata = 1;
 	s->do_cmdtest = ni_65xx_intr_cmdtest;
