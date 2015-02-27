@@ -738,6 +738,12 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 	for (i = 0; i < ni_65xx_total_num_ports(board(dev)); ++i) {
 		writeb(0x00,
 			private(dev)->mite->daq_io_addr + Filter_Enable(i));
+		writeb(0x00,
+			private(dev)->mite->daq_io_addr +
+			Rising_Edge_Detection_Enable(i));
+		writeb(0x00,
+			private(dev)->mite->daq_io_addr +
+			Falling_Edge_Detection_Enable(i));
 		if (board(dev)->invert_outputs)
 			writeb(0x01,
 				private(dev)->mite->daq_io_addr + Port_Data(i));
