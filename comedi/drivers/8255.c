@@ -398,22 +398,28 @@ static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
+		comedi_subdevice *s = &dev->subdevices[i];
+
 		iobase = it->options[i];
 
 		printk(" 0x%04lx", iobase);
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
 			printk(" (I/O port conflict)");
 
-			dev->subdevices[i].type = COMEDI_SUBD_UNUSED;
+			s->type = COMEDI_SUBD_UNUSED;
 		} else {
-			subdev_8255_init(dev, dev->subdevices + i, NULL,
-				iobase);
+			ret = subdev_8255_init(dev, s, NULL, iobase);
+			if (ret) {
+				release_region(iobase, _8255_SIZE);
+				s->type = COMEDI_SUBD_UNUSED;
+				break;
+			}
 		}
 	}
 
 	printk("\n");
 
-	return 0;
+	return ret;
 }
 
 static int dev_8255_detach(comedi_device * dev)
