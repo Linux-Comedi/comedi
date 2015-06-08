@@ -67,13 +67,13 @@ typedef unsigned short sampl_t;
 #define CR_RANGE(a)	(((a)>>16)&0xff)
 #define CR_AREF(a)	(((a)>>24)&0x03)
 
-#define CR_FLAGS_MASK	0xfc000000
+#define CR_FLAGS_MASK	0xfc000000U
 #define CR_ALT_FILTER	(1<<26)
 #define CR_DITHER		CR_ALT_FILTER
 #define CR_DEGLITCH		CR_ALT_FILTER
 #define CR_ALT_SOURCE	(1<<27)
 #define CR_EDGE	(1<<30)
-#define CR_INVERT	(1<<31)
+#define CR_INVERT	(1U<<31)
 
 #define AREF_GROUND	0x00	/* analog ref = analog ground */
 #define AREF_COMMON	0x01	/* analog ref = analog common */
@@ -153,7 +153,7 @@ typedef unsigned short sampl_t;
 
 /* trigger sources */
 
-#define TRIG_ANY	0xffffffff
+#define TRIG_ANY	0xffffffffU
 #define TRIG_INVALID	0x00000000
 
 #define TRIG_NONE	0x00000001	/* never trigger */
