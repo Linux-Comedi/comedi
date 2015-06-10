@@ -27,6 +27,7 @@ obj-$(COMEDI_CONFIG_PCI_MODULES) += addi_apci_3xxx.o
 #obj-$(COMEDI_CONFIG_PCI_MODULES) += addi_apci_all.o
 obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci6208.o
 obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci7230.o
+obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci7250.o
 obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci7296.o
 obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci7432.o
 obj-$(COMEDI_CONFIG_PCI_MODULES) += adl_pci8164.o
