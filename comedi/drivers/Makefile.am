@@ -259,6 +259,7 @@ addi_apci_3120_ko_SOURCES = addi_apci_3120.c
 addi_apci_3501_ko_SOURCES = addi_apci_3501.c
 addi_apci_3xxx_ko_SOURCES = addi_apci_3xxx.c
 adl_pci6208_ko_SOURCES = adl_pci6208.c
+adl_pci7230_ko_SOURCES = adl_pci7230.c
 adl_pci7296_ko_SOURCES = adl_pci7296.c
 adl_pci7432_ko_SOURCES = adl_pci7432.c
 adl_pci8164_ko_SOURCES = adl_pci8164.c
