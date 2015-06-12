@@ -547,7 +547,7 @@ static int icp_multi_insn_bits_do(comedi_device * dev, comedi_subdevice * s,
 		writew(s->state, devpriv->io_addr + ICP_MULTI_DO);
 	}
 
-	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
+	data[1] = s->state;
 
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: END: icp_multi_insn_bits_do(...)\n");
