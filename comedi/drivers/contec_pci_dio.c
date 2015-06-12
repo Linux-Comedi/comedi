@@ -209,6 +209,7 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 			dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
+	data[1] = s->state;
 	return 2;
 }
 
