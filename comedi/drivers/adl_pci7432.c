@@ -181,6 +181,7 @@ static int adl_pci7432_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 			dev->iobase + PCI7432_DO);
 		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
 	}
+	data[1] = s->state;
 	return 2;
 }
 
