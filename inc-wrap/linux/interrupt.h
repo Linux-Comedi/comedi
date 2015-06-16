@@ -30,7 +30,7 @@ typedef void irqreturn_t;
 #define IRQ_RETVAL(x) (void)(x)
 #endif
 
-#ifndef IRQF_DISABLED
+#ifndef IRQF_SHARED
 #define IRQF_DISABLED           SA_INTERRUPT
 #define IRQF_SAMPLE_RANDOM      SA_SAMPLE_RANDOM
 #define IRQF_SHARED             SA_SHIRQ
