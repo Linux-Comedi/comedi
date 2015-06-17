@@ -24,8 +24,8 @@ Driver: adl_pci7250
 Description: Driver for the Adlink PCI-7250 relay output & digital input card
 Devices: [ADLink] PCI-7250 (adl_pci7250) LPCI-7250 LPCIe-7250
 Author: Ian Abbott <abbotti@mev.co.uk>
-Status: experimental
-Updated: Wed, 10 Jun 2015 15:36:20 +0000
+Status: works
+Updated: Wed, 17 Jun 2015 09:22:58 +0000
 
 The driver assumes that 3 PCI-7251 modules are fitted to the PCI-7250,
 giving 32 channels of relay outputs and 32 channels of isolated digital
