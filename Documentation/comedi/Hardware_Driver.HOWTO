@@ -83,6 +83,12 @@ drivers in the comedi source tree the following things have to be done:
   'obj-$(COMEDI_CONFIG_PCMCIA_MODULES) += mydriver.o', or
   'obj-$(COMEDI_CONFIG_USB_MODULES) += mydriver.o' line, depending on the
   type of driver.
+- Edit 'dkms.conf' and add some lines for the new driver like this:
+   BUILT_MODULE_NAME[$nn]="mydriver"
+   BUILT_MODULE_LOCATION[$nn]="comedi/drivers/"
+   DEST_MODULE_LOCATION[$((nn++))]="/kernel/comedi/drivers/"
+  The proper location for the added lines depends on whether it's for a PCI,
+  PCMCIA, USB, or other (usually ISA) card.
 
 Now run 'autoreconf' to update the configure script, re-run './configure'
 with any necessary command-line options to update the makefiles, and run
