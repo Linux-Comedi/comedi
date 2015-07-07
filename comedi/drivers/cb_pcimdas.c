@@ -222,6 +222,7 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 	struct pci_dev *pcidev;
 	int index;
+	unsigned int aichanstat;
 	//int i;
 
 	printk("comedi%d: cb_pcimdas: ", dev->minor);
@@ -314,8 +315,17 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 	//dev->read_subdev=s;
 	// analog input subdevice
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = thisboard->ai_se_chans;
+	/* check status of hardware switches */
+	aichanstat = inb(devpriv->BADR3 + 2);
+	if (aichanstat & 0x20) {
+		/* single-ended mode */
+		s->subdev_flags = SDF_READABLE | SDF_GROUND;
+		s->n_chan = thisboard->ai_se_chans;
+	} else {
+		/* differential mode */
+		s->subdev_flags = SDF_READABLE | SDF_DIFF;
+		s->n_chan = thisboard->ai_diff_chans;
+	}
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &range_unknown;
 	s->len_chanlist = 1;	// This is the maximum chanlist length that
@@ -391,18 +401,8 @@ static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	unsigned int busy;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned short chanlims;
-	int maxchans;
 
 	// only support sw initiated reads from a single channel
-
-	//check channel number
-	if ((inb(devpriv->BADR3 + 2) & 0x20) == 0)	//differential mode
-		maxchans = thisboard->ai_diff_chans;
-	else
-		maxchans = thisboard->ai_se_chans;
-
-	if (chan > (maxchans - 1))
-		return -ETIMEDOUT;	//*** Wrong error code. Fixme.
 
 	//configure for sw initiated read
 	d = inb(devpriv->BADR3 + 5);
