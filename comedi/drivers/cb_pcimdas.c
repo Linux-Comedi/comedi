@@ -85,6 +85,24 @@ http://www.mccdaq.com/PDFs/Manuals/pcie-das1602-16.pdf
 #define RESID_COUNT_H 13
 #define RESID_COUNT_L 14
 
+static const comedi_lrange cb_pcimdas_ai_bip_range = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
+};
+
+static const comedi_lrange cb_pcimdas_ai_uni_range = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
+};
+
 /* Board description */
 typedef struct cb_pcimdas_board_struct {
 	const char *name;
@@ -327,7 +345,11 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 		s->n_chan = thisboard->ai_diff_chans;
 	}
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &range_unknown;
+	/* supported ranges depend on state of Bip/Uni switch */
+	if (aichanstat & 0x40)
+		s->range_table = &cb_pcimdas_ai_uni_range;
+	else
+		s->range_table = &cb_pcimdas_ai_bip_range;
 	s->len_chanlist = 1;	// This is the maximum chanlist length that
 	// the board can handle
 	s->insn_read = cb_pcimdas_ai_rinsn;
@@ -399,7 +421,8 @@ static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	int n, i;
 	unsigned int d;
 	unsigned int busy;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned short chanlims;
 
 	// only support sw initiated reads from a single channel
@@ -411,7 +434,7 @@ static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		outb(d, devpriv->BADR3 + 5);
 	}
 	outb(0x01, devpriv->BADR3 + 6);	//set bursting off, conversions on
-	outb(0x00, devpriv->BADR3 + 7);	//set range to 10V. UP/BP is controlled by a switch on the board
+	outb(range, devpriv->BADR3 + 7);	//set range
 
 	// write channel limits to multiplexer, set Low (bits 0-3) and High (bits 4-7) channels to chan.
 	chanlims = chan | (chan << 4);
