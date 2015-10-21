@@ -463,7 +463,9 @@ static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
 }
 
 int comedi_buf_put(comedi_async * async, sampl_t x);
+int comedi_buf_putl(comedi_async * async, lsampl_t x);
 int comedi_buf_get(comedi_async * async, sampl_t * x);
+int comedi_buf_getl(comedi_async * async, lsampl_t * x);
 
 unsigned int comedi_buf_write_n_available(comedi_async * async);
 unsigned int comedi_buf_write_alloc(comedi_async * async, unsigned int nbytes);

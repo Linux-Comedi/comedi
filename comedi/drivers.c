@@ -766,6 +766,18 @@ int comedi_buf_get(comedi_async * async, sampl_t * x)
 	return 1;
 }
 
+int comedi_buf_getl(comedi_async * async, lsampl_t * x)
+{
+	unsigned int n = comedi_buf_read_n_available(async);
+
+	if (n < sizeof(lsampl_t))
+		return 0;
+	comedi_buf_read_alloc(async, sizeof(lsampl_t));
+	*x = *(lsampl_t *) (async->prealloc_buf + async->buf_read_ptr);
+	comedi_buf_read_free(async, sizeof(lsampl_t));
+	return 1;
+}
+
 int comedi_buf_put(comedi_async * async, sampl_t x)
 {
 	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(sampl_t));
@@ -776,6 +788,19 @@ int comedi_buf_put(comedi_async * async, sampl_t x)
 	}
 	*(sampl_t *) (async->prealloc_buf + async->buf_write_ptr) = x;
 	comedi_buf_write_free(async, sizeof(sampl_t));
+	return 1;
+}
+
+int comedi_buf_putl(comedi_async * async, lsampl_t x)
+{
+	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(lsampl_t));
+
+	if (n < sizeof(lsampl_t)) {
+		async->events |= COMEDI_CB_ERROR;
+		return 0;
+	}
+	*(lsampl_t *) (async->prealloc_buf + async->buf_write_ptr) = x;
+	comedi_buf_write_free(async, sizeof(lsampl_t));
 	return 1;
 }
 
