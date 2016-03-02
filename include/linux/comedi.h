@@ -119,7 +119,7 @@ typedef unsigned short sampl_t;
 /* trigger flags */
 /* These flags are used in comedi_trig structures */
 
-#define TRIG_BOGUS	0x0001	/* do the motions */
+//#define TRIG_BOGUS	0x0001	/* do the motions */
 #define TRIG_DITHER	0x0002	/* enable dithering */
 #define TRIG_DEGLITCH	0x0004	/* enable deglitching */
 //#define TRIG_RT       0x0008          /* perform op in real time */
@@ -130,14 +130,24 @@ typedef unsigned short sampl_t;
 /* command flags */
 /* These flags are used in comedi_cmd structures */
 
-#define CMDF_PRIORITY		0x00000008	/* try to use a real-time interrupt while performing command */
+#define CMDF_BOGUS		0x00000001	/* do the motions */
 
-#define TRIG_RT		CMDF_PRIORITY	/* compatibility definition */
+/* try to use a real-time interrupt while performing command */
+#define CMDF_PRIORITY		0x00000008
+
+/* wake up on end-of-scan events */
+#define CMDF_WAKE_EOS		0x00000020
 
 #define CMDF_WRITE		0x00000040
-#define TRIG_WRITE	CMDF_WRITE	/* compatibility definition */
 
 #define CMDF_RAWDATA		0x00000080
+
+/* timer rounding definitions */
+#define CMDF_ROUND_MASK		0x00030000
+#define CMDF_ROUND_NEAREST	0x00000000
+#define CMDF_ROUND_DOWN		0x00010000
+#define CMDF_ROUND_UP		0x00020000
+#define CMDF_ROUND_UP_NEXT	0x00030000
 
 #define COMEDI_EV_START		0x00040000
 #define COMEDI_EV_SCAN_BEGIN	0x00080000
@@ -145,11 +155,16 @@ typedef unsigned short sampl_t;
 #define COMEDI_EV_SCAN_END	0x00200000
 #define COMEDI_EV_STOP		0x00400000
 
-#define TRIG_ROUND_MASK		0x00030000
-#define TRIG_ROUND_NEAREST	0x00000000
-#define TRIG_ROUND_DOWN		0x00010000
-#define TRIG_ROUND_UP		0x00020000
-#define TRIG_ROUND_UP_NEXT	0x00030000
+/* compatibility definitions */
+#define TRIG_BOGUS		CMDF_BOGUS
+#define TRIG_RT			CMDF_PRIORITY
+#define TRIG_WAKE_EOS		CMDF_WAKE_EOS
+#define TRIG_WRITE		CMDF_WRITE
+#define TRIG_ROUND_MASK		CMDF_ROUND_MASK
+#define TRIG_ROUND_NEAREST	CMDF_ROUND_NEAREST
+#define TRIG_ROUND_DOWN		CMDF_ROUND_DOWN
+#define TRIG_ROUND_UP		CMDF_ROUND_UP
+#define TRIG_ROUND_UP_NEXT	CMDF_ROUND_UP_NEXT
 
 /* trigger sources */
 
@@ -343,6 +358,8 @@ enum comedi_support_level
 #define COMEDI_BUFCONFIG _IOR(CIO,13,comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO,14,comedi_bufinfo)
 #define COMEDI_POLL _IO(CIO,15)
+#define COMEDI_SETRSUBD _IO(CIO, 16)
+#define COMEDI_SETWSUBD _IO(CIO, 17)
 
 /* structures */
 
@@ -939,6 +956,17 @@ enum amplc_dio_gate_source {
 	AMPLC_DIO_GAT_NPAT_PRESENT, /* negated "pattern present" */
 	AMPLC_DIO_GAT_NPAT_OCCURRED, /* negated "pattern occurred" */
 	AMPLC_DIO_GAT_NPAT_GONE	/* negated "pattern gone away" */
+};
+
+/*
+ * Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * the counter subdevice on the Kolter Electronic PCI-Counter board
+ * (ke_counter driver).
+ */
+enum ke_counter_clock_source {
+	KE_CLK_20MHZ,	/* internal 20MHz (default) */
+	KE_CLK_4MHZ,	/* internal 4MHz (option) */
+	KE_CLK_EXT	/* external clock on pin 21 of D-Sub */
 };
 
 #ifdef __cplusplus
