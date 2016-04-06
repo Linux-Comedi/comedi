@@ -1116,8 +1116,8 @@ static void das1800_handle_fifo_not_empty(comedi_device * dev,
 			break;
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
 		/* convert to unsigned type if we are in a bipolar mode */
-		if (!unipolar) ;
-		dpnt = munge_bipolar_sample(dev, dpnt);
+		if (!unipolar)
+			dpnt = munge_bipolar_sample(dev, dpnt);
 		cfc_write_to_buffer(s, dpnt);
 		if (cmd->stop_src == TRIG_COUNT)
 			devpriv->count--;
