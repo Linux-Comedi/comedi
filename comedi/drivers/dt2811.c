@@ -34,7 +34,7 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ, although this is currently unused
   [2] - A/D reference
-          0 = signle-ended
+          0 = single-ended
           1 = differential
 	  2 = pseudo-differential (common reference)
   [3] - A/D range
