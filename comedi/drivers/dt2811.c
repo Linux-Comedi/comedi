@@ -494,11 +494,12 @@ static int dt2811_ai_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int chan = CR_CHAN(insn->chanspec);
+	int range = CR_RANGE(insn->chanspec);
 	int timeout = DT2811_TIMEOUT;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		outb(chan, dev->iobase + DT2811_ADGCR);
+		outb((range << 6) | chan, dev->iobase + DT2811_ADGCR);
 
 		while (timeout
 			&& inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
