@@ -1,7 +1,7 @@
 /*
     comedi/drivers/adl_pci7432.c
 
-    Hardware comedi driver fot PCI7432 Adlink card
+    Hardware comedi driver fot PCI7432 ADLINK card
     Copyright (C) 2004 Michel Lachine <mike@mikelachaine.ca>
 
     This program is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@
 */
 /*
 Driver: adl_pci7432
-Description: Driver for the Adlink PCI-7432 64 ch. isolated digital io board
-Devices: [ADLink] PCI-7432 (adl_pci7432)
+Description: Driver for the ADLINK PCI-7432 64 ch. isolated digital io board
+Devices: [ADLINK] PCI-7432 (adl_pci7432)
 Author: Michel Lachaine <mike@mikelachaine.ca>
 Status: experimental
 Updated: Mon, 14 Apr 2008 15:08:14 +0100

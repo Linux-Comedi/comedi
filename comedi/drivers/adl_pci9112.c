@@ -2,7 +2,7 @@
 
    comedi/drivers/adl_pci9112.c
 
-   Hardware driver for PCI9112 ADLink cards:
+   Hardware driver for PCI9112 ADLINK cards:
 
      PCI-9112
 
@@ -25,9 +25,9 @@
 
 /*
 Driver: adl_pci9112
-Description: Adlink PCI-9112
+Description: ADLINK PCI-9112
 Author: Pascal Berthou <berthou@laas.fr> Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-Devices: [ADLink] PCI-9112 (adl_pci9112)
+Devices: [ADLINK] PCI-9112 (adl_pci9112)
 Status: experimental
 
 Supports:

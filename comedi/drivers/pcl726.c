@@ -4,7 +4,7 @@
     hardware driver for Advantech cards:
      card:   PCL-726, PCL-727, PCL-728
      driver: pcl726,  pcl727,  pcl728
-    and for ADLink cards:
+    and for ADLINK cards:
      card:   ACL-6126, ACL-6128
      driver: acl6126,  acl6128
 
@@ -32,7 +32,7 @@ Description: Advantech PCL-726 & compatibles
 Author: ds
 Status: untested
 Devices: [Advantech] PCL-726 (pcl726), PCL-727 (pcl727), PCL-728 (pcl728),
-  [ADLink] ACL-6126 (acl6126), ACL-6128 (acl6128)
+  [ADLINK] ACL-6126 (acl6126), ACL-6128 (acl6128)
 
 Interrupts are not supported.
 

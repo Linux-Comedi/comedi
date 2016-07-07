@@ -6,7 +6,7 @@
     hardware driver for Advantech cards:
      card:   PCL-724, PCL-722, PCL-731
      driver: pcl724,  pcl722,  pcl731
-    and ADLink cards:
+    and ADLINK cards:
      card:   ACL-7122, ACL-7124, PET-48DIO
      driver: acl7122,  acl7124,  pet48dio
 
@@ -22,11 +22,11 @@
 */
 /*
 Driver: pcl724
-Description: Advantech PCL-724, PCL-722, PCL-731 ADLink ACL-7122, ACL-7124,
+Description: Advantech PCL-724, PCL-722, PCL-731 ADLINK ACL-7122, ACL-7124,
   PET-48DIO
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCL-724 (pcl724), PCL-722 (pcl722), PCL-731 (pcl731),
-  [ADLink] ACL-7122 (acl7122), ACL-7124 (acl7124), PET-48DIO (pet48dio)
+  [ADLINK] ACL-7122 (acl7122), ACL-7124 (acl7124), PET-48DIO (pet48dio)
 Status: untested
 
 This is driver for digital I/O boards PCL-722/724/731 with 144/24/48 DIO

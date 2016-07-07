@@ -1,7 +1,7 @@
 /*
     comedi/drivers/adl_pci6208.c
 
-    Hardware driver for ADLink 6208 series cards:
+    Hardware driver for ADLINK 6208 series cards:
 	card	     | voltage output    | current output
 	-------------+-------------------+---------------
 	PCI-6208V    |  8 channels       | -
@@ -27,8 +27,8 @@
 */
 /*
 Driver: adl_pci6208
-Description: ADLink PCI-6216V
-Devices: [ADLink] PCI-6216V (adl_pci6208)
+Description: ADLINK PCI-6216V
+Devices: [ADLINK] PCI-6216V (adl_pci6208)
 Author: nsyeow <nsyeow@pd.jaring.my>
 Updated: Tue, 10 Feb 2015 15:29:55 +0000
 Status: untested

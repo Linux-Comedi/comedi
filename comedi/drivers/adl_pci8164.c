@@ -1,7 +1,7 @@
 /*
     comedi/drivers/adl_pci8164.c
 
-    Hardware comedi driver fot PCI-8164 Adlink card
+    Hardware comedi driver fot PCI-8164 ADLINK card
     Copyright (C) 2004 Michel Lachine <mike@mikelachaine.ca>
 
     This program is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@
 */
 /*
 Driver: adl_pci8164
-Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
-Devices: [ADLink] PCI-8164 (adl_pci8164)
+Description: Driver for the ADLINK PCI-8164 4 Axes Motion Control board
+Devices: [ADLINK] PCI-8164 (adl_pci8164)
 Author: Michel Lachaine <mike@mikelachaine.ca>
 Status: experimental
 Updated: Mon, 14 Apr 2008 15:10:32 +0100

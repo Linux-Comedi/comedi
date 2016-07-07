@@ -2,7 +2,7 @@
 
    comedi/drivers/adl_pci9111.c
 
-   Hardware driver for PCI9111 ADLink cards:
+   Hardware driver for PCI9111 ADLINK cards:
 
      PCI-9111HR
 
@@ -25,9 +25,9 @@
 
 /*
 Driver: adl_pci9111
-Description: Adlink PCI-9111HR
+Description: ADLINK PCI-9111HR
 Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-Devices: [ADLink] PCI-9111HR (adl_pci9111)
+Devices: [ADLINK] PCI-9111HR (adl_pci9111)
 Status: experimental
 
 Supports:

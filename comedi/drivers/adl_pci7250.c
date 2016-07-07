@@ -1,7 +1,7 @@
 /*
     comedi/drivers/adl_pci7250.c
 
-    Hardware comedi driver for PCI7250 Adlink card
+    Hardware comedi driver for PCI7250 ADLINK card
     Copyright (C) 2015 Ian Abbott <abbotti@mev.co.uk>
 
     This program is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@
 */
 /*
 Driver: adl_pci7250
-Description: Driver for the Adlink PCI-7250 relay output & digital input card
-Devices: [ADLink] PCI-7250 (adl_pci7250) LPCI-7250 LPCIe-7250
+Description: Driver for the ADLINK PCI-7250 relay output & digital input card
+Devices: [ADLINK] PCI-7250 (adl_pci7250) LPCI-7250 LPCIe-7250
 Author: Ian Abbott <abbotti@mev.co.uk>
 Status: works
 Updated: Wed, 17 Jun 2015 09:22:58 +0000

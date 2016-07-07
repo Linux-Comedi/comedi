@@ -9,7 +9,7 @@ Description: Advantech PCL-730 (& compatibles)
 Author: José Luis Sánchez (jsanchezv@teleline.es)
 Status: untested
 Devices: [Advantech] PCL-730 (pcl730), [ICP] ISO-730 (iso730),
-		 [Adlink] ACL-7130 (acl7130)
+	 [ADLINK] ACL-7130 (acl7130)
 
 Interrupts are not supported.
 The ACL-7130 card have an 8254 timer/counter not supported by this driver.

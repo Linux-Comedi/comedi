@@ -1,7 +1,7 @@
 /*
     comedi/drivers/adl_pci7230.c
 
-    Hardware comedi driver fot PCI7230 Adlink card
+    Hardware comedi driver fot PCI7230 ADLINK card
     Copyright (C) 2010 David Fernandez <dfcastelao@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@
 */
 /*
 Driver: adl_pci7230
-Description: Driver for the Adlink PCI-7230 32 ch. isolated digital io board
-Devices: [ADLink] PCI-7230 (adl_pci7230)
+Description: Driver for the ADLINK PCI-7230 32 ch. isolated digital io board
+Devices: [ADLINK] PCI-7230 (adl_pci7230)
 Author: David Fernandez <dfcastelao@gmail.com>
 Status: experimental
 Updated: Mon, 14 Apr 2008 15:08:14 +0100

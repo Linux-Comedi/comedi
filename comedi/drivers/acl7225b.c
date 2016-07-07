@@ -1,14 +1,14 @@
 /*
  * comedi/drivers/acl7225b.c
- * Driver for Adlink NuDAQ ACL-7225b and clones
+ * Driver for ADLINK NuDAQ ACL-7225b and clones
  * José Luis Sánchez
  */
 /*
 Driver: acl7225b
-Description: Adlink NuDAQ ACL-7225b & compatibles
+Description: ADLINK NuDAQ ACL-7225b & compatibles
 Author: José Luis Sánchez (jsanchezv@teleline.es)
 Status: testing
-Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
+Devices: [ADLINK] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 */
 
 #include <linux/comedidev.h>

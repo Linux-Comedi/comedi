@@ -25,11 +25,11 @@
  */
 /*
 Driver: pcl711
-Description: Advantech PCL-711 and 711b, ADLink ACL-8112
+Description: Advantech PCL-711 and 711b, ADLINK ACL-8112
 Author: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
 Status: mostly complete
 Devices: [Advantech] PCL-711 (pcl711), PCL-711B (pcl711b),
-  [AdLink] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
+  [ADLINK] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
 
 Since these boards do not have DMA or FIFOs, only immediate mode is
 supported.

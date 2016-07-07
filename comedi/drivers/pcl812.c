@@ -6,7 +6,7 @@
  * hardware driver for Advantech cards
  *  card:   PCL-812, PCL-812PG, PCL-813, PCL-813B
  *  driver: pcl812,  pcl812pg,  pcl813,  pcl813b
- * and for ADlink cards
+ * and for ADLINK cards
  *  card:   ACL-8112DG, ACL-8112HG, ACL-8112PG, ACL-8113, ACL-8216
  *  driver: acl8112dg,  acl8112hg,  acl8112pg,  acl8113,  acl8216
  * and for ICP DAS cards
@@ -18,12 +18,12 @@
 /*
 Driver: pcl812
 Description: Advantech PCL-812/PG, PCL-813/B,
-             ADLink ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
+             ADLINK ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
              ICP DAS A-821PGH/PGL/PGL-NDA, A-822PGH/PGL, A-823PGH/PGL, A-826PG,
              ICP DAS ISO-813
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCL-812 (pcl812), PCL-812PG (pcl812pg),
-  PCL-813 (pcl813), PCL-813B (pcl813b), [ADLink] ACL-8112DG (acl8112dg),
+  PCL-813 (pcl813), PCL-813B (pcl813b), [ADLINK] ACL-8112DG (acl8112dg),
   ACL-8112HG (acl8112hg), ACL-8113 (acl-8113), ACL-8216 (acl8216),
   [ICP] ISO-813 (iso813), A-821PGH (a821pgh), A-821PGL (a821pgl),
   A-821PGL-NDA (a821pclnda), A-822PGH (a822pgh), A-822PGL (a822pgl),

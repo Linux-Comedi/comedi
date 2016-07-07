@@ -1,7 +1,7 @@
 /*
  *  comedi/drivers/adl_pci9118.c
  *
- *  hardware driver for ADLink cards:
+ *  hardware driver for ADLINK cards:
  *   card:   PCI-9118DG, PCI-9118HG, PCI-9118HR
  *   driver: pci9118dg,  pci9118hg,  pci9118hr
  *
@@ -10,9 +10,9 @@
 */
 /*
 Driver: adl_pci9118
-Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
+Description: ADLINK PCI-9118DG, PCI-9118HG, PCI-9118HR
 Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
+Devices: [ADLINK] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
   PCI-9118HR (pci9118hr)
 Status: works
 
@@ -1922,7 +1922,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = 0;	// user don't want use IRQ
 	if (irq > 0) {
 		if (comedi_request_irq(irq, interrupt_pci9118, IRQF_SHARED,
-				"ADLink PCI-9118", dev)) {
+				"ADLINK PCI-9118", dev)) {
 			rt_printk(", unable to allocate IRQ %d, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
