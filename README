@@ -52,10 +52,18 @@ updated versions may be downloaded.
 
 Often bugfixes and new features that are not in the current release
 can be found in the Git repository.  Git snapshots can be created
-automatically at <http://comedi.org/git?p=comedi/comedi.git;a=tree>.
+automatically at
+<https://github.com/Linux-Comedi/comedi/tarball/master>.
 The Git repository can be accessed anonymously using:
 
-  git clone git://comedi.org/git/comedi.git
+  git clone https://github.com/Linux-Comedi/comedi.git
+
+The Git repository was previously hosted at comedi.org.  A previously
+cloned repository may need its URL updating to the current repository
+on github.com as follows:
+
+  cd /path/to/comedi
+  git remote set-url origin https://github.com/Linux-Comedi/comedi.git
 
 Comedi may be freely distributed and modified in accordance with the
 GNU General Public License.
