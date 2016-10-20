@@ -239,6 +239,7 @@ dnl replaces LINUX_KERNEL_RELEASE once the Linux build directory is known
 dnl first argument is the Linux build directory
 AC_DEFUN([AS_LINUX_OVERRIDE_KERNEL_RELEASE],
 [
+	AC_REQUIRE([AC_PROG_CPP])
 	INCDIR="$1/include"
 	UTSINC="${INCDIR}/generated/utsrelease.h"
 	if ! test -f "${UTSINC}"; then
@@ -248,8 +249,8 @@ AC_DEFUN([AS_LINUX_OVERRIDE_KERNEL_RELEASE],
 		UTSINC="${INCDIR}/linux/version.h"
 	fi
 	if test -f "${UTSINC}"; then
-		RELEASE=`echo UTS_RELEASE | cat "${UTSINC}" - |
-			/lib/cpp -I "${INCDIR}" | tail -n 1 |
+		echo UTS_RELEASE | cat "${UTSINC}" - > conftest.c
+		RELEASE=`$CPP -I "${INCDIR}" conftest.c | tail -n 1 |
 			sed 's/^"\(.*\)"$/\1/'`
 		if test "${RELEASE}" != "UTS_RELEASE" -a "${RELEASE}" != "" \
 			-a "${RELEASE}" != "${LINUX_KERNEL_RELEASE}"; then
