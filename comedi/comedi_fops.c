@@ -2164,9 +2164,6 @@ static int __init comedi_init(void)
 		return PTR_ERR(comedi_class);
 	}
 
-	/* XXX requires /proc interface */
-	comedi_proc_init();
-
 	// create devices files for legacy/manual use
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		int minor;
@@ -2180,6 +2177,9 @@ static int __init comedi_init(void)
 			return minor;
 		}
 	}
+
+	/* XXX requires /proc interface */
+	comedi_proc_init();
 
 	comedi_rt_init();
 
