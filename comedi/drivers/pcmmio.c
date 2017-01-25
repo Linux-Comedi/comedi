@@ -468,6 +468,8 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 				subpriv->dio.intr.num_asic_chans =
 					s->n_chan -
 					subpriv->dio.intr.first_chan;
+				dev->read_subdev = s;
+				s->subdev_flags |= SDF_CMD_READ;
 				s->cancel = pcmmio_cancel;
 				s->do_cmd = pcmmio_cmd;
 				s->do_cmdtest = pcmmio_cmdtest;
