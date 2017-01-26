@@ -352,6 +352,7 @@ int subdev_8255_init_irq(comedi_device * dev, comedi_subdevice * s,
 	s->do_cmdtest = subdev_8255_cmdtest;
 	s->do_cmd = subdev_8255_cmd;
 	s->cancel = subdev_8255_cancel;
+	s->subdev_flags |= SDF_CMD_READ;
 
 	subdevpriv->have_irq = 1;
 
