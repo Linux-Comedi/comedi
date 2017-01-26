@@ -334,6 +334,7 @@ int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
 	s->do_cmdtest = subdev_700_cmdtest;
 	s->do_cmd = subdev_700_cmd;
 	s->cancel = subdev_700_cancel;
+	s->subdev_flags |= SDF_CMD_READ;
 
 	subdevpriv->have_irq = 1;
 
