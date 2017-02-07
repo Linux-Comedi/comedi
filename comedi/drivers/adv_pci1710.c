@@ -7,8 +7,8 @@
  * for testing and informations.
  *
  *  hardware driver for Advantech cards:
- *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1720, PCI-1731
- *   driver: pci1710,  pci1710hg,  pci1711,  pci1713,  pci1720,  pci1731
+ *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1716, PCI-1720, PCI-1731
+ *   driver: pci1710,  pci1710hg,  pci1711,  pci1713,  pci1716, pci1720,  pci1731
  *
  * Options:
  *  [0] - PCI bus number - if bus number and slot number are 0,
@@ -22,7 +22,7 @@ Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG (pci1710hg),
-  PCI-1711 (adv_pci1710), PCI-1713, PCI-1720,
+  PCI-1711 (adv_pci1710), PCI-1713, PCI-1716, PCI-1720,
   PCI-1731
 Status: works
 
@@ -182,6 +182,7 @@ static const comedi_lrange range_pci171x_da = { 2, {
 	}
 };
 
+
 static int pci1710_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci1710_detach(comedi_device * dev);
 
@@ -210,6 +211,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1716, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
@@ -240,6 +242,12 @@ static const boardtype boardtypes[] = {
 		32, 16, 0, 0, 0, 0, 0x0fff, 0x0000,
 		&range_pci1710_3, range_codes_pci1710_3, NULL,
 		10000, 2048},
+        {"pci1716", 0x1716,
+                IORANGE_171x, 1, TYPE_PCI171X,
+                16, 8, 2, 16, 16, 1, 0xffff, 0xffff,
+                &range_pci1710_3, range_codes_pci1710_3,
+                &range_pci1720,
+                4000, 1024},
 	{"pci1720", 0x1720,
 		IORANGE_1720, 0, TYPE_PCI1720,
 		0, 0, 4, 0, 0, 0, 0x0000, 0x0fff,
