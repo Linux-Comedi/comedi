@@ -65,6 +65,7 @@ Configuration options:
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
 #define TYPE_PCI1720	3
+#define TYPE_PCI1716	4
 
 #define IORANGE_171x 	32
 #define IORANGE_1720 	16
@@ -168,6 +169,14 @@ static const comedi_lrange range_pci17x1 = { 5, {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
+static const comedi_lrange range_pci1716 = { 4, {
+			BIP_RANGE(5),
+			BIP_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(10),
+	}
+};
+
 static const comedi_lrange range_pci1720 = { 4, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
@@ -243,10 +252,10 @@ static const boardtype boardtypes[] = {
 		&range_pci1710_3, range_codes_pci1710_3, NULL,
 		10000, 2048},
         {"pci1716", 0x1716,
-                IORANGE_171x, 1, TYPE_PCI171X,
+                IORANGE_171x, 1, TYPE_PCI1716,
                 16, 8, 2, 16, 16, 1, 0xffff, 0xffff,
                 &range_pci1710_3, range_codes_pci1710_3,
-                &range_pci1720,
+                &range_pci1716,
                 4000, 1024},
 	{"pci1720", 0x1720,
 		IORANGE_1720, 0, TYPE_PCI1720,
@@ -404,17 +413,30 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 	int n, chan, range, ofs;
 
 	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
-	if (chan) {
-		devpriv->da_ranges &= 0xfb;
-		devpriv->da_ranges |= (range << 2);
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA2;
-	} else {
-		devpriv->da_ranges &= 0xfe;
-		devpriv->da_ranges |= range;
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA1;
+	switch (this_board->cardtype) {
+	    case TYPE_PCI1716:
+		range = CR_RANGE(insn->chanspec) & 0x3;
+		if (range != devpriv->da_ranges) {
+		    outb(range, dev->iobase + PCI171x_DAREF + chan);
+		    devpriv->da_ranges = range;
+		}
+		ofs = PCI171x_DA1 + (chan << 1);
+	    break;
+
+	    default:
+		range = CR_RANGE(insn->chanspec);
+		if (chan) {
+			devpriv->da_ranges &= 0xfb;
+			devpriv->da_ranges |= (range << 2);
+			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+			ofs = PCI171x_DA2;
+		} else {
+			devpriv->da_ranges &= 0xfe;
+			devpriv->da_ranges |= range;
+			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+			ofs = PCI171x_DA1;
+		}
+	    break;
 	}
 
 	for (n = 0; n < insn->n; n++)
