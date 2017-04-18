@@ -207,7 +207,8 @@ static int aio_aio12_8_attach(comedi_device * dev, comedi_devconfig * it)
 
 static int aio_aio12_8_detach(comedi_device * dev)
 {
-	subdev_8255_cleanup(dev, &dev->subdevices[2]);
+	if (dev->subdevices)
+		subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
 		release_region(dev->iobase, 24);
 	return 0;
