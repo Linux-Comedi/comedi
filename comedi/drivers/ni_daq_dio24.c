@@ -190,10 +190,10 @@ static int dio24_detach(comedi_device * dev)
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
 
-	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
-		release_region(dev->iobase, DIO24_SIZE);
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
+	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
+		release_region(dev->iobase, DIO24_SIZE);
 
 	return 0;
 };
