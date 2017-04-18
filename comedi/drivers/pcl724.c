@@ -204,17 +204,21 @@ static int pcl724_detach(comedi_device * dev)
 
 //      printk("comedi%d: pcl724: remove\n",dev->minor);
 
-	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev_8255_cleanup(dev, dev->subdevices + i);
-	}
-
 #ifdef PCL724_IRQ
 	if (dev->irq) {
 		comedi_free_irq(dev->irq, dev);
 	}
 #endif
 
-	release_region(dev->iobase, this_board->io_range);
+	if (dev->subdevices) {
+		for (i = 0; i < dev->n_subdevices; i++) {
+			subdev_8255_cleanup(dev, dev->subdevices + i);
+		}
+	}
+
+	if (dev->iobase) {
+		release_region(dev->iobase, this_board->io_range);
+	}
 
 	return 0;
 }
