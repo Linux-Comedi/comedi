@@ -544,10 +544,10 @@ static int das800_detach(comedi_device * dev)
 	printk("comedi%d: das800: remove\n", dev->minor);
 
 	/* only free stuff if it has been allocated by _attach */
-	if (dev->iobase)
-		release_region(dev->iobase, DAS800_SIZE);
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, DAS800_SIZE);
 	return 0;
 };
 
