@@ -768,13 +768,9 @@ static int das1800_attach(comedi_device * dev, comedi_devconfig * it)
 static int das1800_detach(comedi_device * dev)
 {
 	/* only free stuff if it has been allocated by _attach */
-	if (dev->iobase)
-		release_region(dev->iobase, DAS1800_SIZE);
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
 	if (dev->private) {
-		if (devpriv->iobase2)
-			release_region(devpriv->iobase2, DAS1800_SIZE);
 		if (devpriv->dma0)
 			free_dma(devpriv->dma0);
 		if (devpriv->dma1)
@@ -783,7 +779,11 @@ static int das1800_detach(comedi_device * dev)
 			kfree(devpriv->ai_buf0);
 		if (devpriv->ai_buf1)
 			kfree(devpriv->ai_buf1);
+		if (devpriv->iobase2)
+			release_region(devpriv->iobase2, DAS1800_SIZE);
 	}
+	if (dev->iobase)
+		release_region(dev->iobase, DAS1800_SIZE);
 
 	printk("comedi%d: %s: remove\n", dev->minor,
 		driver_das1800.driver_name);
