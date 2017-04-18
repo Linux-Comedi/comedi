@@ -259,12 +259,14 @@ static int unioxx5_detach(comedi_device * dev)
 	comedi_subdevice *subdev;
 	unioxx5_subd_priv *usp;
 
-	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev = &dev->subdevices[i];
-		usp = subdev->private;
-		if (usp) {
-			release_region(usp->usp_iobase, UNIOXX5_SIZE);
-			kfree(usp);
+	if (dev->subdevices) {
+		for (i = 0; i < dev->n_subdevices; i++) {
+			subdev = &dev->subdevices[i];
+			usp = subdev->private;
+			if (usp) {
+				release_region(usp->usp_iobase, UNIOXX5_SIZE);
+				kfree(usp);
+			}
 		}
 	}
 
