@@ -302,8 +302,6 @@ static int adq12b_detach(comedi_device *dev)
         if (dev->iobase)
           release_region(dev->iobase, ADQ12B_SIZE);
 
-        kfree(devpriv);
-
         printk("comedi%d: adq12b: removed\n",dev->minor);
 
         return 0;
