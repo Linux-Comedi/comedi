@@ -434,10 +434,10 @@ static int dio700_detach(comedi_device * dev)
 	if (dev->subdevices)
 		subdev_700_cleanup(dev, dev->subdevices + 0);
 
-	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
-		release_region(dev->iobase, DIO700_SIZE);
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
+	if (thisboard->bustype != pcmcia_bustype && dev->iobase)
+		release_region(dev->iobase, DIO700_SIZE);
 
 	return 0;
 };
