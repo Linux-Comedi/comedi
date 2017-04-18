@@ -455,13 +455,13 @@ static int pcmuio_detach(comedi_device * dev)
 	int i;
 
 	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
-	if (dev->iobase)
-		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
-
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv && devpriv->asics[i].irq)
 			comedi_free_irq(devpriv->asics[i].irq, dev);
 	}
+
+	if (dev->iobase)
+		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
 
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
