@@ -322,11 +322,11 @@ static int multiq3_detach(comedi_device * dev)
 {
 	printk("comedi%d: multiq3: remove\n", dev->minor);
 
-	if (dev->iobase) {
-		release_region(dev->iobase, MULTIQ3_SIZE);
-	}
 	if (dev->irq) {
 		free_irq(dev->irq, dev);
+	}
+	if (dev->iobase) {
+		release_region(dev->iobase, MULTIQ3_SIZE);
 	}
 
 	return 0;
