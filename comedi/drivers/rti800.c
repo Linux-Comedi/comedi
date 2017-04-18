@@ -446,11 +446,11 @@ static int rti800_detach(comedi_device * dev)
 {
 	printk("comedi%d: rti800: remove\n", dev->minor);
 
-	if (dev->iobase)
-		release_region(dev->iobase, RTI800_SIZE);
-
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
+
+	if (dev->iobase)
+		release_region(dev->iobase, RTI800_SIZE);
 
 	return 0;
 }
