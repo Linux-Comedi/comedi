@@ -1641,7 +1641,8 @@ static int das16_detach(comedi_device * dev)
 {
 	printk("comedi%d: das16: remove\n", dev->minor);
 
-	das16_reset(dev);
+	if (dev->iobase)
+		das16_reset(dev);
 
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
