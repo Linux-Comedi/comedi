@@ -455,7 +455,6 @@ static int a2150_detach(comedi_device * dev)
 	if (dev->iobase) {
 		// put board in power-down mode
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-		release_region(dev->iobase, A2150_SIZE);
 	}
 
 	if (dev->irq)
@@ -466,6 +465,8 @@ static int a2150_detach(comedi_device * dev)
 		if (devpriv->dma_buffer)
 			kfree(devpriv->dma_buffer);
 	}
+	if (dev->iobase)
+		release_region(dev->iobase, A2150_SIZE);
 
 	return 0;
 };
