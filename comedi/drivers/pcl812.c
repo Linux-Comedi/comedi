@@ -1287,7 +1287,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->iobase = iobase;
 
 	if ((ret = alloc_private(dev, sizeof(pcl812_private))) < 0) {
-		free_resources(dev);
 		return ret;	/* Can't alloc mem */
 	}
 
@@ -1336,7 +1335,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		if (!devpriv->dmabuf[0]) {
 			printk(", unable to allocate DMA buffer, FAIL!\n");
 			/* maybe experiment with try_to_free_pages() will help .... */
-			free_resources(dev);
 			return -EBUSY;	/* no buffer :-( */
 		}
 		devpriv->dmapages[0] = pages;
@@ -1345,7 +1343,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
 			printk(", unable to allocate DMA buffer, FAIL!\n");
-			free_resources(dev);
 			return -EBUSY;
 		}
 		devpriv->dmapages[1] = pages;
@@ -1365,7 +1362,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		n_subdevices++;
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
-		free_resources(dev);
 		return ret;
 	}
 
