@@ -20,21 +20,12 @@
 
 */
 /*
-Driver:	contec_fit
-
-Description:	Contec DAI12-4(FIT)GY Analog Output F&eIT Module
-		Contec ADI16-4(FIT)GY Analog Input F&eIT Module
-		Contec DIO-8/8(FIT)GY Digital I/O F&eIT Module
-
-Devices:	[Contec] DAI12-4(FIT)GY (contec_fit)
-		[Contec] ADI16-4(FIT)GY (contec_fit)
-		[Contec] DIO-8/8(FIT)GY (contec_fit)
-
-Author:	Contec Co.,Ltd
-
-Updated:	Fri, 21 Apr 2017 14:30:00 +0900
-
-Status:	works
+Driver: contec_fit
+Description: Contec F&eIT series modules
+Devices: [Contec] DAI12-4(FIT)GY (contec_fit), ADI16-4(FIT)GY, DIO-8/8(FIT)GY
+Author: Contec Co., Ltd.
+Updated: Fri, 21 Apr 2017 14:30:00 +0900
+Status: works
 
 Configuration Options:
   [0] - DeviceID of module (optional)
