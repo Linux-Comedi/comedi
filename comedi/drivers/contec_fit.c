@@ -195,25 +195,19 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 	int				deviceid, device_address;
 	int				product_category, product_id_number;
 
-#ifdef DEBUG
-	printk("comedi%d: contec: ", dev->minor);
-#endif
+	printk(KERN_INFO "comedi%d: contec\n", dev->minor);
 	if (alloc_private(dev, sizeof(contec_fit_private)) < 0){
 		return -ENOMEM;
 	}
 
 	deviceid = it->options[0];
 	if(deviceid < 0 || deviceid > 7){
-#ifdef DEBUG
-		printk("comedi%d: contec: ID %d out of range\n", dev->minor, deviceid);
-#endif
+		printk(KERN_ERR "comedi%d: contec: ID %d out of range\n", dev->minor, deviceid);
 		return -EINVAL;
 	}
 	device_address	= ADDRESS_BASE + (ADDRESS_PER_ID * deviceid);
 	if(!request_region(device_address, CONTEC_FIT_SIZE, "contec_fit")){
-#ifdef DEBUG
-		printk("comedi%d: contec: 0x%04x I/O port conflict\n", dev->minor, device_address);
-#endif
+		printk(KERN_ERR "comedi%d: contec: 0x%04x I/O port conflict\n", dev->minor, device_address);
 		return -EIO;
 	}
 	product_category	= inb(device_address + IO_PRODUCT_CATEGORY);
@@ -301,9 +295,7 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 
 static int contec_detach(comedi_device * dev)
 {
-#ifdef DEBUG
-	printk("comedi%d: contec: remove\n", dev->minor);
-#endif
+	printk(KERN_INFO "comedi%d: contec: remove\n", dev->minor);
 	if(dev->iobase){
 		release_region(dev->iobase, CONTEC_FIT_SIZE);
 	}
@@ -317,7 +309,7 @@ static int contec_ai_insn_read(comedi_device * dev, comedi_subdevice * s, comedi
 	int	channel;
 
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ai_insn_read called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ai_insn_read called\n", dev->minor);
 #endif
 	channel = CR_CHAN(insn->chanspec);
 
@@ -346,7 +338,7 @@ static int contec_ao_insn_write(comedi_device * dev, comedi_subdevice * s, comed
 	int	channel;
 
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ao_insn_write called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ao_insn_write called\n", dev->minor);
 #endif
 	channel = CR_CHAN(insn->chanspec);
 
@@ -384,7 +376,7 @@ static int contec_ai_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_c
 	int	tmp, i;
 	
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ai_cmdtest called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ai_cmdtest called\n", dev->minor);
 #endif
 	tmp			= cmd->start_src;
 	cmd->start_src	&= TRIG_NOW;
@@ -503,7 +495,7 @@ static int contec_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_c
 	int	tmp, i;
 	
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ao_cmdtest called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ao_cmdtest called\n", dev->minor);
 #endif
 	tmp			= cmd->start_src;
 	cmd->start_src	&= TRIG_INT;
@@ -621,7 +613,7 @@ static int contec_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd	*cmd	= &async->cmd;
 	long		clockdata;
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ai_cmd colled\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ai_cmd called\n", dev->minor);
 #endif
 	outb(COMMAND_ADI164_INIT, dev->iobase + IO_COMMAND_DATA);
 	
@@ -660,7 +652,7 @@ static int contec_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	long		clockdata;
 	
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ao_cmd called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ao_cmd called\n", dev->minor);
 #endif
 	outb(COMMAND_DAI124_INIT, dev->iobase + IO_COMMAND_DATA);
 	
@@ -702,7 +694,7 @@ static int contec_ao_cmd_inttrig(comedi_device *dev, comedi_subdevice *s, unsign
 static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_do_insn_bits called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_do_insn_bits called\n", dev->minor);
 #endif
 	if (insn->n != 2)
 		return -EINVAL;
@@ -774,7 +766,7 @@ static int contec_ai_sampling_thread(void * dev)
 	int			status;
 
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ai_sampling_thread called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ai_sampling_thread called\n", dev_tmp->minor);
 #endif
 	outb((cmd->chanlist_len - 1), dev_tmp->iobase + IO_ADI164_CHANNELDATA);
 
@@ -795,7 +787,7 @@ static int contec_ai_sampling_thread(void * dev)
 				if((cmd->stop_arg * cmd->chanlist_len) <= sampling_count){
 					async->events |= COMEDI_CB_EOA;
 #ifdef DEBUG
-					printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev->minor);
+					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev_tmp->minor);
 #endif
 					break;
 				}
@@ -809,7 +801,7 @@ static int contec_ai_sampling_thread(void * dev)
 		if(status & (STATUS_ADI164_DOE | STATUS_ADI164_SCE)){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 #ifdef DEBUG
-			printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev->minor, status);
+			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev_tmp->minor, status);
 #endif
 			break;
 		}
@@ -836,7 +828,7 @@ static int contec_ao_sampling_thread(void * dev)
 	int			count;
 
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ao_sampling_thread called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ao_sampling_thread called\n", dev_tmp->minor);
 #endif
 
 	sampling_count = 0;
@@ -881,7 +873,7 @@ static int contec_ao_sampling_thread(void * dev)
 				if(cmd->stop_arg <= sampling_count){
 					async->events |= COMEDI_CB_EOA;
 #ifdef DEBUG
-					printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev->minor);
+					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev_tmp->minor);
 #endif
 					break;
 				}
@@ -908,7 +900,7 @@ static int contec_ao_sampling_thread(void * dev)
 		if(status & STATUS_DAI124_PCE){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 #ifdef DEBUG
-			printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev->minor, status);
+			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev_tmp->minor, status);
 #endif
 			break;
 		}
@@ -924,7 +916,7 @@ static int contec_ao_sampling_thread(void * dev)
 static int contec_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ai_cancel called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ai_cancel called\n", dev->minor);
 #endif
 	if(devpriv->fit_kthread != NULL){
 		kthread_stop(devpriv->fit_kthread);
@@ -937,7 +929,7 @@ static int contec_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 static int contec_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 #ifdef DEBUG
-	printk("comedi%d: contec: contec_ao_cancel called\n", dev->minor);
+	rt_printk("comedi%d: contec: contec_ao_cancel called\n", dev->minor);
 #endif
 	if(devpriv->fit_kthread != NULL){
 		kthread_stop(devpriv->fit_kthread);
