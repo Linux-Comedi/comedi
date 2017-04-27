@@ -210,7 +210,7 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EINVAL;
 	}
 	device_address	= ADDRESS_BASE + (ADDRESS_PER_ID * deviceid);
-	if(!request_region(device_address, CONTEC_FIT_SIZE, "cotnec_fit")){
+	if(!request_region(device_address, CONTEC_FIT_SIZE, "contec_fit")){
 #ifdef DEBUG
 		printk("comedi%d: contec: 0x%04x I/O port conflict\n", dev->minor, device_address);
 #endif
