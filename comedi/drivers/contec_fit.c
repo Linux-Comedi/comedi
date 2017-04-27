@@ -96,7 +96,7 @@ static void contec_check_sampling_clock(unsigned int *sampling_clock, unsigned i
 #define ADDRESS_PER_ID					0x1000
 
 //CONTEC FIT SIZE
-#define CONTEC_FIT_SIZE					0x1F
+#define CONTEC_FIT_SIZE					0x20
 
 //COMMON IO
 #define IO_PRODUCT_CATEGORY					0x00
