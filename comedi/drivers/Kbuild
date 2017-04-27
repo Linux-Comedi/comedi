@@ -90,6 +90,7 @@ obj-m += amplc_pc263.o
 obj-m += amplc_dio200.o
 obj-m += c6xdigio.o
 obj-m += comedi_bond.o
+obj-m += contec_fit.o
 obj-m += das16.o
 obj-m += das16m1.o
 obj-m += das6402.o

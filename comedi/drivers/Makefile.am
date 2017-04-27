@@ -190,6 +190,7 @@ module_PROGRAMS = \
  aio_iiro_16.ko \
  c6xdigio.ko \
  comedi_bond.ko \
+ contec_fit.ko \
  das16.ko \
  das16m1.ko \
  das6402.ko \
@@ -290,6 +291,7 @@ cb_pcimdda_ko_SOURCES = cb_pcimdda.c
 cb_das16_cs_ko_SOURCES = cb_das16_cs.c
 comedi_bond_ko_SOURCES = comedi_bond.c
 comedi_fc_ko_SOURCES = comedi_fc.c
+contec_fit_ko_SOURCES = contec_fit.c
 contec_pci_dio_ko_SOURCES = contec_pci_dio.c
 daqboard2000_ko_SOURCES = daqboard2000.c
 das08_ko_SOURCES = das08.c
