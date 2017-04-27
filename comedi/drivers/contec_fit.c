@@ -47,15 +47,6 @@ Configuration Options:
 #include "comedi_fc.h"
 
 typedef struct {
-	const char	*name;
-	int		input_channels;
-	int		output_channels;
-	int		resolution;
-} contec_fit;
-
-#define thisboard ((const contec_board *)dev->board_ptr)
-
-typedef struct {
 	struct task_struct *fit_kthread;
 } contec_fit_private;
 
