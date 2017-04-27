@@ -78,12 +78,12 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s, comedi
 
 static	int contec_ai_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd);
 static int contec_ai_cmd(comedi_device * dev, comedi_subdevice * s);
-static int contec_ai_sampling_thread(void * dev);
+static int contec_ai_sampling_thread(void * context_dev);
 static int contec_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static	int contec_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd);
 static int contec_ao_cmd(comedi_device * dev, comedi_subdevice * s);
-static int contec_ao_sampling_thread(void * dev);
+static int contec_ao_sampling_thread(void * context_dev);
 static int contec_ao_cancel(comedi_device * dev, comedi_subdevice * s);
 static int contec_ao_cmd_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trignum);
 
@@ -756,29 +756,29 @@ static void contec_check_sampling_clock(unsigned int *sampling_clock, unsigned i
 	}
 }
 
-static int contec_ai_sampling_thread(void * dev)
+static int contec_ai_sampling_thread(void * context_dev)
 {
-	comedi_device		*dev_tmp	= (comedi_device *)dev;
-	comedi_subdevice	*s		= dev_tmp->read_subdev;
+	comedi_device		*dev		= (comedi_device *)context_dev;
+	comedi_subdevice	*s		= dev->read_subdev;
 	comedi_async		*async		= s->async;
 	comedi_cmd		*cmd		= &async->cmd;
 	int			sampling_count;
 	int			status;
 
 #ifdef DEBUG
-	rt_printk("comedi%d: contec: contec_ai_sampling_thread called\n", dev_tmp->minor);
+	rt_printk("comedi%d: contec: contec_ai_sampling_thread called\n", dev->minor);
 #endif
-	outb((cmd->chanlist_len - 1), dev_tmp->iobase + IO_ADI164_CHANNELDATA);
+	outb((cmd->chanlist_len - 1), dev->iobase + IO_ADI164_CHANNELDATA);
 
-	outb(COMMAND_ADI164_TIMER_START, dev_tmp->iobase + IO_COMMAND_DATA);
+	outb(COMMAND_ADI164_TIMER_START, dev->iobase + IO_COMMAND_DATA);
 	
 	sampling_count = 0;
 	while(!kthread_should_stop()){
 		schedule();
 		async->events = 0;
-		status = inb(dev_tmp->iobase + IO_ADI164_STATUS0);
+		status = inb(dev->iobase + IO_ADI164_STATUS0);
 		if(status & STATUS_ADI164_DRE){
-			if(!cfc_write_to_buffer(s, (inb(dev_tmp->iobase + IO_ADI164_INPUTDATA_LOWER) + (inb(dev_tmp->iobase + IO_ADI164_INPUTDATA_UPPER) << 8)))){
+			if(!cfc_write_to_buffer(s, (inb(dev->iobase + IO_ADI164_INPUTDATA_LOWER) + (inb(dev->iobase + IO_ADI164_INPUTDATA_UPPER) << 8)))){
 				async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 				break;
 			}
@@ -787,37 +787,37 @@ static int contec_ai_sampling_thread(void * dev)
 				if((cmd->stop_arg * cmd->chanlist_len) <= sampling_count){
 					async->events |= COMEDI_CB_EOA;
 #ifdef DEBUG
-					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev_tmp->minor);
+					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev->minor);
 #endif
 					break;
 				}
 			}
 			if(!(sampling_count % cmd->chanlist_len)){
 				async->events = COMEDI_CB_BLOCK;
-				comedi_event(dev_tmp, s);
+				comedi_event(dev, s);
 			}
 			continue;
 		}
 		if(status & (STATUS_ADI164_DOE | STATUS_ADI164_SCE)){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 #ifdef DEBUG
-			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev_tmp->minor, status);
+			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev->minor, status);
 #endif
 			break;
 		}
 	}
 
-	outb(COMMAND_ADI164_TIMER_STOP, dev_tmp->iobase + IO_COMMAND_DATA);
+	outb(COMMAND_ADI164_TIMER_STOP, dev->iobase + IO_COMMAND_DATA);
 
-	comedi_event(dev_tmp, s);
+	comedi_event(dev, s);
 	
 	return 0;
 }
 
-static int contec_ao_sampling_thread(void * dev)
+static int contec_ao_sampling_thread(void * context_dev)
 {
-	comedi_device		*dev_tmp	= (comedi_device *)dev;
-	comedi_subdevice	*s		= dev_tmp->write_subdev;
+	comedi_device		*dev		= (comedi_device *)context_dev;
+	comedi_subdevice	*s		= dev->write_subdev;
 	comedi_async		*async		= s->async;
 	comedi_cmd		*cmd		= &async->cmd;
 	int			sampling_count;
@@ -828,19 +828,19 @@ static int contec_ao_sampling_thread(void * dev)
 	int			count;
 
 #ifdef DEBUG
-	rt_printk("comedi%d: contec: contec_ao_sampling_thread called\n", dev_tmp->minor);
+	rt_printk("comedi%d: contec: contec_ao_sampling_thread called\n", dev->minor);
 #endif
 
 	sampling_count = 0;
 	channel_num = 0;
 	count = 0;
 
-	status = inb(dev_tmp->iobase + IO_DAI124_STATUS);
+	status = inb(dev->iobase + IO_DAI124_STATUS);
 	while((status & STATUS_DAI124_DSB)){
 		count++;
 		if(count > 50000){
 			async->events |= COMEDI_CB_EOA;
-			comedi_event(dev_tmp, s);
+			comedi_event(dev, s);
 			return 0;
 		}
 	}
@@ -848,32 +848,32 @@ static int contec_ao_sampling_thread(void * dev)
 	for(i = 0; i < cmd->chanlist_len; i++){
 		if(!comedi_buf_get(async, &data)){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			comedi_event(dev_tmp, s);
+			comedi_event(dev, s);
 
 			return 0;
 		}
 		if(i < (cmd->chanlist_len - 1)){
-			outb(i, dev_tmp->iobase + IO_DAI124_CHANNELDATA);
+			outb(i, dev->iobase + IO_DAI124_CHANNELDATA);
 		}else{
-			outb(i | CHANNELDATA_DAI124_ENDCHANNEL, dev_tmp->iobase + IO_DAI124_CHANNELDATA);
+			outb(i | CHANNELDATA_DAI124_ENDCHANNEL, dev->iobase + IO_DAI124_CHANNELDATA);
 		}
-		outb(data & 0xff, dev_tmp->iobase + IO_DAI124_OUTPUTDATA_LOWER);
-		outb(((data & 0xf00) >> 8), dev_tmp->iobase + IO_DAI124_OUTPUTDATA_UPPER);
+		outb(data & 0xff, dev->iobase + IO_DAI124_OUTPUTDATA_LOWER);
+		outb(((data & 0xf00) >> 8), dev->iobase + IO_DAI124_OUTPUTDATA_UPPER);
 	}
 
-	outb(COMMAND_DAI124_TIMER_START, dev_tmp->iobase + IO_COMMAND_DATA);
+	outb(COMMAND_DAI124_TIMER_START, dev->iobase + IO_COMMAND_DATA);
 
 	while(!kthread_should_stop()){
 		schedule();
 		async->events = 0;
-		status = inb(dev_tmp->iobase + IO_DAI124_STATUS);
+		status = inb(dev->iobase + IO_DAI124_STATUS);
 		if((status & STATUS_DAI124_EOC)){
 			sampling_count++;
 			if(cmd->stop_src == TRIG_COUNT){
 				if(cmd->stop_arg <= sampling_count){
 					async->events |= COMEDI_CB_EOA;
 #ifdef DEBUG
-					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev_tmp->minor);
+					rt_printk("comedi%d: contec: contec_ai_sampling_thread TRIG_COUNT\n", dev->minor);
 #endif
 					break;
 				}
@@ -884,31 +884,31 @@ static int contec_ao_sampling_thread(void * dev)
 					break;
 				}
 				if(i < (cmd->chanlist_len - 1)){
-					outb(i, dev_tmp->iobase + IO_DAI124_CHANNELDATA);
+					outb(i, dev->iobase + IO_DAI124_CHANNELDATA);
 				}else{
-					outb(i | CHANNELDATA_DAI124_ENDCHANNEL, dev_tmp->iobase + IO_DAI124_CHANNELDATA);
+					outb(i | CHANNELDATA_DAI124_ENDCHANNEL, dev->iobase + IO_DAI124_CHANNELDATA);
 				}
-				outb(data & 0xff, dev_tmp->iobase + IO_DAI124_OUTPUTDATA_LOWER);
-				outb(((data & 0xf00) >> 8), dev_tmp->iobase + IO_DAI124_OUTPUTDATA_UPPER);
+				outb(data & 0xff, dev->iobase + IO_DAI124_OUTPUTDATA_LOWER);
+				outb(((data & 0xf00) >> 8), dev->iobase + IO_DAI124_OUTPUTDATA_UPPER);
 			}
-			outb(status & (STATUS_DAI124_EOC | STATUS_DAI124_PCI), dev_tmp->iobase + IO_DAI124_STATUS);
+			outb(status & (STATUS_DAI124_EOC | STATUS_DAI124_PCI), dev->iobase + IO_DAI124_STATUS);
 			async->events = COMEDI_CB_BLOCK;
-			comedi_event(dev_tmp, s);
+			comedi_event(dev, s);
 
 			continue;
 		}
 		if(status & STATUS_DAI124_PCE){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 #ifdef DEBUG
-			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev_tmp->minor, status);
+			rt_printk("comedi%d: contec: contec_ai_sampling_thread ERROR = %d\n", dev->minor, status);
 #endif
 			break;
 		}
 	}
 
-	outb(COMMAND_DAI124_TIMER_STOP, dev_tmp->iobase + IO_COMMAND_DATA);
+	outb(COMMAND_DAI124_TIMER_STOP, dev->iobase + IO_COMMAND_DATA);
 
-	comedi_event(dev_tmp, s);
+	comedi_event(dev, s);
 	
 	return 0;
 }
