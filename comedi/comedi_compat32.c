@@ -30,7 +30,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
 #include <linux/smp_lock.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "comedi_compat32.h"
 

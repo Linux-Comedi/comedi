@@ -52,7 +52,7 @@ for my needs.
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/comedidev.h>
 #include "dt9812.h"

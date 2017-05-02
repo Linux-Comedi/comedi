@@ -42,7 +42,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 //#include <linux/malloc.h>
 #include <linux/slab.h>
@@ -57,7 +57,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include <linux/comedidev.h>
 #include "addi_amcc_s5933.h"
 #include <linux/kmod.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define ERROR  -1
 #define SUCCESS 1

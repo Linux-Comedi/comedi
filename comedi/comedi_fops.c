@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -42,9 +42,8 @@
 #include <linux/comedidev.h>
 #include <linux/cdev.h>
 #include <linux/stat.h>
-
+#include <linux/uaccess.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
 
 #include "comedi_fops.h"
 #include "comedi_compat32.h"

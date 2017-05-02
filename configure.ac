@@ -225,6 +225,7 @@ include/Makefile
 include/linux/Makefile
 inc-wrap/Makefile
 inc-wrap/linux/Makefile
+inc-wrap/linux/sched/Makefile
 inc-wrap/asm/Makefile
 inc-wrap/pcmcia/Makefile
 ])

@@ -48,7 +48,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #include<linux/kernel.h>
 #include<linux/module.h>
-#include<linux/sched.h>
+#include<linux/sched/signal.h>
 #include<linux/mm.h>
 #include<linux/slab.h>
 #include<linux/errno.h>

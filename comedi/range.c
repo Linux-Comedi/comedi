@@ -22,7 +22,7 @@
 */
 
 #include <linux/comedidev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 const comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
 const comedi_lrange range_bipolar5 = { 1, {BIP_RANGE(5)} };
