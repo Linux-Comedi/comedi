@@ -171,11 +171,14 @@ static const comedi_lrange range_pci17x1 = { 5, {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const comedi_lrange range_pci1716_da = { 4, {
+static const comedi_lrange range_pci1716_da = { 6, {
 			BIP_RANGE(5),
 			BIP_RANGE(10),
 			UNI_RANGE(5),
 			UNI_RANGE(10),
+			RANGE_ext(-1, 1),
+			/* (gap of 1 in hardware codes here) */
+			RANGE_ext(0, 1),
 	}
 };
 
@@ -187,9 +190,10 @@ static const comedi_lrange range_pci1720_da = { 4, {
 	}
 };
 
-static const comedi_lrange range_pci171x_da = { 2, {
+static const comedi_lrange range_pci171x_da = { 3, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
+			RANGE_ext(0, 1),
 	}
 };
 
@@ -521,6 +525,9 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 	range = CR_RANGE(insn->chanspec);
 	switch (this_board->cardtype) {
 	case TYPE_PCI1716:
+		/* Unipolar external is 5 in software but 6 in hardware. */
+		if (range == 5)
+			range = 6;
 		devpriv->da_ranges &= ~(0x7 << (chan * 8));
 		devpriv->da_ranges |= range << (chan * 8);
 		break;
