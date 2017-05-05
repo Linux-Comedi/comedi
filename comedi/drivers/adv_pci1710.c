@@ -7,8 +7,8 @@
  * for testing and informations.
  *
  *  hardware driver for Advantech cards:
- *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1720, PCI-1731
- *   driver: pci1710,  pci1710hg,  pci1711,  pci1713,  pci1720,  pci1731
+ *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1716, PCI-1720, PCI-1731
+ *   driver: pci1710,  pci1710hg,  pci1711,  pci1713,  pci1716, pci1720,  pci1731
  *
  * Options:
  *  [0] - PCI bus number - if bus number and slot number are 0,
@@ -22,7 +22,7 @@ Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG (pci1710hg),
-  PCI-1711 (adv_pci1710), PCI-1713, PCI-1720,
+  PCI-1711 (adv_pci1710), PCI-1713, PCI-1716, PCI-1720,
   PCI-1731
 Status: works
 
@@ -65,6 +65,7 @@ Configuration options:
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
 #define TYPE_PCI1720	3
+#define TYPE_PCI1716	4
 
 #define IORANGE_171x 	32
 #define IORANGE_1720 	16
@@ -168,6 +169,14 @@ static const comedi_lrange range_pci17x1 = { 5, {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
+static const comedi_lrange range_pci1716 = { 4, {
+			BIP_RANGE(5),
+			BIP_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(10),
+	}
+};
+
 static const comedi_lrange range_pci1720 = { 4, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
@@ -181,6 +190,7 @@ static const comedi_lrange range_pci171x_da = { 2, {
 			UNI_RANGE(10),
 	}
 };
+
 
 static int pci1710_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci1710_detach(comedi_device * dev);
@@ -210,6 +220,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1716, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
@@ -240,6 +251,12 @@ static const boardtype boardtypes[] = {
 		32, 16, 0, 0, 0, 0, 0x0fff, 0x0000,
 		&range_pci1710_3, range_codes_pci1710_3, NULL,
 		10000, 2048},
+        {"pci1716", 0x1716,
+                IORANGE_171x, 1, TYPE_PCI1716,
+                16, 8, 2, 16, 16, 1, 0xffff, 0xffff,
+                &range_pci1710_3, range_codes_pci1710_3,
+                &range_pci1716,
+                4000, 1024},
 	{"pci1720", 0x1720,
 		IORANGE_1720, 0, TYPE_PCI1720,
 		0, 0, 4, 0, 0, 0, 0x0000, 0x0fff,
@@ -396,17 +413,30 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 	int n, chan, range, ofs;
 
 	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
-	if (chan) {
-		devpriv->da_ranges &= 0xfb;
-		devpriv->da_ranges |= (range << 2);
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA2;
-	} else {
-		devpriv->da_ranges &= 0xfe;
-		devpriv->da_ranges |= range;
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA1;
+	switch (this_board->cardtype) {
+	    case TYPE_PCI1716:
+		range = CR_RANGE(insn->chanspec) & 0x3;
+		if (range != devpriv->da_ranges) {
+		    outb(range, dev->iobase + PCI171x_DAREF + chan);
+		    devpriv->da_ranges = range;
+		}
+		ofs = PCI171x_DA1 + (chan << 1);
+	    break;
+
+	    default:
+		range = CR_RANGE(insn->chanspec);
+		if (chan) {
+			devpriv->da_ranges &= 0xfb;
+			devpriv->da_ranges |= (range << 2);
+			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+			ofs = PCI171x_DA2;
+		} else {
+			devpriv->da_ranges &= 0xfe;
+			devpriv->da_ranges |= range;
+			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+			ofs = PCI171x_DA1;
+		}
+	    break;
 	}
 
 	for (n = 0; n < insn->n; n++)
