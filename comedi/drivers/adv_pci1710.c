@@ -407,7 +407,7 @@ typedef struct {
 	unsigned int act_chanlist[32];	// list of scaned channel
 	unsigned char act_chanlist_len;	// len of scanlist
 	unsigned char act_chanlist_pos;	// actual position in MUX list
-	unsigned char da_ranges;	// copy of D/A outpit range register
+	unsigned short da_ranges;	// copy of D/A output range register
 	unsigned int ai_scans;	// len of scanlist
 	unsigned int ai_n_chan;	// how many channels is measured
 	unsigned int *ai_chanlist;	// actaul chanlist
@@ -518,32 +518,20 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 	int n, chan, range, ofs;
 
 	chan = CR_CHAN(insn->chanspec);
+	range = CR_RANGE(insn->chanspec);
 	switch (this_board->cardtype) {
-	    case TYPE_PCI1716:
-		range = CR_RANGE(insn->chanspec) & 0x3;
-		if (range != devpriv->da_ranges) {
-		    outb(range, dev->iobase + PCI171x_DAREF + chan);
-		    devpriv->da_ranges = range;
-		}
-		ofs = PCI171x_DA1 + (chan << 1);
-	    break;
-
-	    default:
-		range = CR_RANGE(insn->chanspec);
-		if (chan) {
-			devpriv->da_ranges &= 0xfb;
-			devpriv->da_ranges |= (range << 2);
-			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-			ofs = PCI171x_DA2;
-		} else {
-			devpriv->da_ranges &= 0xfe;
-			devpriv->da_ranges |= range;
-			outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-			ofs = PCI171x_DA1;
-		}
-	    break;
+	case TYPE_PCI1716:
+		devpriv->da_ranges &= ~(0x7 << (chan * 8));
+		devpriv->da_ranges |= range << (chan * 8);
+		break;
+	default:
+		devpriv->da_ranges &= ~(0x3 << (chan * 2));
+		devpriv->da_ranges |= range << (chan * 2);
+		break;
 	}
+	outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 
+	ofs = PCI171x_DA1 + (chan << 1);
 	for (n = 0; n < insn->n; n++)
 		outw(data[n], dev->iobase + ofs);
 
@@ -1392,9 +1380,17 @@ static int pci171x_reset(comedi_device * dev)
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	// clear FIFO
 	outb(0, dev->iobase + PCI171x_CLRINT);	// clear INT request
 	start_pacer(dev, -1, 0, 0);	// stop 8254
-	devpriv->da_ranges = 0;
+	// set DAC ranges to 0V..5V
+	switch (this_board->cardtype) {
+	case TYPE_PCI1716:
+		devpriv->da_ranges = 0x0202;
+		break;
+	default:
+		devpriv->da_ranges = 0;
+		break;
+	}
 	if (this_board->n_aochan) {
-		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);	// set DACs to 0..5V
+		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 		outw(0, dev->iobase + PCI171x_DA1);	// set DA outputs to 0V
 		devpriv->ao_data[0] = 0x0000;
 		if (this_board->n_aochan > 1) {
