@@ -329,7 +329,7 @@ static const boardtype boardtypes[] = {
 		.rangecode_ai = range_codes_pci1710_3,
                 .rangelist_ao = &range_pci1716,
                 .ai_ns_min = 4000,
-		.fifo_half_size = 1024,
+		.fifo_half_size = 512,
 	},
 	{
 		.name = "pci1720",
