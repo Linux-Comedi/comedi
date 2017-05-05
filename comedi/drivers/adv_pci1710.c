@@ -171,7 +171,7 @@ static const comedi_lrange range_pci17x1 = { 5, {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const comedi_lrange range_pci1716 = { 4, {
+static const comedi_lrange range_pci1716_da = { 4, {
 			BIP_RANGE(5),
 			BIP_RANGE(10),
 			UNI_RANGE(5),
@@ -179,7 +179,7 @@ static const comedi_lrange range_pci1716 = { 4, {
 	}
 };
 
-static const comedi_lrange range_pci1720 = { 4, {
+static const comedi_lrange range_pci1720_da = { 4, {
 			UNI_RANGE(5),
 			UNI_RANGE(10),
 			BIP_RANGE(5),
@@ -327,7 +327,7 @@ static const boardtype boardtypes[] = {
 		.ao_maxdata = 0xffff,
                 .rangelist_ai = &range_pci1710_3,
 		.rangecode_ai = range_codes_pci1710_3,
-                .rangelist_ao = &range_pci1716,
+                .rangelist_ao = &range_pci1716_da,
                 .ai_ns_min = 4000,
 		.fifo_half_size = 512,
 	},
@@ -347,7 +347,7 @@ static const boardtype boardtypes[] = {
 		.ao_maxdata = 0x0fff,
 		.rangelist_ai = NULL,
 		.rangecode_ai = NULL,
-		.rangelist_ao = &range_pci1720,
+		.rangelist_ao = &range_pci1720_da,
 		.ai_ns_min = 0,
 		.fifo_half_size = 0,
 	},
