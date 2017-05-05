@@ -21,9 +21,11 @@ Driver: adv_pci1710
 Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG (pci1710hg),
-  PCI-1711 (adv_pci1710), PCI-1713, PCI-1716, PCI-1720,
-  PCI-1731
+Devices: [Advantech] PCI-1710 (pci1710 or adv_pci1710),
+  PCI-1710HG (pci1710hg), PCI-1711 (pci1711 or adv_pci1710),
+  PCI-1713 (pci1713 or adv_pci1710), PCI-1716 (pci1716 or adv_pci1710),
+  PCI-1720 (pci1720 or adv_pci1710), PCI-1731 (pci1731 or adv_pci1710)
+Updated: Fri, 05 May 2017 12:31:39 +0000
 Status: works
 
 This driver supports AI, AO, DI and DO subdevices.
