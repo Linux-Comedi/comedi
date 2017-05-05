@@ -449,9 +449,8 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int n, timeout;
-#ifdef PCI171x_PARANOIDCHECK
 	unsigned int idata;
-#endif
+	unsigned int maxdata;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_insn_read_ai(...)\n");
 	devpriv->CntrlReg &= Control_CNT0;
@@ -461,6 +460,7 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
 	setup_channel_list(dev, s, &insn->chanspec, 1, 1);
+	maxdata = this_board->ai_maxdata;
 
 	DPRINTK("adv_pci1710 A ST=%4x IO=%x\n",
 		inw(dev->iobase + PCI171x_STATUS),
@@ -489,17 +489,16 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 		return -ETIME;
 
 	      conv_finish:
-#ifdef PCI171x_PARANOIDCHECK
 		idata = inw(dev->iobase + PCI171x_AD_DATA);
-		if (this_board->cardtype != TYPE_PCI1713)
+#ifdef PCI171x_PARANOIDCHECK
+		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((idata & 0xf000) != devpriv->act_chanlist[0]) {
 				comedi_error(dev, "A/D insn data droput!");
 				return -ETIME;
 			}
-		data[n] = idata & 0x0fff;
-#else
-		data[n] = inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff;
+		}
 #endif
+		data[n] = idata & maxdata;
 
 	}
 
@@ -717,9 +716,8 @@ static void interrupt_pci1710_every_sample(void *d)
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int m;
-#ifdef PCI171x_PARANOIDCHECK
 	sampl_t sampl;
-#endif
+	sampl_t maxdata;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_pci1710_every_sample(...)\n");
 	m = inw(dev->iobase + PCI171x_STATUS);
@@ -742,12 +740,14 @@ static void interrupt_pci1710_every_sample(void *d)
 
 	outb(0, dev->iobase + PCI171x_CLRINT);	// clear our INT request
 
+	maxdata = this_board->ai_maxdata;
+
 	DPRINTK("FOR ");
 	for (; !(inw(dev->iobase + PCI171x_STATUS) & Status_FE);) {
-#ifdef PCI171x_PARANOIDCHECK
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
+#ifdef PCI171x_PARANOIDCHECK
 		DPRINTK("%04x:", sampl);
-		if (this_board->cardtype != TYPE_PCI1713)
+		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((sampl & 0xf000) !=
 				devpriv->act_chanlist[s->async->cur_chan]) {
 				rt_printk
@@ -762,13 +762,11 @@ static void interrupt_pci1710_every_sample(void *d)
 				comedi_event(dev, s);
 				return;
 			}
+		}
 		DPRINTK("%8d %2d %8d~", s->async->buf_int_ptr,
 			s->async->cur_chan, s->async->buf_int_count);
-		comedi_buf_put(s->async, sampl & 0x0fff);
-#else
-		comedi_buf_put(s->async,
-			inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff);
 #endif
+		comedi_buf_put(s->async, sampl & maxdata);
 		++s->async->cur_chan;
 
 		if (s->async->cur_chan >= devpriv->ai_n_chan) {
@@ -801,16 +799,16 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 	int n, int turn)
 {
 	int i, j;
-#ifdef PCI171x_PARANOIDCHECK
-	int sampl;
-#endif
+	sampl_t sampl;
+	sampl_t maxdata;
 	DPRINTK("adv_pci1710 EDBG: BGN: move_block_from_fifo(...,%d,%d)\n", n,
 		turn);
 	j = s->async->cur_chan;
+	maxdata = this_board->ai_maxdata;
 	for (i = 0; i < n; i++) {
-#ifdef PCI171x_PARANOIDCHECK
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
-		if (this_board->cardtype != TYPE_PCI1713)
+#ifdef PCI171x_PARANOIDCHECK
+		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((sampl & 0xf000) != devpriv->act_chanlist[j]) {
 				rt_printk
 					("comedi%d: A/D  FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
@@ -825,11 +823,9 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 				comedi_event(dev, s);
 				return 1;
 			}
-		comedi_buf_put(s->async, sampl & 0x0fff);
-#else
-		comedi_buf_put(s->async,
-			inw(dev->iobase + PCI171x_AD_DATA) & 0x0fff);
+		}
 #endif
+		comedi_buf_put(s->async, sampl & maxdata);
 		j++;
 		if (j >= devpriv->ai_n_chan) {
 			j = 0;
