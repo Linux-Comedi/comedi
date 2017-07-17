@@ -1740,6 +1740,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 
 		if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
 			if (count == 0) {
+				set_current_state(TASK_RUNNING);
 				mutex_lock(&dev->mutex);
 				if (comedi_get_subdevice_runflags(s) &
 					SRF_ERROR) {
@@ -1786,6 +1787,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			continue;
 		}
 
+		set_current_state(TASK_RUNNING);
 		m = copy_from_user(async->prealloc_buf + async->buf_write_ptr,
 			buf, n);
 		if (m) {
@@ -1867,6 +1869,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		if (n == 0) {
 			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+				set_current_state(TASK_RUNNING);
 				mutex_lock(&dev->mutex);
 				if (comedi_get_subdevice_runflags(s) &
 					SRF_ERROR) {
@@ -1897,6 +1900,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			}
 			continue;
 		}
+		set_current_state(TASK_RUNNING);
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if (m) {
@@ -1913,14 +1917,14 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(&async->wait_head, &wait);
 	if (!(comedi_get_subdevice_runflags(s) & (SRF_ERROR | SRF_RUNNING))) {
 		mutex_lock(&dev->mutex);
 		if (async->buf_read_count - async->buf_write_count == 0)
 			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&async->wait_head, &wait);
 
 done:
 	return (count ? count : retval);
