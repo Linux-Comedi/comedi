@@ -9,15 +9,15 @@
 Driver: adv_pci_dio
 Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1735U,
              PCI-1736UP, PCI-1750, PCI-1751, PCI-1752, PCI-1753/E,
-             PCI-1754, PCI-1756, PCI-1762
+             PCI-1754, PCI-1756, PCI-1761, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
   PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U, PCI-1750,
   PCI-1751, PCI-1752, PCI-1753,
   PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
-  PCI-1760, PCI-1762
+  PCI-1760, PCI-1761, PCI-1762
 Status: untested
-Updated: Tue, 04 May 2010 13:00:00 +0000
+Updated: Thu, 05 Oct 2017 10:47:10 +0000
 
 This driver supports now only insn interface for DI/DO/DIO.
 
@@ -56,6 +56,7 @@ typedef enum {
 	TYPE_PCI1753, TYPE_PCI1753E,
 	TYPE_PCI1754, TYPE_PCI1756,
 	TYPE_PCI1760,
+	TYPE_PCI1761,
 	TYPE_PCI1762
 } hw_cards_id;
 
@@ -144,6 +145,14 @@ typedef enum {
 #define PCI1754_ICR3	0x0e	/* R/W: Interrupt control register group 3 */
 #define PCI1752_6_CFC	0x12	/* R/W: set/read channel freeze function */
 #define PCI175x_BOARDID	0x10	/* R:   Board I/D switch for 1752/4/6 */
+
+// Advantech PCI-1761 registers
+#define PCI1761_RO	0x00	/* R/W: Relays status/output   0-7 */
+#define PCI1761_IDI	0x01	/* R:   Isolated digital input 0-7 */
+#define PCI1761_BOARDID	0x02	/* R:   Board I/D switch */
+#define PCI1761_INT_EN	0x03	/* R/W: Enable/disable interrupts */
+#define PCI1761_INT_RF	0x04	/* R/W: Falling/rising edge triggers */
+#define PCI1761_INT_CLR	0x05	/* R/C: Interrupt status/clear bits */
 
 // Advantech PCI-1762 registers
 #define PCI1762_RO	   0	/* R/W: Relays status/output */
@@ -240,6 +249,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1754, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1756, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1760, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1761, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1762, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
@@ -359,6 +369,14 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
+		IO_8b},
+	{"pci1761", PCI_VENDOR_ID_ADVANTECH, 0x1761, PCIDIO_MAINREG,
+			TYPE_PCI1761,
+			{{0, 0, 0, 0}, {8, PCI1761_IDI, 1, 0}},
+			{{0, 0, 0, 0}, {8, PCI1761_RO, 1, 0}},
+			{{0, 0, 0, 0}, {0, 0, 0, 0}},
+			{4, PCI1761_BOARDID, 1, SDF_INTERNAL},
 			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1762", PCI_VENDOR_ID_ADVANTECH, 0x1762, PCIDIO_MAINREG,
@@ -879,6 +897,14 @@ static int pci_dio_reset(comedi_device * dev)
 		break;
 	case TYPE_PCI1760:
 		pci1760_reset(dev);
+		break;
+	case TYPE_PCI1761:
+		/* disable interrupts */
+		outb(0, dev->iobase + PCI1761_INT_EN);
+		/* clear interrupts */
+		outb(0xff, dev->iobase + PCI1761_INT_CLR);
+		/* set rising edge trigger */
+		outb(0, dev->iobase + PCI1761_INT_RF);
 		break;
 	case TYPE_PCI1762:
 		outw(0x0101, dev->iobase + PCI1762_ICR);	// disable & clear interrupts
