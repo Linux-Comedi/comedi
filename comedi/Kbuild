@@ -1,3 +1,4 @@
+LINUXINCLUDE := $(COMEDI_PREPEND_CFLAGS) $(LINUXINCLUDE)
 
 include comedi_kbuild.inc
 
