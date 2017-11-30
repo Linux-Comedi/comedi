@@ -1170,6 +1170,7 @@ void __exit cleanup_module(void)
 	comedi_driver_unregister(&driver_das16cs);
 }
 
+COMEDI_MODULE_MACROS;
 #else
 COMEDI_INITCLEANUP(driver_das16cs);
 #endif //CONFIG_PCMCIA
