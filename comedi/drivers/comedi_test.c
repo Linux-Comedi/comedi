@@ -79,6 +79,7 @@ static const waveform_board waveform_boards[] = {
 
 /* Data unique to this driver */
 typedef struct {
+	comedi_device *dev;
 	struct timer_list timer;
 	struct timeval last;	// time at which last timer interrupt occured
 	unsigned int uvolt_amplitude;	// waveform amplitude in microvolts
@@ -140,9 +141,10 @@ static const comedi_lrange waveform_ai_ranges = {
    It should run in the background; therefore it is scheduled by
    a timer mechanism.
 */
-static void waveform_ai_interrupt(unsigned long arg)
+static void waveform_ai_interrupt(struct timer_list *t)
 {
-	comedi_device *dev = (comedi_device *) arg;
+	waveform_private *priv = from_timer(priv, t, timer);
+	comedi_device *dev = priv->dev;
 	comedi_async *async = dev->read_subdev->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i, j;
@@ -204,6 +206,8 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 	if (alloc_private(dev, sizeof(waveform_private)) < 0)
 		return -ENOMEM;
 
+	devpriv->dev = dev;
+
 	// set default amplitude and period
 	if (amplitude <= 0)
 		amplitude = 1000000;	// 1 volt
@@ -253,9 +257,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->ao_loopbacks[i] = s->maxdata / 2;
 	}
 
-	init_timer(&(devpriv->timer));
-	devpriv->timer.function = waveform_ai_interrupt;
-	devpriv->timer.data = (unsigned long)dev;
+	timer_setup(&devpriv->timer, waveform_ai_interrupt, 0);
 
 	printk("attached\n");
 
