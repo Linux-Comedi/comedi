@@ -1581,4 +1581,6 @@ void __exit cleanup_module(void)
 	pcmcia_unregister_driver(&daqp_cs_driver);
 }
 
+COMEDI_MODULE_MACROS;
+
 #endif
