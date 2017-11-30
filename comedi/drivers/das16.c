@@ -344,7 +344,7 @@ static void das16_ai_munge(comedi_device * dev, comedi_subdevice * s,
 
 static void das16_reset(comedi_device * dev);
 static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG);
-static void das16_timer_interrupt(unsigned long arg);
+static void das16_timer_interrupt(struct timer_list *t);
 static void das16_interrupt(comedi_device * dev);
 
 static unsigned int das16_set_pacer(comedi_device * dev, unsigned int ns,
@@ -735,6 +735,7 @@ struct das16_private_struct {
 	comedi_lrange *user_ai_range_table;
 	comedi_lrange *user_ao_range_table;
 
+	comedi_device *dev;
 	struct timer_list timer;	// for timed interrupt
 	volatile short timer_running;
 	volatile short timer_mode;	// true if using timer mode
@@ -1160,9 +1161,10 @@ static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG)
 	return IRQ_HANDLED;
 }
 
-static void das16_timer_interrupt(unsigned long arg)
+static void das16_timer_interrupt(struct timer_list *t)
 {
-	comedi_device *dev = (comedi_device *) arg;
+	struct das16_private_struct *priv = from_timer(priv, t, timer);
+	comedi_device *dev = priv->dev;
 
 	das16_interrupt(dev);
 
@@ -1410,6 +1412,8 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_private(dev, sizeof(struct das16_private_struct))) < 0)
 		return ret;
 
+	devpriv->dev = dev;
+
 	if (thisboard->size < 0x400) {
 		printk(" 0x%04lx-0x%04lx\n", iobase, iobase + thisboard->size);
 		if (!request_region(iobase, thisboard->size, "das16")) {
@@ -1527,9 +1531,7 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	if (timer_mode) {
-		init_timer(&(devpriv->timer));
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
+		timer_setup(&devpriv->timer, das16_timer_interrupt, 0);
 	}
 	devpriv->timer_mode = timer_mode ? 1 : 0;
 
@@ -1649,6 +1651,10 @@ static int das16_detach(comedi_device * dev)
 
 	if (devpriv) {
 		int i;
+		if (devpriv->timer_mode) {
+			devpriv->timer_running = 0;
+			del_timer_sync(&devpriv->timer);
+		}
 		for (i = 0; i < 2; i++) {
 			if (devpriv->dma_buffer[i])
 				pci_free_consistent(NULL, DAS16_DMA_SIZE,
