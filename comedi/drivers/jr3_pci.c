@@ -84,6 +84,7 @@ typedef struct {
 	volatile jr3_t *iobase;
 	int n_channels;
 	struct timer_list timer;
+	comedi_device *dev;
 } jr3_pci_dev_private;
 
 typedef struct {
@@ -717,11 +718,11 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 	return result;
 }
 
-static void jr3_pci_poll_dev(unsigned long data)
+static void jr3_pci_poll_dev(struct timer_list *t)
 {
 	unsigned long flags;
-	comedi_device *dev = (comedi_device *) data;
-	jr3_pci_dev_private *devpriv = dev->private;
+	jr3_pci_dev_private *devpriv = from_timer(devpriv, t, timer);
+	comedi_device *dev = devpriv->dev;
 	unsigned long now;
 	int delay;
 	int i;
@@ -777,7 +778,8 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	card = NULL;
 	devpriv = dev->private;
-	init_timer(&devpriv->timer);
+	devpriv->dev = dev;
+	timer_setup(&devpriv->timer, jr3_pci_poll_dev, 0);
 	while (1) {
 		card = pci_get_device(PCI_VENDOR_ID_JR3, PCI_ANY_ID, card);
 		if (card == NULL) {
@@ -918,8 +920,6 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 		p->next_time_max = jiffies + msecs_to_jiffies(2000);
 	}
 
-	devpriv->timer.data = (unsigned long)dev;
-	devpriv->timer.function = jr3_pci_poll_dev;
 	devpriv->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&devpriv->timer);
 
