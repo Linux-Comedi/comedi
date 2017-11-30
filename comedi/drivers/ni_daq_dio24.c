@@ -836,3 +836,5 @@ void __exit cleanup_module(void)
 	exit_dio24_cs();
 	comedi_driver_unregister(&driver_dio24);
 }
+
+COMEDI_MODULE_MACROS;
