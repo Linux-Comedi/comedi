@@ -964,6 +964,9 @@ static void ack_a_interrupt(comedi_device * dev, unsigned short a_status)
 		/* not sure why we used to ack the START here also, instead of doing it independently. Frank Hess 2007-07-06 */
 		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack */ ;
 	}
+	if (a_status & (AI_Overrun_St | AI_Overflow_St)) {
+		ack |= AI_Error_Interrupt_Ack;
+	}
 	if (ack)
 		devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
 }
