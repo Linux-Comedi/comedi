@@ -3438,7 +3438,7 @@ static int prep_ao_dma(comedi_device * dev, const comedi_cmd * cmd)
 
 static inline int external_ai_queue_in_use(comedi_device * dev)
 {
-	if (dev->read_subdev->busy)
+	if (!dev->read_subdev->busy)
 		return 0;
 	if (board(dev)->layout == LAYOUT_4020)
 		return 0;
