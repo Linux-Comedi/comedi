@@ -1671,7 +1671,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 			|| comedi_buf_read_n_available(read_subdev->async) > 0
 			|| !(comedi_get_subdevice_runflags(read_subdev) &
 				SRF_RUNNING)) {
-			mask |= POLLIN | POLLRDNORM;
+			mask |= COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM;
 		}
 	}
 	write_subdev = comedi_get_write_subdevice(dev_file_info);
@@ -1683,7 +1683,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 				SRF_RUNNING)
 			|| comedi_buf_write_n_allocated(write_subdev->async) >=
 			bytes_per_sample(write_subdev->async->subdevice)) {
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
 		}
 	}
 
