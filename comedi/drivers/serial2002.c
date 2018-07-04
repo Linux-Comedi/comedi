@@ -182,8 +182,11 @@ static int tty_read(struct file *f, int timeout)
 				int mask;
 
 				mask = f->f_op->poll(f, &table.pt);
-				if (mask & (POLLRDNORM | POLLRDBAND | POLLIN |
-						POLLHUP | POLLERR)) {
+				if (mask & (COMEDI_EPOLLRDNORM |
+						COMEDI_EPOLLRDBAND |
+						COMEDI_EPOLLIN |
+						COMEDI_EPOLLHUP |
+						COMEDI_EPOLLERR)) {
 					break;
 				}
 				do_gettimeofday(&now);
