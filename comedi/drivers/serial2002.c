@@ -179,7 +179,7 @@ static int tty_read(struct file *f, int timeout)
 			poll_initwait(&table);
 			while (1) {
 				long elapsed;
-				int mask;
+				comedi_poll_t mask;
 
 				mask = f->f_op->poll(f, &table.pt);
 				if (mask & (COMEDI_EPOLLRDNORM |
