@@ -1644,9 +1644,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	return retval;
 }
 
-static unsigned int comedi_poll(struct file *file, poll_table * wait)
+static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 {
-	unsigned int mask = 0;
+	comedi_poll_t mask = 0;
 	const unsigned minor = iminor(file_inode(file));
 	comedi_subdevice *read_subdev;
 	comedi_subdevice *write_subdev;
