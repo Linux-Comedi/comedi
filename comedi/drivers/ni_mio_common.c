@@ -4524,10 +4524,11 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 	/* PFI */
 	s = dev->subdevices + NI_PFI_DIO_SUBDEV;
 	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if (boardtype.reg_type & ni_reg_m_series_mask) {
 		unsigned i;
 		s->n_chan = 16;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->insn_bits = &ni_pfi_insn_bits;
 		ni_writew(s->state, M_Offset_PFI_DO);
 		for (i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i) {
 			ni_writew(devpriv->pfi_output_select_reg[i],
@@ -4535,11 +4536,9 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 		}
 	} else {
 		s->n_chan = 10;
+		s->subdev_flags = SDF_INTERNAL;
 	}
 	s->maxdata = 1;
-	if (boardtype.reg_type & ni_reg_m_series_mask) {
-		s->insn_bits = &ni_pfi_insn_bits;
-	}
 	s->insn_config = &ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
