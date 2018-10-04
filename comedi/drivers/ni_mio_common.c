@@ -5655,7 +5655,10 @@ static int ni_valid_rtsi_output_source(comedi_device * dev, unsigned chan,
 	case NI_RTSI_OUTPUT_G_SRC0:
 	case NI_RTSI_OUTPUT_G_GATE0:
 	case NI_RTSI_OUTPUT_RGOUT0:
-	case NI_RTSI_OUTPUT_RTSI_BRD_0:
+	case NI_RTSI_OUTPUT_RTSI_BRD(0):
+	case NI_RTSI_OUTPUT_RTSI_BRD(1):
+	case NI_RTSI_OUTPUT_RTSI_BRD(2):
+	case NI_RTSI_OUTPUT_RTSI_BRD(3):
 		return 1;
 		break;
 	case NI_RTSI_OUTPUT_RTSI_OSC:
@@ -5681,12 +5684,19 @@ static int ni_set_rtsi_routing(comedi_device * dev, unsigned chan,
 			RTSI_Trig_Output_Bits(chan, source);
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
 			RTSI_Trig_A_Output_Register);
-	} else if (chan < 8) {
+	} else if (chan < num_configurable_rtsi_channels(dev)) {
 		devpriv->rtsi_trig_b_output_reg &= ~RTSI_Trig_Output_Mask(chan);
 		devpriv->rtsi_trig_b_output_reg |=
 			RTSI_Trig_Output_Bits(chan, source);
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
 			RTSI_Trig_B_Output_Register);
+	} else if (chan != old_RTSI_clock_channel) {
+		/* probably should never reach this, since the
+		 * ni_valid_rtsi_output_source above errors out if chan is too
+		 * high
+		 */
+		comedi_error(dev, "unknown rtsi channel in ni_set_rtsi_routing()");
+		return -EINVAL;
 	}
 	return 2;
 }
