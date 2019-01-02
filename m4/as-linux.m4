@@ -359,7 +359,7 @@ dnl third argument is machine (uname -m)
 
 AC_DEFUN([AS_LINUX_CONFIG],
 [
-	LINUX_DIR=[$1]
+	LINUXDIR=[$1]
 	KERNEL_RELEASE=[$2]
 	MACHINE=[$3]
 	AC_ARG_WITH([linuxconfig],
@@ -375,9 +375,9 @@ AC_DEFUN([AS_LINUX_CONFIG],
 	fi
 
         dnl if no file specified, first check for the regular .config file
-        dnl in LINUX_DIR created by manual configuration
+        dnl in LINUXDIR created by manual configuration
 	if test "${LINUX_CONFIG}" = "default" ; then
-		file="$LINUX_DIR/.config";
+		file="$LINUXDIR/.config";
 		AS_TRY_LINUX_CONFIG($file, $MACHINE,
 		                    [LINUX_CONFIG=${file}], )
 	fi
@@ -397,13 +397,13 @@ AC_DEFUN([AS_LINUX_CONFIG],
 		echo $KERNEL_RELEASE | grep smp && EXTRA="-smp"
 		echo $KERNEL_RELEASE | grep bigmem && EXTRA="-bigmem"
 		echo $KERNEL_RELEASE | grep BOOT && EXTRA="-BOOT"
-		file="$LINUX_DIR/configs/kernel-$KVERSION-$LINUX_RPM_TARGET$EXTRA.config"
+		file="$LINUXDIR/configs/kernel-$KVERSION-$LINUX_RPM_TARGET$EXTRA.config"
 		AS_TRY_LINUX_CONFIG($file, $MACHINE,
 		                    [LINUX_CONFIG=${file}], )
 	fi
 	if test "${LINUX_CONFIG}" = "default" ; then
 		AC_MSG_ERROR([
-The kernel source tree at ${LINUX_DIR} is not configured,
+The kernel source tree at ${LINUXDIR} is not configured,
 and no configuration files in config/ matching your kernel were found.
 Fix before continuing or specify a config file using --with-configfile.])
 	fi
@@ -737,16 +737,16 @@ dnl first argument is the linux directory
 dnl sets LINUX_VERSION_MAJOR and LINUX_VERSION_MINOR
 AC_DEFUN([AS_LINUX_VERSION_MAJOR_MINOR],
 [
-	LINUX_DIR=[$1]
+	LINUXDIR=[$1]
 	AC_MSG_CHECKING([Linux major/minor version])
 
-	if [[ ! -f "${LINUX_DIR}/Makefile" ]];then
+	if [[ ! -f "${LINUXDIR}/Makefile" ]];then
 		AC_MSG_ERROR([The Linux kernel Makefile does not exist.])
 	fi
         dnl the next set of tests is for figuring out version major/minor
         dnl use VERSION and PATCHLEVEL in the kernel Makefile
-	LINUX_VERSION_MAJOR=`sed -n 's/^VERSION = \([[0-9]]*\)/\1/p' "${LINUX_DIR}/Makefile"`
-	LINUX_VERSION_MINOR=`sed -n 's/^PATCHLEVEL = \([[0-9]]*\)/\1/p' "${LINUX_DIR}/Makefile"`
+	LINUX_VERSION_MAJOR=`sed -n 's/^VERSION = \([[0-9]]*\)/\1/p' "${LINUXDIR}/Makefile"`
+	LINUX_VERSION_MINOR=`sed -n 's/^PATCHLEVEL = \([[0-9]]*\)/\1/p' "${LINUXDIR}/Makefile"`
 	if [[ -z "$LINUX_VERSION_MAJOR" -o -z "$LINUX_VERSION_MINOR" ]]; then
 		AC_MSG_ERROR([No major/minor version information found in Linux kernel Makefile.])
 	fi
