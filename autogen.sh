@@ -1,3 +1,3 @@
 #!/bin/bash
-autoreconf -i -B m4
+autoreconf -i -f -B m4
 
