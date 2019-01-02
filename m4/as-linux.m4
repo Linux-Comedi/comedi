@@ -18,7 +18,6 @@ dnl --with-linuxconfig     to specify a kernel .config file
 dnl --with-kernel-release  to specify an alternative uname -r
 dnl --with-machine         to specify an alternative uname -m
 dnl --with-rpm-target      to specify to match the given rpm --target option
-dnl --with-extraversion    to specify an EXTRAVERSION override
 dnl --with-modulesdir      to specify the base install location of modules
 dnl --with-modulesdeveldir to specify the base install location of build stuff
 
@@ -82,8 +81,6 @@ AC_DEFUN([AS_LINUX],
 	AS_LINUX_OVERRIDE_KERNEL_RELEASE($LINUX_DIR)
 	dnl find the kernel source tree from the build tree or --with-linuxsrcdir
 	AS_LINUX_SRC_DIR($LINUX_DIR)
-	dnl check if user supplied an EXTRAVERSION, and if not get from uname -r
-	AS_LINUX_EXTRAVERSION($LINUX_KERNEL_RELEASE)
 	dnl check if user supplied a config file; if not, guess a good one
 	AS_LINUX_CONFIG($LINUX_DIR, $LINUX_KERNEL_RELEASE, $LINUX_MACHINE)
 	dnl check if we're building on pre-FC2 Red Hat/Fedora,
@@ -326,22 +323,6 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 		AC_MSG_ERROR(Could not guess uname -m value from target $LINUX_RPM_TARGET)
 		fi
 	fi
-])
-
-
-dnl allow for specifying an override for EXTRAVERSION
-dnl if none specified, make it from the passed-in KERNEL_RELEASE (uname -r)
-dnl resulting value is stored in LINUX_EXTRAVERSION
-dnl first argument is the uname -r string to use as a fallback
-AC_DEFUN([AS_LINUX_EXTRAVERSION],
-[
-	KERNEL_RELEASE=[$1]
-	dnl extract the default by getting everything after first -
-	LINUX_EXTRAVERSION="-`echo $KERNEL_RELEASE | cut -d- -f 2-`"
-	AC_ARG_WITH([extraversion],
-		[AC_HELP_STRING([--with-extraversion=FILE],
-			[specify override for kernel EXTRAVERSION])],
-		[LINUX_EXTRAVERSION="${withval}"],)
 ])
 
 
