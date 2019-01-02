@@ -94,7 +94,7 @@ AC_DEFUN([AS_LINUX],
 	dnl check for where to install module development files
 	AS_LINUX_MODULESDEVELDIR($LINUX_DIR)
 	dnl check for the MAJOR/MINOR version of Linux
-	AS_LINUX_VERSION_MAJOR_MINOR($LINUX_DIR)
+	AS_LINUX_VERSION_MAJOR_MINOR($LINUX_SRC_DIR)
 
 	dnl now call the correct macro to get compiler flags
 	dnl the versioned AS_LINUX macros just use the global variables
