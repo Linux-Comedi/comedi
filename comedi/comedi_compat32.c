@@ -141,9 +141,8 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
 
 	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(VERIFY_READ, chaninfo32, sizeof(*chaninfo32))
-			|| !access_ok(VERIFY_WRITE, chaninfo,
-				sizeof(*chaninfo))) {
+	if (!access_ok(chaninfo32, sizeof(*chaninfo32))
+			|| !access_ok(chaninfo, sizeof(*chaninfo))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -177,9 +176,8 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 	rangeinfo = compat_alloc_user_space(sizeof(*rangeinfo));
 
 	/* Copy rangeinfo structure. */
-	if (!access_ok(VERIFY_READ, rangeinfo32, sizeof(*rangeinfo32))
-			|| !access_ok(VERIFY_WRITE, rangeinfo,
-				sizeof(*rangeinfo))) {
+	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32))
+			|| !access_ok(rangeinfo, sizeof(*rangeinfo))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -206,8 +204,8 @@ static int get_compat_cmd(comedi_cmd __user *cmd,
 	} temp;
 
 	/* Copy cmd structure. */
-	if (!access_ok(VERIFY_READ, cmd32, sizeof(*cmd32))
-			|| !access_ok(VERIFY_WRITE, cmd, sizeof(*cmd))) {
+	if (!access_ok(cmd32, sizeof(*cmd32))
+			|| !access_ok(cmd, sizeof(*cmd))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -256,8 +254,8 @@ static int put_compat_cmd(comedi32_cmd __user *cmd32, comedi_cmd __user *cmd)
 	/* Assume the pointer values are already valid. */
 	/* (Could use ptr_to_compat() to set them, but that wasn't implemented
 	 * until kernel version 2.6.11.) */
-	if (!access_ok(VERIFY_READ, cmd, sizeof(*cmd))
-			|| !access_ok(VERIFY_WRITE, cmd32, sizeof(*cmd32))) {
+	if (!access_ok(cmd, sizeof(*cmd))
+			|| !access_ok(cmd32, sizeof(*cmd32))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -359,8 +357,8 @@ static int get_compat_insn(comedi_insn __user *insn,
 
 	/* Copy insn structure.  Ignore the unused members. */
 	err = 0;
-	if (!access_ok(VERIFY_READ, insn32, sizeof(*insn32))
-			|| !access_ok(VERIFY_WRITE, insn, sizeof(*insn))) {
+	if (!access_ok(insn32, sizeof(*insn32))
+			|| !access_ok(insn, sizeof(*insn))) {
 		return -EFAULT;
 	}
 	err |= __get_user(temp.uint, &insn32->insn);
@@ -392,7 +390,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	insnlist32 = compat_ptr(arg);
 
 	/* Get 32-bit insnlist structure.  */
-	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32))) {
+	if (!access_ok(insnlist32, sizeof(*insnlist32))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -408,7 +406,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 				insn[n_insns]));
 
 	/* Set native insnlist structure. */
-	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist))) {
+	if (!access_ok(&s->insnlist, sizeof(s->insnlist))) {
 		return -EFAULT;
 	}
 	err |= __put_user(n_insns, &s->insnlist.n_insns);
