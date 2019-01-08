@@ -26,7 +26,7 @@ static inline int _comedi_access_ok(unsigned long addr, size_t size)
 	return access_ok(0, addr, size);
 }
 #undef access_ok
-#define access_ok(addr, size) _comedi_access_ok((unsigned long)addr, size)
+#define access_ok(addr, size) _comedi_access_ok((unsigned long)(addr), (size))
 #endif
 
 #endif /* __COMPAT_LINUX_UACCESS_H_ */
