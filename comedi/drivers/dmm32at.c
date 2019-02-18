@@ -896,7 +896,7 @@ static int dmm32at_ns_to_timer(unsigned int *ns, int round)
 static int dmm32at_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int i;
+	int i, j;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned char hi, lo, status;
 
@@ -916,12 +916,12 @@ static int dmm32at_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 		dmm_outb(dev, DMM32AT_DACMSB, hi);
 
 		/* wait for circuit to settle */
-		for (i = 0; i < 40000; i++) {
+		for (j = 0; j < 40000; j++) {
 			status = dmm_inb(dev, DMM32AT_DACSTAT);
 			if ((status & DMM32AT_DACBUSY) == 0)
 				break;
 		}
-		if (i == 40000) {
+		if (j == 40000) {
 			printk("timeout\n");
 			return -ETIMEDOUT;
 		}
