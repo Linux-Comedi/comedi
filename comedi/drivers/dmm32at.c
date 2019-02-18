@@ -77,6 +77,10 @@ Configuration Options:
 #include <linux/comedidev.h>
 #include <linux/ioport.h>
 
+/* Number of IO delay loops */
+
+#define NIOLOOPS 40000
+
 /* Board register addresses */
 
 #define DMM32AT_MEMSIZE 0x10
@@ -524,12 +528,12 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	dmm_outb(dev, DMM32AT_AICONF, dmm32at_rangebits[range]);
 
 	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
+	for (i = 0; i < NIOLOOPS; i++) {
 		status = dmm_inb(dev, DMM32AT_AIRBACK);
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
-	if (i == 40000) {
+	if (i == NIOLOOPS) {
 		printk("timeout\n");
 		return -ETIMEDOUT;
 	}
@@ -539,12 +543,12 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		/* trigger conversion */
 		dmm_outb(dev, DMM32AT_CONV, 0xff);
 		/* wait for conversion to end */
-		for (i = 0; i < 40000; i++) {
+		for (i = 0; i < NIOLOOPS; i++) {
 			status = dmm_inb(dev, DMM32AT_AISTAT);
 			if ((status & DMM32AT_STATUS) == 0)
 				break;
 		}
-		if (i == 40000) {
+		if (i == NIOLOOPS) {
 			printk("timeout\n");
 			return -ETIMEDOUT;
 		}
@@ -791,12 +795,12 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
+	for (i = 0; i < NIOLOOPS; i++) {
 		status = dmm_inb(dev, DMM32AT_AIRBACK);
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
-	if (i == 40000) {
+	if (i == NIOLOOPS) {
 		printk("timeout\n");
 		return -ETIMEDOUT;
 	}
@@ -916,12 +920,12 @@ static int dmm32at_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 		dmm_outb(dev, DMM32AT_DACMSB, hi);
 
 		/* wait for circuit to settle */
-		for (j = 0; j < 40000; j++) {
+		for (j = 0; j < NIOLOOPS; j++) {
 			status = dmm_inb(dev, DMM32AT_DACSTAT);
 			if ((status & DMM32AT_DACBUSY) == 0)
 				break;
 		}
-		if (j == 40000) {
+		if (j == NIOLOOPS) {
 			printk("timeout\n");
 			return -ETIMEDOUT;
 		}
