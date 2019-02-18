@@ -23,9 +23,9 @@
 /*
 Driver: dmm32at
 Description: Diamond Systems mm32at driver.
-Devices:
+Devices: [Diamond Systems] Diamond-MM-32-AT (dmm32at)
 Author: Perry J. Piplani <perry.j.piplani@nasa.gov>
-Updated: Fri Jun  4 09:13:24 CDT 2004
+Updated: Mon, 18 Feb 2019 18:23:12 +0000
 Status: experimental
 
 This driver is for the Diamond Systems MM-32-AT board
@@ -34,7 +34,12 @@ on serveral projects inside NASA, without problems so far. For analog
 input commands, TRIG_EXT is not yet supported at all..
 
 Configuration Options:
-  comedi_config /dev/comedi0 dmm32at baseaddr,irq
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed conversions)
+  [2] - Autocalibration control for MM-32X-AT and MM-32DX-AT
+        0 - no change
+	1 - disable autocalibration (ACHOLD)
+	2 - enable temperature-triggered autocalibration (ACREL)
 */
 
 /*
@@ -118,6 +123,8 @@ Configuration Options:
 #define DMM32AT_DIOC 0x0e
 #define DMM32AT_DIOCONF 0x0f
 
+#define DMM32XAT_DSPIC_AUTOCAL_CMD 0x0e
+
 #define dmm_inb(cdev,reg) inb((cdev->iobase)+reg)
 #define dmm_outb(cdev,reg,valu) outb(valu,(cdev->iobase)+reg)
 
@@ -135,6 +142,7 @@ Configuration Options:
 #define DMM32AT_INTRESET 0x08
 #define DMM32AT_CLKACC 0x00
 #define DMM32AT_DIOACC 0x01
+#define DMM32XAT_DSPICACC 0x04
 
 /* DMM32AT_AISTAT 0x08 */
 #define DMM32AT_STATUS 0x80
@@ -155,6 +163,10 @@ Configuration Options:
 #define DMM32AT_SCINT_15 0x10
 #define DMM32AT_SCINT_10 0x20
 #define DMM32AT_SCINT_5 0x30
+
+/* DMM32XAT_DSPIC_AUTOCAL_CMD 0x0e */
+#define DMM32XAT_DSPIC_AUTOCAL_ACREL 0x08
+#define DMM32XAT_DSPIC_AUTOCAL_ACHOLD 0x10
 
 /* DMM32AT_CLKCT 0x0f */
 #define DMM32AT_CLKCT1 0x56	/* mode3 counter 1 - write low byte only */
@@ -324,9 +336,11 @@ static int dmm32at_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned char aihi, ailo, fifostat, aistat, intstat, airback;
 	unsigned long iobase;
 	unsigned int irq;
+	int autocal;
 
 	iobase = it->options[0];
 	irq = it->options[1];
+	autocal = it->options[2];
 
 	printk("comedi%d: dmm32at: attaching\n", dev->minor);
 	printk("dmm32at: probing at address 0x%04lx, irq %u\n", iobase, irq);
@@ -471,6 +485,30 @@ static int dmm32at_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_config = dmm32at_dio_insn_config;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	if (autocal >= 1 && autocal <= 2) {
+		unsigned char acval;
+
+		/* Autocalibration control for MM-32X-AT and MM-32DX-AT */
+		switch (autocal) {
+		case 1:
+			/* disable autocalibration */
+			acval = DMM32XAT_DSPIC_AUTOCAL_ACHOLD;
+			break;
+		case 2:
+			/* enable temperature controlled autocalibration */
+			acval = DMM32XAT_DSPIC_AUTOCAL_ACREL;
+			break;
+		default:
+			/* (no command) */
+			acval = 0;
+			break;
+		}
+		/* Get access to autocalibration command register */
+		dmm_outb(dev, DMM32AT_CNTRL, DMM32XAT_DSPICACC);
+		/* Write autocalibration command */
+		dmm_outb(dev, DMM32XAT_DSPIC_AUTOCAL_CMD, acval);
 	}
 
 	/* success */
