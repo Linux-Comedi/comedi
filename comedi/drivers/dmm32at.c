@@ -425,16 +425,19 @@ static int dmm32at_attach(comedi_device * dev, comedi_devconfig * it)
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan = thisboard->ai_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = thisboard->ai_ranges;
 	s->len_chanlist = 32;	/* This is the maximum chanlist length that
 				   the board can handle */
 	s->insn_read = dmm32at_ai_rinsn;
-	s->do_cmd = dmm32at_ai_cmd;
-	s->do_cmdtest = dmm32at_ai_cmdtest;
-	s->cancel = dmm32at_ai_cancel;
+	if (dev->irq) {
+		s->subdev_flags |= SDF_CMD_READ;
+		s->do_cmd = dmm32at_ai_cmd;
+		s->do_cmdtest = dmm32at_ai_cmdtest;
+		s->cancel = dmm32at_ai_cancel;
+	}
 
 	s = dev->subdevices + 1;
 	/* analog output subdevice */
