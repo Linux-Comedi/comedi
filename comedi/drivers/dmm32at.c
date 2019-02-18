@@ -534,7 +534,8 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 			break;
 	}
 	if (i == NIOLOOPS) {
-		printk("timeout\n");
+		printk(KERN_WARNING "comedi%d: dmm32at: AI insn settling timeout\n",
+			dev->minor);
 		return -ETIMEDOUT;
 	}
 
@@ -550,6 +551,8 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		}
 		if (i == NIOLOOPS) {
 			printk("timeout\n");
+			printk(KERN_WARNING "comedi%d: dmm32at: AI insn conversion timeout\n",
+				dev->minor);
 			return -ETIMEDOUT;
 		}
 
@@ -801,7 +804,8 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			break;
 	}
 	if (i == NIOLOOPS) {
-		printk("timeout\n");
+		printk(KERN_WARNING "comedi%d: dmm32at: AI cmd settling timeout\n",
+			dev->minor);
 		return -ETIMEDOUT;
 	}
 
@@ -926,7 +930,8 @@ static int dmm32at_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 				break;
 		}
 		if (j == NIOLOOPS) {
-			printk("timeout\n");
+			printk(KERN_WARNING "comedi%d: dmm32at: AO insn DAC busy timeout\n",
+				dev->minor);
 			return -ETIMEDOUT;
 		}
 		/* dummy read to update trigger the output */
