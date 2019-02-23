@@ -468,7 +468,6 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	default:
 		break;
 	}
-	printk ("counter set mode: ctr=%i, chip=%i, mode=%x\n", counter->counter_index, counter->chip_index, mode);
 	ni_tio_set_bits(counter, NITIO_Gi_Mode_Reg(counter->counter_index),
 		mode_reg_mask, mode_reg_values);
 
@@ -1262,7 +1261,6 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 		counter_dev->regs[counter->chip_index][abz_reg] &= ~mask;
 		counter_dev->regs[counter->chip_index][abz_reg] |= (source << shift) & mask;
 		write_register(counter, counter_dev->regs[counter->chip_index][abz_reg], abz_reg);
-//              rt_printk("%s %x %d %d\n", __FUNCTION__, counter_dev->regs[abz_reg], index, source);
 		return 0;
 	}
 	return -EINVAL;

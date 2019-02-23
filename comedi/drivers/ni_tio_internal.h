@@ -727,7 +727,6 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned long flags;
 
-//	printk ("ni_tio_set_bits: counter=%x counter_dev=%x register_index=%x mask=%x bit_val=%x\n", counter, counter_dev, register_index, bit_mask,bit_values);
 	BUG_ON(register_index >= NITIO_Num_Registers);
 	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	counter_dev->regs[counter->chip_index][register_index] &= ~bit_mask;
