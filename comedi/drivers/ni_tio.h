@@ -127,6 +127,7 @@ struct ni_gpct_device {
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;
+	unsigned num_chips;
 	unsigned (*regs)[NITIO_Num_Registers];
 	spinlock_t regs_lock;
 };

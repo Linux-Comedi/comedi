@@ -287,7 +287,6 @@ struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 {
 	struct ni_gpct_device *counter_dev;
 	unsigned i;
-	unsigned num_chips;
 
 	if (num_counters == 0 || counters_per_chip == 0)
 		return NULL;
@@ -299,9 +298,11 @@ struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 	counter_dev->read_register = read_register;
 	counter_dev->variant = variant;
 	spin_lock_init(&counter_dev->regs_lock);
-	num_chips = (num_counters + counters_per_chip - 1) / counters_per_chip;
+	counter_dev->num_chips =
+		(num_counters + counters_per_chip - 1) / counters_per_chip;
 	counter_dev->regs =
-		kzalloc(sizeof(*counter_dev->regs) * num_chips, GFP_KERNEL);
+		kzalloc(sizeof(*counter_dev->regs) * counter_dev->num_chips,
+			GFP_KERNEL);
 	if (counter_dev->regs == NULL) {
 		kfree(counter_dev);
 		return NULL;
