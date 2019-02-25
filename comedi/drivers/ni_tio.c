@@ -285,10 +285,13 @@ struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 		enum ni_gpct_register reg), enum ni_gpct_variant variant,
 	unsigned num_counters, unsigned counters_per_chip)
 {
+	struct ni_gpct_device *counter_dev;
 	unsigned i;
+	unsigned num_chips;
 
-	struct ni_gpct_device *counter_dev =
-		kzalloc(sizeof(struct ni_gpct_device), GFP_KERNEL);
+	if (num_counters == 0 || counters_per_chip == 0)
+		return NULL;
+	counter_dev = kzalloc(sizeof(struct ni_gpct_device), GFP_KERNEL);
 	if (counter_dev == NULL)
 		return NULL;
 	counter_dev->dev = dev;
@@ -296,10 +299,17 @@ struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 	counter_dev->read_register = read_register;
 	counter_dev->variant = variant;
 	spin_lock_init(&counter_dev->regs_lock);
-	BUG_ON(num_counters == 0 || counters_per_chip == 0);
+	num_chips = (num_counters + counters_per_chip - 1) / counters_per_chip;
+	counter_dev->regs =
+		kzalloc(sizeof(*counter_dev->regs) * num_chips, GFP_KERNEL);
+	if (counter_dev->regs == NULL) {
+		kfree(counter_dev);
+		return NULL;
+	}
 	counter_dev->counters =
 		kzalloc(sizeof(struct ni_gpct) * num_counters, GFP_KERNEL);
 	if (counter_dev->counters == NULL) {
+		kfree(counter_dev->regs);
 		kfree(counter_dev);
 		return NULL;
 	}
@@ -315,9 +325,8 @@ struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 
 void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev)
 {
-	if (counter_dev->counters == NULL)
-		return;
 	kfree(counter_dev->counters);
+	kfree(counter_dev->regs);
 	kfree(counter_dev);
 }
 
