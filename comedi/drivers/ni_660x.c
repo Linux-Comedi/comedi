@@ -1069,7 +1069,8 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	private(dev)->counter_dev = ni_gpct_device_construct(dev,
 		&ni_gpct_write_register, &ni_gpct_read_register,
-		ni_gpct_variant_660x, ni_660x_num_counters(dev));
+		ni_gpct_variant_660x, ni_660x_num_counters(dev),
+		counters_per_chip);
 	if (private(dev)->counter_dev == NULL)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
@@ -1092,11 +1093,6 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 			s->async_dma_dir = DMA_BIDIRECTIONAL;
 			s->buf_change = &ni_660x_buf_change;
 			s->private = &private(dev)->counter_dev->counters[i];
-
-			private(dev)->counter_dev->counters[i].chip_index =
-				i / counters_per_chip;
-			private(dev)->counter_dev->counters[i].counter_index =
-				i % counters_per_chip;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}

@@ -4585,7 +4585,7 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 	}
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
 		&ni_gpct_write_register, &ni_gpct_read_register,
-		counter_variant, NUM_GPCT);
+		counter_variant, NUM_GPCT, 1);
 	/* General purpose counters */
 	for (j = 0; j < NUM_GPCT; ++j) {
 		s = dev->subdevices + NI_GPCT_SUBDEV(j);
@@ -4608,8 +4608,6 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 		s->private = &devpriv->counter_dev->counters[j];
 
-		devpriv->counter_dev->counters[j].chip_index = 0;
-		devpriv->counter_dev->counters[j].counter_index = j;
 		ni_tio_init_counter(&devpriv->counter_dev->counters[j]);
 	}
 

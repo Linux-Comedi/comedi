@@ -136,7 +136,7 @@ extern struct ni_gpct_device *ni_gpct_device_construct(comedi_device * dev,
 		enum ni_gpct_register reg),
 	unsigned (*read_register) (struct ni_gpct * counter,
 		enum ni_gpct_register reg), enum ni_gpct_variant variant,
-	unsigned num_counters);
+	unsigned num_counters, unsigned counters_per_chip);
 extern void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev);
 extern void ni_tio_init_counter(struct ni_gpct *counter);
 extern int ni_tio_rinsn(struct ni_gpct *counter,
