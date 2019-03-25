@@ -80,9 +80,9 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 	int ret;
 
 	printk("comedi: attempt to attach...\n");
-	printk("comedi%d: adl_pci7432\n", dev->minor);
+	printk("comedi%d: adl_pci7296\n", dev->minor);
 
-	dev->board_name = "pci7432";
+	dev->board_name = "pci7296";
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -150,7 +150,7 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 
 static int adl_pci7296_detach(comedi_device * dev)
 {
-	printk("comedi%d: pci7432: remove\n", dev->minor);
+	printk("comedi%d: pci7296: remove\n", dev->minor);
 
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase) {
