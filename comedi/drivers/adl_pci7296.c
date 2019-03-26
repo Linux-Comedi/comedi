@@ -21,10 +21,11 @@
 */
 /*
 Driver: adl_pci7296
-Description: Driver for the ADLINK PCI-7296 96 ch. digital io board
-Devices: [ADLINK] PCI-7296 (adl_pci7296)
+Description: Driver for the ADLINK PCI-7296/7248/7224 digital I/O boards
+Devices: [ADLINK] PCI-7296 (adl_pci7296 or pci7296),
+  PCI-7248 (adl_pci7296 or pci7248), PCI-7224 (adl_pci7296 or pci7224)
 Author: Jon Grierson <jd@renko.co.uk>
-Updated: Mon, 14 Apr 2008 15:05:56 +0100
+Updated: Tue, 26 Mar 2019 13:26:02 +0000
 Status: testing
 
 Configuration Options:
@@ -41,14 +42,18 @@ Configuration Options:
 #include "8255.h"
 // #include "8253.h"
 
-#define PORT1A 0
-#define PORT2A 4
-#define PORT3A 8
-#define PORT4A 12
+#define DRIVER_NAME	"adl_pci7296"
 
+#define PCI_DEVICE_ID_PCI7224 0x7224
+#define PCI_DEVICE_ID_PCI7248 0x7248
 #define PCI_DEVICE_ID_PCI7296 0x7296
+#define PCI_DEVICE_ID_INVALID 0xffff
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7296_pci_table) = {
+	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7224, PCI_ANY_ID, PCI_ANY_ID, 0,
+		0, 0},
+	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7248, PCI_ANY_ID, PCI_ANY_ID, 0,
+		0, 0},
 	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7296, PCI_ANY_ID, PCI_ANY_ID, 0,
 		0, 0},
 	{0}
@@ -57,100 +62,156 @@ static DEFINE_PCI_DEVICE_TABLE(adl_pci7296_pci_table) = {
 MODULE_DEVICE_TABLE(pci, adl_pci7296_pci_table);
 
 typedef struct {
-	int data;
 	struct pci_dev *pci_dev;
 } adl_pci7296_private;
 
 #define devpriv ((adl_pci7296_private *)dev->private)
 
+/*
+ * Board descriptions.
+ */
+typedef struct adl_pci7296_board_struct {
+	const char *name;
+	unsigned short dev_id;
+	unsigned short n_8255;
+} adl_pci7296_board;
+
+#define thisboard ((const adl_pci7296_board *)dev->board_ptr)
+
+static const adl_pci7296_board adl_pci7296_boards[] = {
+	{
+		name:	"pci7224",
+		dev_id:	PCI_DEVICE_ID_PCI7224,
+		n_8255:	1,
+	},
+	{
+		name:	"pci7248",
+		dev_id:	PCI_DEVICE_ID_PCI7248,
+		n_8255: 2,
+	},
+	{
+		name:	"pci7296",
+		dev_id:	PCI_DEVICE_ID_PCI7296,
+		n_8255:	4,
+	},
+	{
+		/* wildcard */
+		name:	DRIVER_NAME,
+		dev_id:	PCI_DEVICE_ID_INVALID,
+	}
+};
+
 static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it);
 static int adl_pci7296_detach(comedi_device * dev);
 static comedi_driver driver_adl_pci7296 = {
-      driver_name:"adl_pci7296",
+      driver_name:DRIVER_NAME,
       module:THIS_MODULE,
       attach:adl_pci7296_attach,
       detach:adl_pci7296_detach,
+      board_name:&adl_pci7296_boards[0].name,
+      offset:sizeof(adl_pci7296_boards[0]),
+      num_names:ARRAY_SIZE(adl_pci7296_boards),
 };
 
 static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	struct pci_dev *pcidev;
-	comedi_subdevice *s;
+	struct pci_dev *pcidev = NULL;
 	int bus, slot;
+	int i;
 	int ret;
 
 	printk("comedi: attempt to attach...\n");
-	printk("comedi%d: adl_pci7296\n", dev->minor);
+	printk("comedi%d: %s\n", dev->minor, DRIVER_NAME);
 
-	dev->board_name = "pci7296";
 	bus = it->options[0];
 	slot = it->options[1];
 
 	if (alloc_private(dev, sizeof(adl_pci7296_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
-
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 
-		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
-			pcidev->device == PCI_DEVICE_ID_PCI7296) {
-			if (bus || slot) {
-				/* requested particular bus/slot */
-				if (pcidev->bus->number != bus
-					|| PCI_SLOT(pcidev->devfn) != slot) {
-					continue;
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (pcidev->bus->number != bus
+				|| PCI_SLOT(pcidev->devfn) != slot) {
+				continue;
+			}
+		}
+
+		if (pcidev->vendor != PCI_VENDOR_ID_ADLINK)
+			continue;
+
+		if (thisboard->dev_id == PCI_DEVICE_ID_INVALID) {
+			/*
+			 * The name was specified as the driver name which is
+			 * used to match any supported device.  Replace the
+			 * current dev->board_ptr with one that matches the
+			 * PCI device ID.
+			 */
+			for (i = 0; i < ARRAY_SIZE(adl_pci7296_boards); i++) {
+				if (pcidev->device ==
+					adl_pci7296_boards[i].dev_id) {
+					dev->board_ptr = &adl_pci7296_boards[i];
+					break;
 				}
 			}
-			devpriv->pci_dev = pcidev;
-			if (comedi_pci_enable(pcidev, "adl_pci7296") < 0) {
-				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
-				return -EIO;
-			}
-
-			dev->iobase = pci_resource_start(pcidev, 2);
-			printk("comedi: base addr %4lx\n", dev->iobase);
-
-			// four 8255 digital io subdevices
-			s = dev->subdevices + 0;
-			subdev_8255_init(dev, s, NULL,
-				(unsigned long)(dev->iobase));
-
-			s = dev->subdevices + 1;
-			ret = subdev_8255_init(dev, s, NULL,
-				(unsigned long)(dev->iobase + PORT2A));
-			if (ret < 0)
-				return ret;
-
-			s = dev->subdevices + 2;
-			ret = subdev_8255_init(dev, s, NULL,
-				(unsigned long)(dev->iobase + PORT3A));
-			if (ret < 0)
-				return ret;
-
-			s = dev->subdevices + 3;
-			ret = subdev_8255_init(dev, s, NULL,
-				(unsigned long)(dev->iobase + PORT4A));
-			if (ret < 0)
-				return ret;
-
-			printk("attached\n");
-
-			return 1;
+			if (i < ARRAY_SIZE(adl_pci7296_boards))
+				break;
+		} else if (thisboard->dev_id == pcidev->device) {
+			/*
+			 * The name was specified as a specific device name.
+			 * The current dev->board_ptr is correct and it matches
+			 * the PCI device ID.
+			 */
+			break;
 		}
 	}
 
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, bus, slot);
-	return -EIO;
+	if (!pcidev) {
+		printk("comedi%d: no %s board found! (req. bus/slot : %d/%d)\n",
+			dev->minor, thisboard->name, bus, slot);
+		return -EIO;
+	}
+
+	dev->board_name = thisboard->name;
+	devpriv->pci_dev = pcidev;
+
+	/*
+	 * Now we know the board type, allocate the subdevices, one
+	 * subdevice per 8255 chip.
+	 */
+	if (alloc_subdevices(dev, thisboard->n_8255) < 0)
+		return -ENOMEM;
+
+	printk("comedi%d: found %s on bus %i, slot %i\n", dev->minor,
+		thisboard->name, pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	if (comedi_pci_enable(pcidev, thisboard->name)) {
+		printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
+		return -EIO;
+	}
+
+	dev->iobase = pci_resource_start(pcidev, 2);
+	printk("comedi%d: base addr %4lx\n", dev->minor, dev->iobase);
+
+	/* initialize the subdevices */
+	for (i = 0; i < thisboard->n_8255; i++) {
+		ret = subdev_8255_init(dev, dev->subdevices + i, NULL,
+			dev->iobase + (i * 4));
+		if (ret)
+			return ret;
+	}
+
+	printk("comedi%d: attached\n", dev->minor);
+	return 1;
 }
 
 static int adl_pci7296_detach(comedi_device * dev)
 {
-	printk("comedi%d: pci7296: remove\n", dev->minor);
+	printk("comedi%d: %s: remove\n", dev->minor, DRIVER_NAME);
 
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase) {
@@ -158,13 +219,12 @@ static int adl_pci7296_detach(comedi_device * dev)
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}
-	// detach four 8255 digital io subdevices
+	// detach 8255 digital io subdevices
 	if (dev->subdevices) {
-		subdev_8255_cleanup(dev, dev->subdevices + 0);
-		subdev_8255_cleanup(dev, dev->subdevices + 1);
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
-		subdev_8255_cleanup(dev, dev->subdevices + 3);
+		int i;
 
+		for (i = 0; i < thisboard->n_8255; i++)
+			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
 
 	return 0;
