@@ -1,6 +1,7 @@
 /*
     comedi/drivers/cb_pcidio.c
-    A Comedi driver for PCI-DIO24H & PCI-DIO48H of ComputerBoards (currently MeasurementComputing)
+    A Comedi driver for PCI-DIO24H, PCI-DIO48H & PCI-DIO96H of ComputerBoards
+    (currently MeasurementComputing)
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
