@@ -1,11 +1,14 @@
 .*.swp
+.*.mod.cmd
 .deps
 *.ko
 *.ko.cmd
+*.mod
 *.mod.c
 *.o
 *.o.cmd
 *.o.d
+*~
 Makefile
 Makefile.in
 modules.order
