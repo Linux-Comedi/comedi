@@ -767,10 +767,12 @@ static int pcl816_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 		case INT_TYPE_AI3_DMA_RTC:
 			set_rtc_irq_bit(0);	// stop RTC
 			del_timer(&devpriv->rtc_irq_timer);
+			/* FALLTHROUGH */
 #endif
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
 			disable_dma(devpriv->dma);
+			/* FALLTHROUGH */
 		case INT_TYPE_AI1_INT:
 		case INT_TYPE_AI3_INT:
 			outb(inb(dev->iobase + PCL816_CONTROL) & 0x73, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
