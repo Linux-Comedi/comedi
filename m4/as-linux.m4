@@ -186,6 +186,12 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 			dir=`sed -n -e '/^__sub-make:$/,/^$/s/.* -C *\([[^[:space:]]]*\).*/\1/p' "$1/Makefile"`
 		fi
 		if test -z "$dir"; then
+			# 5.2
+			if test "`grep -cv '^[[[:space:]]]*\(#.*\|\)$' "$1/Makefile"`" = "1"; then
+				dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
+			fi
+		fi
+		if test -z "$dir"; then
 			AC_MSG_RESULT([no])
 			LINUX_SRC_DIR="$1"
 		else
