@@ -115,6 +115,7 @@ pci_modules2= \
  adl_pci9118.ko \
  adv_pci1710.ko \
  adv_pci1723.ko \
+ adv_pci1724.ko \
  adv_pci_dio.ko \
  amplc_pci224.ko \
  amplc_pci230.ko \
@@ -272,6 +273,7 @@ adl_pci9118_ko_SOURCES = adl_pci9118.c
 adq12b_ko_SOURCES = adq12b.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
 adv_pci1723_ko_SOURCES = adv_pci1723.c
+adv_pci1724_ko_SOURCES = adv_pci1724.c
 adv_pci_dio_ko_SOURCES = adv_pci_dio.c
 aio_aio12_8_ko_SOURCES = aio_aio12_8.c
 aio_iiro_16_ko_SOURCES = aio_iiro_16.c

@@ -1,0 +1,309 @@
+/*******************************************************************************
+   comedi/drivers/adv_pci1724.c
+   This is a driver for the Advantech PCI-1724U card.
+
+   Author:  Frank Mori Hess <fmh6jj@gmail.com>
+   Copyright (C) 2013 GnuBIO Inc
+
+   COMEDI - Linux Control and Measurement Device Interface
+   Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*******************************************************************************/
+
+/*
+Driver: adv_pci1724
+Description: Advantech PCI-1724U
+Devices: [Advantech] PCI-1724U (adv_pci1724)
+Author: Frank Mori Hess <fmh6jj@gmail.com>
+Updated: 2013-02-09
+Status: works
+
+Configuration Options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
+
+
+Subdevice 0 is the analog output.
+Subdevice 1 is the offset calibration for the analog output.
+Subdevice 2 is the gain calibration for the analog output.
+
+The calibration offset and gains have quite a large effect on the
+analog output, so it is possible to adjust the analog output to
+have an output range significantly different from the board's
+nominal output ranges. For a calibrated +/-10V range, the analog
+output's offset will be set somewhere near mid-range (0x2000) and
+its gain will be near maximum (0x3fff).
+
+There is really no difference between the board's documented 0-20mA
+versus 4-20mA output ranges. To pick one or the other is simply a
+matter of adjusting the offset and gain calibration until the board
+outputs in the desired range.
+*/
+
+#include <linux/comedidev.h>
+
+#include "comedi_pci.h"
+
+
+/*
+ * PCI bar 2 Register I/O map (dev->iobase)
+ */
+#define PCI1724_DAC_CTRL_REG		0x00
+#define PCI1724_DAC_CTRL_GX(x)		(1U << (20 + ((x) / 8)))
+#define PCI1724_DAC_CTRL_CX(x)		(((x) % 8) << 16)
+#define PCI1724_DAC_CTRL_MODE(x)	(((x) & 0x3) << 14)
+#define PCI1724_DAC_CTRL_MODE_GAIN	PCI1724_DAC_CTRL_MODE(1)
+#define PCI1724_DAC_CTRL_MODE_OFFSET	PCI1724_DAC_CTRL_MODE(2)
+#define PCI1724_DAC_CTRL_MODE_NORMAL	PCI1724_DAC_CTRL_MODE(3)
+#define PCI1724_DAC_CTRL_MODE_MASK	PCI1724_DAC_CTRL_MODE(3)
+#define PCI1724_DAC_CTRL_DATA(x)	(((x) & 0x3fff) << 0)
+#define PCI1724_SYNC_CTRL_REG		0x04
+#define PCI1724_SYNC_CTRL_DACSTAT	(1U << 1)
+#define PCI1724_SYNC_CTRL_SYN		(1U << 0)
+#define PCI1724_EEPROM_CTRL_REG		0x08
+#define PCI1724_SYNC_TRIG_REG		0x0c  /* any value works */
+#define PCI1724_BOARD_ID_REG		0x10
+#define PCI1724_BOARD_ID_MASK		(0xf << 0)
+
+typedef struct {
+	unsigned int mode;
+	sampl_t readback[32];
+} pci1724_subdev_private;
+
+typedef struct {
+	struct pci_dev *pcidev;
+	pci1724_subdev_private spriv[3];
+} pci1724_private;
+
+/*the following macros to make it easy to
+* access the private structure.
+*/
+#define devpriv ((pci1724_private *)dev->private)
+#define subpriv ((pci1724_subdev_private *)s->private)
+
+static const comedi_lrange adv_pci1724_ao_ranges = {
+	4, {
+		BIP_RANGE(10),
+		RANGE_mA(0, 20),
+		RANGE_mA(4, 20),
+		RANGE_unitless(0, 1)
+	}
+};
+
+static int adv_pci1724_insn_read(comedi_device *dev, comedi_subdevice *s,
+				 comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		data[i] = subpriv->readback[chan];
+	}
+
+	return insn->n;
+}
+
+static int adv_pci1724_insn_write(comedi_device *dev, comedi_subdevice *s,
+				  comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int mode = subpriv->mode;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int ctrl;
+	int i;
+
+	ctrl = PCI1724_DAC_CTRL_GX(chan) | PCI1724_DAC_CTRL_CX(chan) | mode;
+
+	/* turn off synchronous mode */
+	outl(0, dev->iobase + PCI1724_SYNC_CTRL_REG);
+
+	for (i = 0; i < insn->n; ++i) {
+		lsampl_t val = data[i];
+		int timeout;
+		unsigned int status;
+
+		for (timeout = 1000; timeout > 0; timeout--) {
+			status = inl(dev->iobase + PCI1724_SYNC_CTRL_REG);
+			if ((status & PCI1724_SYNC_CTRL_DACSTAT) == 0)
+				break;
+		}
+		if (timeout <= 0)
+			return -ETIMEDOUT;
+
+		outl(ctrl | PCI1724_DAC_CTRL_DATA(val),
+		     dev->iobase + PCI1724_DAC_CTRL_REG);
+
+		subpriv->readback[chan] = val;
+	}
+
+	return insn->n;
+}
+
+static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	comedi_subdevice *s;
+	unsigned int board_id;
+	unsigned char pci_bus, pci_slot, pci_func;
+	unsigned int iobase;
+	int opt_bus, opt_slot;
+	int ret;
+	const char *errstr;
+
+	rt_printk("comedi%d: adv_pci1724", dev->minor);
+
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
+
+	if ((ret = alloc_private(dev, sizeof(pci1724_private))) < 0) {
+		rt_printk(" - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	while (NULL != (pcidev =
+			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
+				0x1724, pcidev))) {
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+				|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (comedi_pci_enable(pcidev, "adv_pci1724")) {
+			errstr = "failed to enable PCI device and request regions!";
+			continue;
+		}
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(" - Card at b:s %d:%d %s\n",
+				opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(" - Card %s\n", errstr);
+		}
+		return -EIO;
+	}
+
+	pci_bus = pcidev->bus->number;
+	pci_slot = PCI_SLOT(pcidev->devfn);
+	pci_func = PCI_FUNC(pcidev->devfn);
+	iobase = pci_resource_start(pcidev, 2);
+
+	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG) &
+		PCI1724_BOARD_ID_MASK;
+
+	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, board_id=%d",
+		pci_bus, pci_slot, pci_func, iobase, board_id);
+
+	dev->iobase = iobase;
+	dev->board_name = "pci1724u";
+	devpriv->pcidev = pcidev;
+
+	ret = alloc_subdevices(dev, 3);
+	if (ret) {
+		rt_printk(" - Allocation failed!\n");
+		return ret;
+	}
+
+	/* Analog Output subdevice */
+	s = &dev->subdevices[0];
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &adv_pci1724_ao_ranges;
+	s->insn_read	= adv_pci1724_insn_read;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= &devpriv->spriv[0];
+	subpriv->mode	= PCI1724_DAC_CTRL_MODE_NORMAL;
+
+	/* Offset Calibration subdevice */
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->insn_read	= adv_pci1724_insn_read;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= &devpriv->spriv[1];
+	subpriv->mode	= PCI1724_DAC_CTRL_MODE_OFFSET;
+
+	/* Gain Calibration subdevice */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_CALIB;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan	= 32;
+	s->maxdata	= 0x3fff;
+	s->insn_read	= adv_pci1724_insn_read;
+	s->insn_write	= adv_pci1724_insn_write;
+	s->private	= &devpriv->spriv[2];
+	subpriv->mode	= PCI1724_DAC_CTRL_MODE_GAIN;
+
+	rt_printk(" - attached\n");
+	return 0;
+}
+
+static int adv_pci1724_detach(comedi_device *dev)
+{
+	printk("comedi%d: adv_pci1724: remove\n", dev->minor);
+
+	if (dev->private) {
+		if (devpriv->pcidev) {
+			if (dev->iobase) {
+				comedi_pci_disable(devpriv->pcidev);
+			}
+			pci_dev_put(devpriv->pcidev);
+		}
+	}
+
+	return 0;
+}
+
+static comedi_driver adv_pci1724_driver = {
+	driver_name:	"adv_pci1724",
+	module:		THIS_MODULE,
+	attach:		adv_pci1724_attach,
+	detach:		adv_pci1724_detach,
+};
+
+static const struct pci_device_id adv_pci1724_pci_table[] = {
+	{PCI_VENDOR_ID_ADVANTECH, 0x1724, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, adv_pci1724_pci_table);
+
+/*
+ * A convenient macro that defines init_module() and cleanup_module(),
+ * as necessary.
+ */
+COMEDI_PCI_INITCLEANUP(adv_pci1724_driver, adv_pci1724_pci_table);
+
+MODULE_AUTHOR("Frank Mori Hess <fmh6jj@gmail.com>");
+MODULE_DESCRIPTION("Advantech PCI-1724U Comedi driver");
+MODULE_LICENSE("GPL");
