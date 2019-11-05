@@ -428,6 +428,7 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 
 	pci1723_reset(dev);
 
+	rt_printk(" - attached\n");
 	return 0;
 }
 
