@@ -29,7 +29,7 @@ Driver: adv_pci1724
 Description: Advantech PCI-1724U
 Devices: [Advantech] PCI-1724U (adv_pci1724)
 Author: Frank Mori Hess <fmh6jj@gmail.com>
-Updated: 2013-02-09
+Updated: Wed, 06 Nov 2019 13:36:28 +0000
 Status: works
 
 Configuration Options:
@@ -55,6 +55,42 @@ There is really no difference between the board's documented 0-20mA
 versus 4-20mA output ranges. To pick one or the other is simply a
 matter of adjusting the offset and gain calibration until the board
 outputs in the desired range.
+
+Subdevice 0 supports a synchronized output mode.  In this mode,
+values written to the analog output channels will not appear on the
+outputs until synchronized output is triggered.
+
+An INSN_CONFIG_ARM configuration instruction is used to enable
+synchronized output mode and optionally trigger synchronized output.
+If data[1] is non-zero, synchronized output will be triggered.
+
+    comedi_insn insn;
+    lsampl_t data[2];
+    int ret;
+    memset(&insn, 0, sizeof(insn));
+    insn.insn = INSN_CONFIG;
+    insn.subdev = 0;
+    insn.chanspec = 0;
+    insn.data = data;
+    insn.n = 2;
+    data[0] = INSN_CONFIG_ARM;
+    data[1] = trigger; // 0 = only enable; 1 = trigger now
+    ret = comedi_do_insn(d, &insn);
+
+An INSN_CONFIG_DISARM configuration instruction is used to disable
+synchronized output mode.
+
+    comedi_insn insn;
+    lsampl_t data[1];
+    int ret;
+    memset(&insn, 0, sizeof(insn));
+    insn.insn = INSN_CONFIG;
+    insn.subdev = 0;
+    insn.chanspec = 0;
+    insn.data = data;
+    insn.n = 1;
+    data[0] = INSN_CONFIG_DISARM;
+    ret = comedi_do_insn(d, &insn);
 */
 
 #include <linux/comedidev.h>
@@ -83,7 +119,8 @@ outputs in the desired range.
 #define PCI1724_BOARD_ID_MASK		(0xf << 0)
 
 typedef struct {
-	unsigned int mode;
+	unsigned short mode;
+	unsigned short syn;
 	sampl_t readback[32];
 } pci1724_subdev_private;
 
@@ -120,6 +157,27 @@ static int adv_pci1724_insn_read(comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
+static int adv_pci1724_wait_dac(comedi_device *dev, comedi_subdevice *s)
+{
+	int timeout;
+	unsigned int status = 0;
+
+	for (timeout = 1000; timeout > 0; timeout--) {
+		status = inl(dev->iobase + PCI1724_SYNC_CTRL_REG);
+		if ((status & PCI1724_SYNC_CTRL_DACSTAT) == 0)
+			break;
+		comedi_udelay(1);
+	}
+	if (timeout <= 0)
+		return -ETIMEDOUT;
+
+	/* Enable or disable synchronous output mode, if changed. */
+	if (subpriv->syn != (status & PCI1724_SYNC_CTRL_SYN))
+		outl(subpriv->syn, dev->iobase + PCI1724_SYNC_CTRL_REG);
+
+	return 0;
+}
+
 static int adv_pci1724_insn_write(comedi_device *dev, comedi_subdevice *s,
 				  comedi_insn *insn, lsampl_t *data)
 {
@@ -130,21 +188,13 @@ static int adv_pci1724_insn_write(comedi_device *dev, comedi_subdevice *s,
 
 	ctrl = PCI1724_DAC_CTRL_GX(chan) | PCI1724_DAC_CTRL_CX(chan) | mode;
 
-	/* turn off synchronous mode */
-	outl(0, dev->iobase + PCI1724_SYNC_CTRL_REG);
-
 	for (i = 0; i < insn->n; ++i) {
 		lsampl_t val = data[i];
-		int timeout;
-		unsigned int status;
+		int ret;
 
-		for (timeout = 1000; timeout > 0; timeout--) {
-			status = inl(dev->iobase + PCI1724_SYNC_CTRL_REG);
-			if ((status & PCI1724_SYNC_CTRL_DACSTAT) == 0)
-				break;
-		}
-		if (timeout <= 0)
-			return -ETIMEDOUT;
+		ret = adv_pci1724_wait_dac(dev, s);
+		if (ret)
+			return ret;
 
 		outl(ctrl | PCI1724_DAC_CTRL_DATA(val),
 		     dev->iobase + PCI1724_DAC_CTRL_REG);
@@ -153,6 +203,44 @@ static int adv_pci1724_insn_write(comedi_device *dev, comedi_subdevice *s,
 	}
 
 	return insn->n;
+}
+
+static int adv_pci1724_sync_mode(comedi_device *dev, comedi_subdevice *s,
+				 int enable, int trigger)
+{
+	int ret;
+
+	/* Enable or disable synchronized output mode. */
+	subpriv->syn = enable ? PCI1724_SYNC_CTRL_SYN : 0;
+	/* Wait until DAC ready, and update the SYN bit. */
+	ret = adv_pci1724_wait_dac(dev, s);
+	if (ret)
+		return ret;
+
+	if (enable && trigger) {
+		/* Trigger synchronous output. */
+		outl(0, dev->iobase + PCI1724_SYNC_TRIG_REG);
+	}
+	return 0;
+}
+
+static int adv_pci1724_insn_config(comedi_device *dev, comedi_subdevice *s,
+				   comedi_insn *insn, lsampl_t *data)
+{
+	int ret;
+
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		ret = adv_pci1724_sync_mode(dev, s, 1, data[1]);
+		break;
+	case INSN_CONFIG_DISARM:
+		ret = adv_pci1724_sync_mode(dev, s, 0, 0);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret < 0 ? ret : insn->n;
 }
 
 static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
@@ -240,6 +328,7 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 	s->range_table	= &adv_pci1724_ao_ranges;
 	s->insn_read	= adv_pci1724_insn_read;
 	s->insn_write	= adv_pci1724_insn_write;
+	s->insn_config	= adv_pci1724_insn_config;
 	s->private	= &devpriv->spriv[0];
 	subpriv->mode	= PCI1724_DAC_CTRL_MODE_NORMAL;
 
