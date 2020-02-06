@@ -142,6 +142,9 @@ static int comedi_read(struct seq_file *m, void *v)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,18,0)
+/* proc_create_single() is not available */
+
 /*
  * seq_file wrappers for procfile show routines.
  */
@@ -163,6 +166,15 @@ void comedi_proc_init(void)
 	proc_create("comedi", S_IFREG | S_IRUGO, NULL, &comedi_proc_fops);
 }
 
+#else
+/* proc_create_single() is available */
+
+void comedi_proc_init(void)
+{
+	proc_create_single("comedi", S_IFREG | S_IRUGO, NULL, comedi_read);
+}
+
+#endif
 #endif
 
 void comedi_proc_cleanup(void)
