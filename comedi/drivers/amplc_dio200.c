@@ -1887,7 +1887,7 @@ dio200_pcie_board_setup(comedi_device * dev)
 			dev->minor);
 		return -EINVAL;
 	}
-	brbase = ioremap_nocache(pci_resource_start(pci_dev, 0), brlen);
+	brbase = ioremap(pci_resource_start(pci_dev, 0), brlen);
 	if (!brbase) {
 		printk(KERN_ERR "comedi%d: error! failed to map registers!\n",
 			dev->minor);
@@ -1986,7 +1986,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EINVAL;
 		}
 		if ((pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) != 0) {
-			devpriv->io.u.membase = ioremap_nocache(base, len);
+			devpriv->io.u.membase = ioremap(base, len);
 			if (!devpriv->io.u.membase) {
 				printk(KERN_ERR
 					"comedi%d: error! cannot remap registers!\n",

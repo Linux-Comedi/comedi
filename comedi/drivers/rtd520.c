@@ -794,9 +794,9 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX);
 	/* Now have the kernel map this into memory */
 	/* ASSUME page aligned */
-	devpriv->las0 = ioremap_nocache(physLas0, LAS0_PCISIZE);
-	devpriv->las1 = ioremap_nocache(physLas1, LAS1_PCISIZE);
-	devpriv->lcfg = ioremap_nocache(physLcfg, LCFG_PCISIZE);
+	devpriv->las0 = ioremap(physLas0, LAS0_PCISIZE);
+	devpriv->las1 = ioremap(physLas1, LAS1_PCISIZE);
+	devpriv->lcfg = ioremap(physLcfg, LCFG_PCISIZE);
 
 	if (!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg) {
 		return -ENOMEM;
