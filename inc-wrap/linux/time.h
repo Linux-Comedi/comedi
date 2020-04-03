@@ -94,4 +94,15 @@ static inline unsigned long usecs_to_jiffies(const unsigned int u)
 }
 #endif
 
+/*
+ * struct timeval was removed in kernel version 5.6.
+ * Add a temporary version here for now until we fix the code that uses it.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+struct timeval {
+	long tv_sec;
+	long tv_usec;
+};
+#endif
+
 #endif
