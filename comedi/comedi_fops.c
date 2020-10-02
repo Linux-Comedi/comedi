@@ -68,6 +68,7 @@ module_param(comedi_num_legacy_minors, int, 0444);
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info* comedi_file_info_table[COMEDI_NUM_MINORS];
 
+static struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor);
 static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig __user * arg);
 static int do_bufconfig_ioctl(comedi_device * dev, comedi_bufconfig __user *arg);
 static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
@@ -2556,7 +2557,7 @@ void comedi_free_subdevice_minor(comedi_subdevice *s)
 	kfree(info);
 }
 
-struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
+static struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
 {
 	unsigned long flags;
 	struct comedi_device_file_info *info;
