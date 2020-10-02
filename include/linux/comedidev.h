@@ -318,16 +318,6 @@ static const int comedi_debug = 0;
 void comedi_event(comedi_device * dev, comedi_subdevice * s);
 void comedi_error(const comedi_device * dev, const char *s);
 
-/* we can expand the number of bits used to encode devices/subdevices into
- the minor number soon, after more distros support > 8 bit minor numbers
- (like after Debian Etch gets released) */
-enum comedi_minor_bits {
-	COMEDI_DEVICE_MINOR_MASK = 0xf,
-	COMEDI_SUBDEVICE_MINOR_MASK = 0xf0
-};
-static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
-static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
-
 struct comedi_device_file_info* comedi_get_device_file_info(unsigned minor);
 
 static inline comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
