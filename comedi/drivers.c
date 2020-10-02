@@ -100,6 +100,7 @@ static void cleanup_device(comedi_device * dev)
 static void __comedi_device_detach(comedi_device * dev)
 {
 	dev->attached = 0;
+	dev->detach_count++;
 	if (dev->driver) {
 		dev->driver->detach(dev);
 	} else {

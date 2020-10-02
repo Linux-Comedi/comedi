@@ -270,6 +270,7 @@ struct comedi_device_struct {
 
 	comedi_device_create_t *class_dev;
 	int minor;
+	unsigned int detach_count;
 	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers for subdevices
 	   that have async_dma_dir set to something other than DMA_NONE */
 	struct device *hw_dev;
