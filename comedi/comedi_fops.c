@@ -2622,8 +2622,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 
-	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->driver->driver_name);
+	retval = snprintf(buf, PAGE_SIZE, "%s\n", dev->driver->driver_name);
 
 	return retval;
 }
@@ -2632,8 +2633,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_board_name, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 
-	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->board_name);
+	retval = snprintf(buf, PAGE_SIZE, "%s\n", dev->board_name);
 
 	return retval;
 }
@@ -2684,10 +2686,11 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(read_subdevice &&
 		(read_subdevice->subdev_flags & SDF_CMD_READ) &&
 		read_subdevice->async)
@@ -2695,7 +2698,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 		max_buffer_size_kb = read_subdevice->async->max_bufsize / bytes_per_kibi;
 	}
 	retval =  snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return retval;
 }
@@ -2703,6 +2706,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 {
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
@@ -2715,16 +2719,16 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 	new_max_size = ((uint64_t)new_max_size_kb) * bytes_per_kibi;
 	if(new_max_size != (uint32_t)new_max_size) return -EINVAL;
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(read_subdevice == NULL ||
 		(read_subdevice->subdev_flags & SDF_CMD_READ) == 0 ||
 		read_subdevice->async == NULL)
 	{
-		mutex_unlock(&info->device->mutex);
+		mutex_unlock(&dev->mutex);
 		return -EINVAL;
 	}
 	read_subdevice->async->max_bufsize = new_max_size;
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return count;
 }
@@ -2733,10 +2737,11 @@ static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(read_subdevice &&
 		(read_subdevice->subdev_flags & SDF_CMD_READ) &&
 		read_subdevice->async)
@@ -2744,7 +2749,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 		buffer_size_kb = read_subdevice->async->prealloc_bufsz / bytes_per_kibi;
 	}
 	retval =  snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return retval;
 }
@@ -2752,6 +2757,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 {
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
@@ -2765,17 +2771,17 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 	new_size = ((uint64_t)new_size_kb) * bytes_per_kibi;
 	if(new_size != (uint32_t)new_size) return -EINVAL;
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(read_subdevice == NULL ||
 		(read_subdevice->subdev_flags & SDF_CMD_READ) == 0 ||
 		read_subdevice->async == NULL)
 	{
-		mutex_unlock(&info->device->mutex);
+		mutex_unlock(&dev->mutex);
 		return -EINVAL;
 	}
-	retval = resize_async_buffer(info->device, read_subdevice,
+	retval = resize_async_buffer(dev, read_subdevice,
 		read_subdevice->async, new_size);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	if(retval < 0) return retval;
 	return count;
@@ -2785,10 +2791,11 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(write_subdevice &&
 		(write_subdevice->subdev_flags & SDF_CMD_WRITE) &&
 		write_subdevice->async)
@@ -2796,7 +2803,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 		max_buffer_size_kb = write_subdevice->async->max_bufsize / bytes_per_kibi;
 	}
 	retval =  snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return retval;
 }
@@ -2804,6 +2811,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 {
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
@@ -2816,16 +2824,16 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 	new_max_size = ((uint64_t)new_max_size_kb) * bytes_per_kibi;
 	if(new_max_size != (uint32_t)new_max_size) return -EINVAL;
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(write_subdevice == NULL ||
 		(write_subdevice->subdev_flags & SDF_CMD_WRITE) == 0 ||
 		write_subdevice->async == NULL)
 	{
-		mutex_unlock(&info->device->mutex);
+		mutex_unlock(&dev->mutex);
 		return -EINVAL;
 	}
 	write_subdevice->async->max_bufsize = new_max_size;
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return count;
 }
@@ -2834,10 +2842,11 @@ static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(write_subdevice &&
 		(write_subdevice->subdev_flags & SDF_CMD_WRITE) &&
 		write_subdevice->async)
@@ -2845,7 +2854,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 		buffer_size_kb = write_subdevice->async->prealloc_bufsz / bytes_per_kibi;
 	}
 	retval =  snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	return retval;
 }
@@ -2853,6 +2862,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, csdev, buf, count)
 {
 	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
+	comedi_device *dev = info->device;
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
@@ -2866,17 +2876,17 @@ static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, csdev, buf, count)
 	new_size = ((uint64_t)new_size_kb) * bytes_per_kibi;
 	if(new_size != (uint32_t)new_size) return -EINVAL;
 
-	mutex_lock(&info->device->mutex);
+	mutex_lock(&dev->mutex);
 	if(write_subdevice == NULL ||
 		(write_subdevice->subdev_flags & SDF_CMD_WRITE) == 0 ||
 		write_subdevice->async == NULL)
 	{
-		mutex_unlock(&info->device->mutex);
+		mutex_unlock(&dev->mutex);
 		return -EINVAL;
 	}
-	retval = resize_async_buffer(info->device, write_subdevice,
+	retval = resize_async_buffer(dev, write_subdevice,
 		write_subdevice->async, new_size);
-	mutex_unlock(&info->device->mutex);
+	mutex_unlock(&dev->mutex);
 
 	if(retval < 0) return retval;
 	return count;
