@@ -66,6 +66,7 @@ EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);
 /* for kcomedilib */
 EXPORT_SYMBOL(check_chanlist);
 EXPORT_SYMBOL_GPL(comedi_get_device_file_info);
+EXPORT_SYMBOL_GPL(comedi_get_device_by_minor);
 
 EXPORT_SYMBOL(comedi_buf_put);
 EXPORT_SYMBOL(comedi_buf_putl);

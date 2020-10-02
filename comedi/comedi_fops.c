@@ -2575,6 +2575,14 @@ struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
 	return info;
 }
 
+comedi_device *comedi_get_device_by_minor(unsigned minor)
+{
+	struct comedi_device_file_info *dev_file_info;
+
+	dev_file_info = comedi_get_device_file_info(minor);
+	return dev_file_info ? dev_file_info->device : NULL;
+}
+
 static int resize_async_buffer(comedi_device *dev,
 	comedi_subdevice *s, comedi_async *async, unsigned new_size)
 {

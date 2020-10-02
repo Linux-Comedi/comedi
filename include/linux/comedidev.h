@@ -319,6 +319,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s);
 void comedi_error(const comedi_device * dev, const char *s);
 
 struct comedi_device_file_info* comedi_get_device_file_info(unsigned minor);
+comedi_device* comedi_get_device_by_minor(unsigned minor);
 
 static inline comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
 {
