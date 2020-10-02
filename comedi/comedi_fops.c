@@ -2618,32 +2618,32 @@ static int resize_async_buffer(comedi_device *dev,
 
 static const unsigned bytes_per_kibi = 1024;
 
-static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 
 	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->driver->driver_name);
 
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_board_name, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_board_name, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 
 	retval = snprintf(buf, PAGE_SIZE, "%s\n", info->device->board_name);
 
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, csdev, buf)
 {
 	ssize_t retval;
 	int i;
 	int result = 0;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *iter_info = comedi_get_device_file_info(i);
@@ -2659,12 +2659,12 @@ static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, csdev, buf)
 {
 	ssize_t retval;
 	int i;
 	int result = 0;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		struct comedi_device_file_info *iter_info = comedi_get_device_file_info(i);
@@ -2680,10 +2680,10 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
@@ -2700,9 +2700,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count)
+static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 {
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
@@ -2729,10 +2729,10 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count)
 	return count;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
@@ -2749,9 +2749,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, dev, buf, count)
+static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 {
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
@@ -2781,10 +2781,10 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, dev, buf, count)
 	return count;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
@@ -2801,9 +2801,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, dev, buf, count)
+static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 {
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
@@ -2830,10 +2830,10 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, dev, buf, count)
 	return count;
 }
 
-static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, dev, buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
@@ -2850,9 +2850,9 @@ static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, dev, buf)
 	return retval;
 }
 
-static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, dev, buf, count)
+static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, csdev, buf, count)
 {
-	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(csdev);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
