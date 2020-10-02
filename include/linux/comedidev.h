@@ -123,7 +123,6 @@
 
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_BOARD_MINORS 0x30
-#define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
 /* callback stuff */
 #define COMEDI_CB_EOS		1	/* end of scan */

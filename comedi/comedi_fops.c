@@ -2498,7 +2498,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	info->read_subdevice = s;
 	info->write_subdevice = s;
 	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
-	for(i = COMEDI_FIRST_SUBDEVICE_MINOR; i < COMEDI_NUM_MINORS; ++i)
+	for(i = COMEDI_NUM_BOARD_MINORS; i < COMEDI_NUM_MINORS; ++i)
 	{
 		if(comedi_file_info_table[i] == NULL)
 		{
@@ -2561,7 +2561,7 @@ void comedi_free_subdevice_minor(comedi_subdevice *s)
 	if(s->minor < 0) return;
 
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
-	BUG_ON(s->minor < COMEDI_FIRST_SUBDEVICE_MINOR);
+	BUG_ON(s->minor < COMEDI_NUM_BOARD_MINORS);
 
 	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	info = comedi_file_info_table[s->minor];
