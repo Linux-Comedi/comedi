@@ -54,6 +54,12 @@ MODULE_AUTHOR("http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");
 
+struct comedi_device_file_info {
+	comedi_device *device;
+	comedi_subdevice *read_subdevice;
+	comedi_subdevice *write_subdevice;
+};
+
 #ifdef COMEDI_CONFIG_DEBUG
 int comedi_debug;
 module_param(comedi_debug, int, 0644);

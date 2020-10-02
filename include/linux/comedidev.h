@@ -299,12 +299,6 @@ struct comedi_device_struct {
 	void (*close) (comedi_device * dev);
 };
 
-struct comedi_device_file_info {
-	comedi_device *device;
-	comedi_subdevice *read_subdevice;
-	comedi_subdevice *write_subdevice;
-};
-
 #ifdef COMEDI_CONFIG_DEBUG
 extern int comedi_debug;
 #else
