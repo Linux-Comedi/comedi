@@ -320,20 +320,6 @@ void comedi_error(const comedi_device * dev, const char *s);
 
 comedi_device* comedi_get_device_by_minor(unsigned minor);
 
-static inline comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
-{
-	if(info->read_subdevice) return info->read_subdevice;
-	if(info->device == NULL) return NULL;
-	return info->device->read_subdev;
-}
-
-static inline comedi_subdevice* comedi_get_write_subdevice(const struct comedi_device_file_info *info)
-{
-	if(info->write_subdevice) return info->write_subdevice;
-	if(info->device == NULL) return NULL;
-	return info->device->write_subdev;
-}
-
 void comedi_device_detach(comedi_device * dev);
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
 int comedi_driver_register(comedi_driver *);

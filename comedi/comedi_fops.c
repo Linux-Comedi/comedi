@@ -184,6 +184,20 @@ static comedi_device_attribute_t dev_attr_write_buffer_kb =
 	.store = &store_write_buffer_kb
 };
 
+static comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
+{
+	if(info->read_subdevice) return info->read_subdevice;
+	if(info->device == NULL) return NULL;
+	return info->device->read_subdev;
+}
+
+static comedi_subdevice* comedi_get_write_subdevice(const struct comedi_device_file_info *info)
+{
+	if(info->write_subdevice) return info->write_subdevice;
+	if(info->device == NULL) return NULL;
+	return info->device->write_subdev;
+}
+
 #ifdef HAVE_UNLOCKED_IOCTL
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
