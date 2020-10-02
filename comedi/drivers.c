@@ -197,11 +197,9 @@ int comedi_driver_unregister(comedi_driver * driver)
 
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
-		comedi_device *dev;
+		comedi_device *dev = comedi_get_device_by_minor(i);
 
-		if(dev_file_info == NULL) continue;
-		dev = dev_file_info->device;
+		if(dev == NULL) continue;
 
 		mutex_lock(&dev->mutex);
 		if (dev->attached && dev->driver == driver) {
@@ -794,7 +792,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 {
 	comedi_devconfig it;
 	int minor;
-	struct comedi_device_file_info *dev_file_info;
+	comedi_device *dev;
 	int retval;
 	unsigned *private_data = NULL;
 
@@ -814,7 +812,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	*private_data = minor;
 	dev_set_drvdata(hardware_device, private_data);
 
-	dev_file_info = comedi_get_device_file_info(minor);
+	dev = comedi_get_device_by_minor(minor);
 
 	memset(&it, 0, sizeof(it));
 	strncpy(it.board_name, board_name, COMEDI_NAMELEN);
@@ -822,9 +820,9 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
 
-	mutex_lock(&dev_file_info->device->mutex);
-	retval = comedi_device_attach(dev_file_info->device, &it);
-	mutex_unlock(&dev_file_info->device->mutex);
+	mutex_lock(&dev->mutex);
+	retval = comedi_device_attach(dev, &it);
+	mutex_unlock(&dev->mutex);
 
 cleanup:	
 	if(retval < 0)
