@@ -98,6 +98,8 @@ static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *f
 static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg, void *file);
 static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg, void *file);
 static int do_poll_ioctl(comedi_device * dev, unsigned int subd, void *file);
+static int do_setrsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
+static int do_setwsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
 
 void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s);
 static int do_cancel(comedi_device * dev, comedi_subdevice * s);
@@ -393,6 +395,12 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 		break;
 	case COMEDI_POLL:
 		rc = do_poll_ioctl(dev, arg, file);
+		break;
+	case COMEDI_SETRSUBD:
+		rc = do_setrsubd_ioctl(dev, arg, file);
+		break;
+	case COMEDI_SETWSUBD:
+		rc = do_setwsubd_ioctl(dev, arg, file);
 		break;
 	default:
 		rc = -ENOTTY;
@@ -1658,6 +1666,94 @@ static int do_poll_ioctl(comedi_device * dev, unsigned int arg, void *file)
 		return s->poll(dev, s);
 
 	return -EINVAL;
+}
+
+/*
+	COMEDI_SETRSUBD ioctl
+	sets the current "read" subdevice on a per-file basis
+
+	arg:
+		subdevice number
+
+	reads:
+		nothing
+
+	writes:
+		nothing
+
+*/
+static int do_setrsubd_ioctl(comedi_device *dev, unsigned long arg,
+	struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+	comedi_subdevice *s_old, *s_new;
+
+	if (arg >= dev->n_subdevices)
+		return -EINVAL;
+
+	s_new = dev->subdevices + arg;
+	s_old = comedi_file_read_subdevice(file);
+	if (s_old == s_new)
+		return 0;	/* no change */
+
+	if (!(s_new->subdev_flags & SDF_CMD_READ))
+		return -EINVAL;
+
+	/*
+	 * Check the file isn't still busy handling a "read" command on the
+	 * old subdevice (if any).
+	 */
+	if (s_old && s_old->busy == file && s_old->async &&
+		!(s_old->async->cmd.flags & CMDF_WRITE)) {
+		return -EBUSY;
+	}
+
+	cfp->read_subdev = s_new;
+	return 0;
+}
+
+/*
+	COMEDI_SETWSUBD ioctl
+	sets the current "write" subdevice on a per-file basis
+
+	arg:
+		subdevice number
+
+	reads:
+		nothing
+
+	writes:
+		nothing
+
+*/
+static int do_setwsubd_ioctl(comedi_device *dev, unsigned long arg,
+	struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+	comedi_subdevice *s_old, *s_new;
+
+	if (arg >= dev->n_subdevices)
+		return -EINVAL;
+
+	s_new = dev->subdevices + arg;
+	s_old = comedi_file_write_subdevice(file);
+	if (s_old == s_new)
+		return 0;	/* no change */
+
+	if (!(s_new->subdev_flags & SDF_CMD_WRITE))
+		return -EINVAL;
+
+	/*
+	 * Check the file isn't still busy handling a "write" command on the
+	 * old subdevice (if any).
+	 */
+	if (s_old && s_old->busy == file && s_old->async &&
+		(s_old->async->cmd.flags & CMDF_WRITE)) {
+		return -EBUSY;
+	}
+
+	cfp->write_subdev = s_new;
+	return 0;
 }
 
 static int do_cancel(comedi_device * dev, comedi_subdevice * s)

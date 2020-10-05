@@ -466,6 +466,8 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 	case COMEDI_UNLOCK:
 	case COMEDI_CANCEL:
 	case COMEDI_POLL:
+	case COMEDI_SETRSUBD:
+	case COMEDI_SETWSUBD:
 		/* No translation needed. */
 		rc = translated_ioctl(file, cmd, arg);
 		break;
@@ -551,6 +553,8 @@ static struct ioctl32_map comedi_ioctl32_map[] = {
 	{ COMEDI_UNLOCK, mapped_ioctl, 0 },
 	{ COMEDI_CANCEL, mapped_ioctl, 0 },
 	{ COMEDI_POLL, mapped_ioctl, 0 },
+	{ COMEDI_SETRSUBD, mapped_ioctl, 0 },
+	{ COMEDI_SETRWUBD, mapped_ioctl, 0 },
 	{ COMEDI32_CHANINFO, mapped_ioctl, 0 },
 	{ COMEDI32_RANGEINFO, mapped_ioctl, 0 },
 	{ COMEDI32_CMD, mapped_ioctl, 0 },
