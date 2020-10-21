@@ -664,6 +664,7 @@ static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_read = cb_pcidas_ao_readback_insn;
 		if (thisboard->has_ao_fifo) {
 			dev->write_subdev = s;
+			s->len_chanlist = thisboard->ao_nchan;
 			s->subdev_flags |= SDF_CMD_WRITE;
 			s->insn_write = cb_pcidas_ao_fifo_winsn;
 			s->do_cmdtest = cb_pcidas_ao_cmdtest;
