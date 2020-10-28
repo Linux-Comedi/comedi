@@ -194,6 +194,14 @@ else
 fi
 AM_CONDITIONAL([COMEDI_CONFIG_USB],[test "$USE_USB" = "yes"])
 
+COMEDI_CHECK_HAVE_SET_FS([$LINUX_SRC_DIR],[HAVE_SET_FS="yes"],[HAVE_SET_FS="no"])
+if test "$HAVE_SET_FS" = "yes" ; then
+	AC_DEFINE([COMEDI_CONFIG_SET_FS],[true],[Define if Linux kernel supports set_fs()])
+else
+	AC_MSG_NOTICE([serial2002 module cannot be built for this kernel])
+fi
+AM_CONDITIONAL([COMEDI_CONFIG_SET_FS],[test "$HAVE_SET_FS" = "yes"])
+
 COMEDI_CHECK_LINUX_KBUILD([$LINUX_SRC_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [])

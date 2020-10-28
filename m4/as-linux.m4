@@ -997,3 +997,41 @@ AC_DEFUN([COMEDI_CHECK_REQUEST_FIRMWARE_NOWAIT_HAS_GFP],
 		$2
 	fi
 ])
+
+# COMEDI_CHECK_HAVE_SET_FS([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+#
+# -------------------------------------------------------------
+# Check if the kernel supports set_fs(KERNEL_DS).  This is gradually being
+# removed from the kernel.  In kernel version 5.10 it is being removed for
+# at least powerpc, riscv and x86 architectures.  Note that the serial2002
+# driver relies on it.  In particular its TTY ioctl handling cannot be
+# reworked to avoid it.
+AC_DEFUN([COMEDI_CHECK_HAVE_SET_FS],
+[
+	AC_REQUIRE([AC_PROG_EGREP])
+	# CONFIG_SET_FS first appeared in kernel 5.10, but could go away
+	# once set_fs() support has been removed from all architectures,
+	# so this test may not be reliable in the future.
+	AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_SET_FS],[set_fs_avail="yes"],[set_fs_avail="yes"],[set_fs_avail="maybe"])
+	if test "$set_fs_avail" = "maybe"; then
+		# If CONFIG_SET_FS is not configured, that might be due to
+		# a pre-5.10 kernel or it might be due to the option being
+		# removed in a post-5.10 kernel.  If CONFIG_SET_FS is checked
+		# by include/asm-generic/uaccess.h then assume the kernel is
+		# pre-5.10 and that set_fs() is supported.  This test will
+		# break if post-5.10 kernels remove CONFIG_SET_FS altogether.
+		AC_MSG_CHECKING([$1 for set_fs() support])
+		$EGREP -q CONFIG_SET_FS "$1/include/asm-generic/uaccess.h" 2>/dev/null
+		if (($?)); then
+			set_fs_avail="yes"
+		else
+			set_fs_avail="no"
+		fi
+		AC_MSG_RESULT($set_fs_avail)
+	fi
+	if test "$set_fs_avail" = "yes"; then
+		$2
+	else
+		$3
+	fi
+])

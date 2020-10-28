@@ -39,6 +39,9 @@
 /* Define if kernel is RTLinux patched */
 #undef COMEDI_CONFIG_RTL
 
+/* Define if Linux kernel supports set_fs() */
+#undef COMEDI_CONFIG_SET_FS
+
 /* Define if using USB support */
 #undef COMEDI_CONFIG_USB
 

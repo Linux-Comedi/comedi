@@ -172,6 +172,13 @@ else
 usb_modules=
 endif
 
+if COMEDI_CONFIG_SET_FS
+set_fs_modules= \
+ serial2002.ko
+else
+set_fs_modules=
+endif
+
 if CONFIG_KBUILD
 module_PROGRAMS =
 else !CONFIG_KBUILD
@@ -230,12 +237,12 @@ module_PROGRAMS = \
  comedi_parport.ko \
  rti800.ko \
  rti802.ko \
- serial2002.ko \
  skel.ko \
  ssv_dnp.ko \
  s526.ko \
  comedi_test.ko \
  unioxx5.ko \
+ $(set_fs_modules) \
  $(pci_modules2) \
  $(pcmcia_modules) \
  $(usb_modules) \
