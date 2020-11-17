@@ -176,30 +176,35 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 
 	if test "${LINUX_SRC_DIR}" = "default" ; then
 		AC_MSG_CHECKING(for separate Linux source and build directory)
-		dir=`sed -n -e 's/^KERNELSRC *:= *\(.*\)/\1/p' "$1/Makefile"`
-		if test -z "$dir"; then
-			# 2.6.25
-			dir=`sed -n -e 's/^MAKEARGS *:= *-C *\([[^[:space:]]]*\).*/\1/p' "$1/Makefile"`
-		fi
-		if test -z "$dir"; then
-			# 4.20
-			dir=`sed -n -e '/^__sub-make:$/,/^$/s/.* -C *\([[^[:space:]]]*\).*/\1/p' "$1/Makefile"`
-		fi
-		if test -z "$dir"; then
-			# 5.2
-			if test "`grep -cv '^[[[:space:]]]*\(#.*\|\)$' "$1/Makefile"`" = "1"; then
-				dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
-			fi
-		fi
-		if test -z "$dir"; then
-			AC_MSG_RESULT([no])
-			LINUX_SRC_DIR="$1"
+		if test -d "$1/include/sound"; then
+			# build directory looks like a source directory
+			dir=""
 		else
-			AC_MSG_RESULT([yes])
-			case "$dir" in
-			.*) dir="$1/$dir" ;;
-			esac
-			AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
+			dir=`sed -n -e 's/^KERNELSRC *:= *\(.*\)/\1/p' "$1/Makefile"`
+			if test -z "$dir"; then
+				# 2.6.25
+				dir=`sed -n -e 's/^MAKEARGS *:= *-C *\([[^[:space:]]]*\).*/\1/p' "$1/Makefile"`
+			fi
+			if test -z "$dir"; then
+				# 4.20
+				dir=`sed -n -e '/^__sub-make:$/,/^$/s/.* -C *\([[^[:space:]]]*\).*/\1/p' "$1/Makefile"`
+			fi
+			if test -z "$dir"; then
+				# 5.2
+				if test "`grep -cv '^[[[:space:]]]*\(#.*\|\)$' "$1/Makefile"`" = "1"; then
+					dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
+				fi
+			fi
+			if test -z "$dir"; then
+				AC_MSG_RESULT([no])
+				LINUX_SRC_DIR="$1"
+			else
+				AC_MSG_RESULT([yes])
+				case "$dir" in
+				.*) dir="$1/$dir" ;;
+				esac
+				AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
+			fi
 		fi
 	fi
 
