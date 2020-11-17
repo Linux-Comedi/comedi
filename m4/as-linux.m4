@@ -195,16 +195,16 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 					dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
 				fi
 			fi
-			if test -z "$dir"; then
-				AC_MSG_RESULT([no])
-				LINUX_SRC_DIR="$1"
-			else
-				AC_MSG_RESULT([yes])
-				case "$dir" in
-				.*) dir="$1/$dir" ;;
-				esac
-				AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
-			fi
+		fi
+		if test -z "$dir"; then
+			AC_MSG_RESULT([no])
+			LINUX_SRC_DIR="$1"
+		else
+			AC_MSG_RESULT([yes])
+			case "$dir" in
+			.*) dir="$1/$dir" ;;
+			esac
+			AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
 		fi
 	fi
 
