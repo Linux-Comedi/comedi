@@ -1899,7 +1899,9 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	}
 	write_subdev = comedi_file_write_subdevice(file);
 	if (write_subdev && write_subdev->async) {
-		poll_wait(file, &write_subdev->async->wait_head, wait);
+		if (write_subdev != read_subdev) {
+			poll_wait(file, &write_subdev->async->wait_head, wait);
+		}
 		comedi_buf_write_alloc(write_subdev->async, write_subdev->async->prealloc_bufsz);
 		if (!write_subdev->busy
 			|| !(comedi_get_subdevice_runflags(write_subdev) &
