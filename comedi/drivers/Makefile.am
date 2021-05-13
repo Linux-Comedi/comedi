@@ -167,7 +167,8 @@ usb_modules= \
  usbdux.ko \
  usbduxfast.ko \
  usbduxsigma.ko \
- dt9812.ko
+ dt9812.ko \
+ vmk80xx.ko
 else
 usb_modules=
 endif
