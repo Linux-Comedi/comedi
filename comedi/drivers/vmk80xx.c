@@ -987,11 +987,6 @@ static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
 	if (iface_desc->desc.bNumEndpoints != 2)
 		return -ENODEV;
 
-	if (le16_to_cpu(devpriv->ep_rx->wMaxPacketSize) == 0 ||
-	    le16_to_cpu(devpriv->ep_tx->wMaxPacketSize) == 0)
-		return -EINVAL;
-
-
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		ep_desc = &iface_desc->endpoint[i].desc;
 
@@ -1012,6 +1007,10 @@ static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
 
 	if (!devpriv->ep_rx || !devpriv->ep_tx)
 		return -ENODEV;
+
+	if (le16_to_cpu(devpriv->ep_rx->wMaxPacketSize) == 0 ||
+	    le16_to_cpu(devpriv->ep_tx->wMaxPacketSize) == 0)
+		return -EINVAL;
 
 	return 0;
 }
