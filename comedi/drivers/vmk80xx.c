@@ -108,27 +108,25 @@ Supports:
 #define CONFIG_VMK80XX_DEBUG
 #undef CONFIG_VMK80XX_DEBUG
 
-#ifdef CONFIG_VMK80XX_DEBUG
-static int dbgvm = 1;
-#else
-static int dbgvm;
-#endif
+static int debug_driver;
+module_param(debug_driver, int, 0644);
+MODULE_PARM_DESC(debug_driver,
+		 "If true, print driver function trace messages.");
 
-#ifdef CONFIG_COMEDI_DEBUG
-static int dbgcm = 1;
-#else
-static int dbgcm;
-#endif
+static int debug_conn;
+module_param(debug_conn, int, 0644);
+MODULE_PARM_DESC(debug_conn,
+		 "If true, print data link debugging messages.");
 
 #define dbgvm(fmt, arg...)                     \
 do {                                           \
-	if (dbgvm)                             \
+	if (debug_driver)                      \
 		printk(KERN_DEBUG fmt, ##arg); \
 } while (0)
 
 #define dbgcm(fmt, arg...)                     \
 do {                                           \
-	if (dbgcm)                             \
+	if (debug_conn)                        \
 		printk(KERN_DEBUG fmt, ##arg); \
 } while (0)
 
