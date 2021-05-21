@@ -26,10 +26,10 @@ all-local:
 			done; \
 		done; \
 	fi
-#invoke kernel's build system
-#ignore errors from kernel's make modules in all-local, to avoid failure of make install
-#on nfs filesystem with root_squash
-	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ modules
+# Invoke kernel's build system.
+# For nfs filesystem with root_squash, you may need to change the following
+# "$(MAKE)" to "-$(MAKE)" to avoid failure of make install.
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ modules
 install-data-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
 		INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
