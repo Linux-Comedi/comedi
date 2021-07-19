@@ -1465,6 +1465,7 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 		case INT_TYPE_AI3_DMA_RTC:
 			set_rtc_irq_bit(0);	// stop RTC
 			del_timer(&devpriv->rtc_irq_timer);
+			fallthrough;
 			/* FALLTHROUGH */
 #endif
 		case INT_TYPE_AI1_DMA:
@@ -1476,6 +1477,7 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 				goto end;
 			}
 			disable_dma(devpriv->dma);
+			fallthrough;
 			/* FALLTHROUGH */
 		case INT_TYPE_AI1_INT:
 		case INT_TYPE_AI3_INT:

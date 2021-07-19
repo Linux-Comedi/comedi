@@ -826,6 +826,7 @@ static int pci_dio_reset(comedi_device * dev)
 		outb(0, dev->iobase + PCI1730_DO + 1);
 		outb(0, dev->iobase + PCI1730_IDO);
 		outb(0, dev->iobase + PCI1730_IDO + 1);
+		fallthrough;
 		/* FALLTHROUGH */
 	case TYPE_PCI1733:
 		outb(0, dev->iobase + PCI1730_3_INT_EN);	// disable interrupts
@@ -875,6 +876,7 @@ static int pci_dio_reset(comedi_device * dev)
 		outb(0x80, dev->iobase + PCI1753E_ICR1);
 		outb(0x80, dev->iobase + PCI1753E_ICR2);
 		outb(0x80, dev->iobase + PCI1753E_ICR3);
+		fallthrough;
 		/* FALLTHROUGH */
 	case TYPE_PCI1753:
 		outb(0x88, dev->iobase + PCI1753_ICR0);	// disable & clear interrupts

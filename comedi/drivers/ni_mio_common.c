@@ -4233,6 +4233,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 		break;
 	case NITIO_G01_Joint_Reset_Reg:
 		BUG_ON(bits & ~gpct_joint_reset_mask);
+		fallthrough;
 		/* fall-through */
 	default:
 		stc_register = ni_gpct_to_stc_register(reg);

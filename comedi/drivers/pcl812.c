@@ -1241,6 +1241,7 @@ static void pcl812_reset(comedi_device * dev)
 	case boardACL8216:
 		outb(0, dev->iobase + PCL812_DA2_LO);
 		outb(0, dev->iobase + PCL812_DA2_HI);
+		fallthrough;
 		/* FALLTHROUGH */
 	case boardA821:
 		outb(0, dev->iobase + PCL812_DA1_LO);
@@ -1562,6 +1563,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	switch (this_board->board_type) {
 	case boardACL8216:
 		devpriv->ai_is16b = 1;
+		fallthrough;
 		/* FALLTHROUGH */
 	case boardPCL812PG:
 	case boardPCL812:
@@ -1569,6 +1571,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->max_812_ai_mode0_rangewait = 1;
 		if (it->options[3] > 0)
 			devpriv->use_ext_trg = 1;	// we use external trigger
+		fallthrough;
 		/* FALLTHROUGH */
 	case boardA821:
 		devpriv->max_812_ai_mode0_rangewait = 1;

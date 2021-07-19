@@ -248,6 +248,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 			break;
 		default:
 			printk("ii_pci20kc: unknown module code 0x%02x in slot %d: module disabled\n", id, i);
+			fallthrough;
 			/* fall through */
 		case PCI20xxx_EMPTY_ID:
 			s->type = COMEDI_SUBD_UNUSED;
