@@ -280,18 +280,6 @@ typedef struct {
 
 // ------------------------------------------------------------------
 //
-// Helpful functions
-//
-// ------------------------------------------------------------------
-
-static __inline__ void sleep(unsigned sec)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(sec * HZ);
-}
-
-// ------------------------------------------------------------------
-//
 // DIGITAL INPUT/OUTPUT SECTION
 //
 // ------------------------------------------------------------------
@@ -569,11 +557,11 @@ static int me2600_xilinx_download(comedi_device * dev, unsigned char
 	value = readw(dev_private->me_regbase + XILINX_DOWNLOAD_RESET);
 
 	/* Wait until reset is over */
-	sleep(1);
+	ssleep(1);
 
 	/* Write a dummy value to Xilinx */
 	writeb(0x00, dev_private->me_regbase + 0x0);
-	sleep(1);
+	ssleep(1);
 
 	/*
 	 * Format of the firmware
@@ -615,7 +603,7 @@ static int me2600_xilinx_download(comedi_device * dev, unsigned char
 	}
 
 	/* Wait until the Xilinx is ready for real work */
-	sleep(1);
+	ssleep(1);
 
 	/* Enable PLX-Interrupts */
 	writel(0x43, dev_private->plx_regbase + PLX_INTCSR);
