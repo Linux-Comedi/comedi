@@ -37,4 +37,8 @@
 #define __iomem
 #endif
 
+#ifndef fallthrough
+#define fallthrough	do {} while (0)	/* fallthrough */
+#endif
+
 #endif /* _COMPAT_COMPILER_H */
