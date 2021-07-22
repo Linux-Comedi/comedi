@@ -1,10 +1,10 @@
 
-    COMEDI
-    The Linux Control and Measurement Device Interface
-    David Schleef <ds@schleef.org>
+#   COMEDI
+### The Linux Control and Measurement Device Interface
+##  David Schleef <ds@schleef.org>
+---
 
-
-* About Comedi:
+## About Comedi
 
 Comedi is a collection of drivers for data acquisition hardware.
 These drivers work with Linux, and also with Linux combined with
@@ -13,17 +13,18 @@ ties all the driver together, allows applications to be written
 that are completely hardware independent.
 
 Comedi supports a variety of data acquisition hardware; an
-incomplete list can be found in Documentation/comedi/drivers.txt.
+incomplete list may be found at
+<http://www.comedi.org/hardware.html#hw-comedi-org>.
 
 This distribution contains just the Comedi kernel modules.  You will
 almost certainly also want to download Comedilib, which is a user
 space library, a few utilities, and some example programs.
 
-* Installation:
+## Installation
 
 For installation instructions, look at the file INSTALL.
 
-* Mailing List:
+## Mailing List
 
 Questions about Comedi should be sent to the Comedi mailing list,
 <comedi_list@googlegroups.com>.  It is necessary to join the group
@@ -45,7 +46,7 @@ Traffic on the list is light, and mainly questions/answers about
 comedi installation, bugs, and programming.  General questions
 about data acquisition are also welcome.
 
-* More Information:
+## More Information
 
 Comedi also has a web page at <http://www.comedi.org/> from where
 updated versions may be downloaded.
@@ -56,14 +57,14 @@ automatically at
 <https://github.com/Linux-Comedi/comedi/tarball/master>.
 The Git repository can be accessed anonymously using:
 
-  git clone https://github.com/Linux-Comedi/comedi.git
+    git clone https://github.com/Linux-Comedi/comedi.git
 
 The Git repository was previously hosted at comedi.org.  A previously
 cloned repository may need its URL updating to the current repository
 on github.com as follows:
 
-  cd /path/to/comedi
-  git remote set-url origin https://github.com/Linux-Comedi/comedi.git
+    cd /path/to/comedi
+    git remote set-url origin https://github.com/Linux-Comedi/comedi.git
 
 Comedi may be freely distributed and modified in accordance with the
 GNU General Public License.
