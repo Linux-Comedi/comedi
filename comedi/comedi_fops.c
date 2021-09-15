@@ -326,13 +326,8 @@ static comedi_subdevice* comedi_file_write_subdevice(struct file *file)
 	return cfp->write_subdev;
 }
 
-#ifdef HAVE_UNLOCKED_IOCTL
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
-#else
-static int comedi_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
-#endif
 {
 	struct comedi_file *cfp = file->private_data;
 	comedi_device *dev = cfp->dev;
@@ -411,6 +406,14 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 	mutex_unlock(&dev->mutex);
 	return rc;
 }
+
+#ifndef HAVE_UNLOCKED_IOCTL
+static int comedi_ioctl(struct inode *inode, struct file *file,
+	unsigned int cmd, unsigned long arg)
+{
+	return comedi_unlocked_ioctl(file, cmd, arg);
+}
+#endif /* ifndef HAVE_UNLOCKED_IOCTL */
 
 #ifdef CONFIG_COMPAT
 
