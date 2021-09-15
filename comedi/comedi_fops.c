@@ -764,6 +764,9 @@ static int compat_insn(struct file *file, unsigned long arg)
 
 /* compat_ioctl file operation. */
 /* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
+#ifdef HAVE_COMPAT_IOCTL
+static
+#endif
 long comedi_compat_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {

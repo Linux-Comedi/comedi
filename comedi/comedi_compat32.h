@@ -89,15 +89,15 @@ typedef struct comedi32_insnlist_struct {
 	compat_uptr_t insns;		/* 32-bit 'comedi_insn *' */
 } comedi32_insnlist;
 
-extern long comedi_compat_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg);
-
 #ifdef HAVE_COMPAT_IOCTL
 
 #define comedi_register_ioctl32() do{}while(0)
 #define comedi_unregister_ioctl32() do{}while(0)
 
 #else /* HAVE_COMPAT_IOCTL */
+
+extern long comedi_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg);
 
 extern void comedi_register_ioctl32(void);
 extern void comedi_unregister_ioctl32(void);
