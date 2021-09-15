@@ -33,6 +33,10 @@
 #define __user
 #endif
 
+#ifndef __force
+#define __force
+#endif
+
 #ifndef __iomem
 #define __iomem
 #endif
