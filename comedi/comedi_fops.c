@@ -2326,7 +2326,7 @@ const struct file_operations comedi_fops = {
 #else
       ioctl:comedi_ioctl,
 #endif
-#ifdef HAVE_COMPAT_IOCTL
+#if defined(CONFIG_COMPAT) && defined(HAVE_COMPAT_IOCTL)
       compat_ioctl:comedi_compat_ioctl,
 #endif
       open:comedi_open,
