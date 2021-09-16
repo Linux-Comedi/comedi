@@ -34,5 +34,20 @@ static inline void *kcalloc(size_t n, size_t size, int flags)
 
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
+
+/* Some RHEL 2.6.32 kernels have kmalloc_array.  Redefine to avoid warnings
+   about static declaration following non-static declaration. */
+#undef kmalloc_array
+#define kmalloc_array comedi_kmalloc_array
+static inline void *comedi_kmalloc_array(size_t n, size_t size, unsigned int flags)
+{
+	if (n != 0 && size > ULONG_MAX / n)
+		return NULL;
+	return kmalloc(n * size, flags);
+}
+
+#endif
+
 #endif
 
