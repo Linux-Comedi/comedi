@@ -89,14 +89,20 @@ static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
 static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 	void *file);
 static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo __user * arg);
+static int do_chaninfo_i(comedi_device * dev, comedi_chaninfo * ci);
+static int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo __user * arg);
 static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg, void *file);
 static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file);
+static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file);
 static int do_lock_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_unlock_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file);
+static int do_cmdtest_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file);
 static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg, void *file);
+static int do_insnlist_i(comedi_device * dev, comedi_insn *insns, unsigned int n_insns, void *file);
 static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg, void *file);
+static int do_insn_i(comedi_device * dev, comedi_insn *insn, void *file);
 static int do_poll_ioctl(comedi_device * dev, unsigned int subd, void *file);
 static int do_setrsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
 static int do_setwsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
@@ -420,190 +426,160 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 /* Handle 32-bit COMEDI_CHANINFO ioctl. */
 static long compat_chaninfo(struct file *file, unsigned long arg)
 {
-	comedi_chaninfo __user *chaninfo;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
+	comedi_chaninfo chaninfo;
 	comedi32_chaninfo __user *chaninfo32;
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
+	compat_uptr_t temp_uptr = 0;
 
 	chaninfo32 = compat_ptr(arg);
-	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
+	memset(&chaninfo, 0, sizeof(chaninfo));
 
 	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(chaninfo32, sizeof(*chaninfo32))
-			|| !access_ok(chaninfo, sizeof(*chaninfo))) {
+	if (!access_ok(chaninfo32, sizeof(*chaninfo32))) {
 		return -EFAULT;
 	}
 	err = 0;
-	err |= __get_user(temp.uint, &chaninfo32->subdev);
-	err |= __put_user(temp.uint, &chaninfo->subdev);
-	err |= __get_user(temp.uptr, &chaninfo32->maxdata_list);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->maxdata_list);
-	err |= __get_user(temp.uptr, &chaninfo32->flaglist);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->flaglist);
-	err |= __get_user(temp.uptr, &chaninfo32->rangelist);
-	err |= __put_user(compat_ptr(temp.uptr), &chaninfo->rangelist);
+	err |= __get_user(chaninfo.subdev, &chaninfo32->subdev);
+	err |= __get_user(temp_uptr, &chaninfo32->maxdata_list);
+	chaninfo.maxdata_list = (void __force *)compat_ptr(temp_uptr);
+	err |= __get_user(temp_uptr, &chaninfo32->flaglist);
+	chaninfo.flaglist = (void __force *)compat_ptr(temp_uptr);
+	err |= __get_user(temp_uptr, &chaninfo32->rangelist);
+	chaninfo.rangelist = (void __force *)compat_ptr(temp_uptr);
 	if (err) {
 		return -EFAULT;
 	}
 
-	return comedi_unlocked_ioctl(file, COMEDI_CHANINFO,
-			(unsigned long)chaninfo);
+	mutex_lock(&dev->mutex);
+	err = do_chaninfo_i(dev, &chaninfo);
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
 /* Handle 32-bit COMEDI_RANGEINFO ioctl. */
 static long compat_rangeinfo(struct file *file, unsigned long arg)
 {
-	comedi_rangeinfo __user *rangeinfo;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
+	comedi_rangeinfo rangeinfo;
 	comedi32_rangeinfo __user *rangeinfo32;
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
+	compat_uptr_t temp_uptr = 0;
 
 	rangeinfo32 = compat_ptr(arg);
-	rangeinfo = compat_alloc_user_space(sizeof(*rangeinfo));
+	memset(&rangeinfo, 0, sizeof(rangeinfo));
 
 	/* Copy rangeinfo structure. */
-	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32))
-			|| !access_ok(rangeinfo, sizeof(*rangeinfo))) {
+	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32))) {
 		return -EFAULT;
 	}
 	err = 0;
-	err |= __get_user(temp.uint, &rangeinfo32->range_type);
-	err |= __put_user(temp.uint, &rangeinfo->range_type);
-	err |= __get_user(temp.uptr, &rangeinfo32->range_ptr);
-	err |= __put_user(compat_ptr(temp.uptr), &rangeinfo->range_ptr);
+	err |= __get_user(rangeinfo.range_type, &rangeinfo32->range_type);
+	err |= __get_user(temp_uptr, &rangeinfo32->range_ptr);
+	rangeinfo.range_ptr = (void __force *)compat_ptr(temp_uptr);
 	if (err) {
 		return -EFAULT;
 	}
 
-	return comedi_unlocked_ioctl(file, COMEDI_RANGEINFO,
-			(unsigned long)rangeinfo);
+	mutex_lock(&dev->mutex);
+	err = do_rangeinfo_i(dev, &rangeinfo);
+	mutex_unlock(&dev->mutex);
+	return err;
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
-static int get_compat_cmd(comedi_cmd __user *cmd,
+static int get_compat_cmd(comedi_cmd *cmd,
 		comedi32_cmd __user *cmd32)
 {
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
+	compat_uptr_t temp_uptr;
 
 	/* Copy cmd structure. */
-	if (!access_ok(cmd32, sizeof(*cmd32))
-			|| !access_ok(cmd, sizeof(*cmd))) {
+	if (!access_ok(cmd32, sizeof(*cmd32))) {
 		return -EFAULT;
 	}
+	memset(cmd, 0, sizeof(*cmd));
 	err = 0;
-	err |= __get_user(temp.uint, &cmd32->subdev);
-	err |= __put_user(temp.uint, &cmd->subdev);
-	err |= __get_user(temp.uint, &cmd32->flags);
-	err |= __put_user(temp.uint, &cmd->flags);
-	err |= __get_user(temp.uint, &cmd32->start_src);
-	err |= __put_user(temp.uint, &cmd->start_src);
-	err |= __get_user(temp.uint, &cmd32->start_arg);
-	err |= __put_user(temp.uint, &cmd->start_arg);
-	err |= __get_user(temp.uint, &cmd32->scan_begin_src);
-	err |= __put_user(temp.uint, &cmd->scan_begin_src);
-	err |= __get_user(temp.uint, &cmd32->scan_begin_arg);
-	err |= __put_user(temp.uint, &cmd->scan_begin_arg);
-	err |= __get_user(temp.uint, &cmd32->convert_src);
-	err |= __put_user(temp.uint, &cmd->convert_src);
-	err |= __get_user(temp.uint, &cmd32->convert_arg);
-	err |= __put_user(temp.uint, &cmd->convert_arg);
-	err |= __get_user(temp.uint, &cmd32->scan_end_src);
-	err |= __put_user(temp.uint, &cmd->scan_end_src);
-	err |= __get_user(temp.uint, &cmd32->scan_end_arg);
-	err |= __put_user(temp.uint, &cmd->scan_end_arg);
-	err |= __get_user(temp.uint, &cmd32->stop_src);
-	err |= __put_user(temp.uint, &cmd->stop_src);
-	err |= __get_user(temp.uint, &cmd32->stop_arg);
-	err |= __put_user(temp.uint, &cmd->stop_arg);
-	err |= __get_user(temp.uptr, &cmd32->chanlist);
-	err |= __put_user(compat_ptr(temp.uptr), &cmd->chanlist);
-	err |= __get_user(temp.uint, &cmd32->chanlist_len);
-	err |= __put_user(temp.uint, &cmd->chanlist_len);
-	err |= __get_user(temp.uptr, &cmd32->data);
-	err |= __put_user(compat_ptr(temp.uptr), &cmd->data);
-	err |= __get_user(temp.uint, &cmd32->data_len);
-	err |= __put_user(temp.uint, &cmd->data_len);
+	err |= __get_user(cmd->subdev, &cmd32->subdev);
+	err |= __get_user(cmd->flags, &cmd32->flags);
+	err |= __get_user(cmd->start_src, &cmd32->start_src);
+	err |= __get_user(cmd->start_arg, &cmd32->start_arg);
+	err |= __get_user(cmd->scan_begin_src, &cmd32->scan_begin_src);
+	err |= __get_user(cmd->scan_begin_arg, &cmd32->scan_begin_arg);
+	err |= __get_user(cmd->convert_src, &cmd32->convert_src);
+	err |= __get_user(cmd->convert_arg, &cmd32->convert_arg);
+	err |= __get_user(cmd->scan_end_src, &cmd32->scan_end_src);
+	err |= __get_user(cmd->scan_end_arg, &cmd32->scan_end_arg);
+	err |= __get_user(cmd->stop_src, &cmd32->stop_src);
+	err |= __get_user(cmd->stop_arg, &cmd32->stop_arg);
+	err |= __get_user(temp_uptr, &cmd32->chanlist);
+	cmd->chanlist = (void __force *)compat_ptr(temp_uptr);
+	err |= __get_user(cmd->chanlist_len, &cmd32->chanlist_len);
+	err |= __get_user(temp_uptr, &cmd32->data);
+	cmd->data = (void __force *)compat_ptr(temp_uptr);
+	err |= __get_user(cmd->data_len, &cmd32->data_len);
 	return err ? -EFAULT : 0;
 }
 
 /* Copy native cmd structure to 32-bit cmd structure. */
-static int put_compat_cmd(comedi32_cmd __user *cmd32, comedi_cmd __user *cmd)
+static int put_compat_cmd(comedi32_cmd __user *cmd32, comedi_cmd *cmd)
 {
 	int err;
-	unsigned int temp;
 
 	/* Copy back most of cmd structure. */
 	/* Assume the pointer values are already valid. */
 	/* (Could use ptr_to_compat() to set them, but that wasn't implemented
 	 * until kernel version 2.6.11.) */
-	if (!access_ok(cmd, sizeof(*cmd))
-			|| !access_ok(cmd32, sizeof(*cmd32))) {
+	if (!access_ok(cmd32, sizeof(*cmd32))) {
 		return -EFAULT;
 	}
 	err = 0;
-	err |= __get_user(temp, &cmd->subdev);
-	err |= __put_user(temp, &cmd32->subdev);
-	err |= __get_user(temp, &cmd->flags);
-	err |= __put_user(temp, &cmd32->flags);
-	err |= __get_user(temp, &cmd->start_src);
-	err |= __put_user(temp, &cmd32->start_src);
-	err |= __get_user(temp, &cmd->start_arg);
-	err |= __put_user(temp, &cmd32->start_arg);
-	err |= __get_user(temp, &cmd->scan_begin_src);
-	err |= __put_user(temp, &cmd32->scan_begin_src);
-	err |= __get_user(temp, &cmd->scan_begin_arg);
-	err |= __put_user(temp, &cmd32->scan_begin_arg);
-	err |= __get_user(temp, &cmd->convert_src);
-	err |= __put_user(temp, &cmd32->convert_src);
-	err |= __get_user(temp, &cmd->convert_arg);
-	err |= __put_user(temp, &cmd32->convert_arg);
-	err |= __get_user(temp, &cmd->scan_end_src);
-	err |= __put_user(temp, &cmd32->scan_end_src);
-	err |= __get_user(temp, &cmd->scan_end_arg);
-	err |= __put_user(temp, &cmd32->scan_end_arg);
-	err |= __get_user(temp, &cmd->stop_src);
-	err |= __put_user(temp, &cmd32->stop_src);
-	err |= __get_user(temp, &cmd->stop_arg);
-	err |= __put_user(temp, &cmd32->stop_arg);
+	err |= __put_user(cmd->subdev, &cmd32->subdev);
+	err |= __put_user(cmd->flags, &cmd32->flags);
+	err |= __put_user(cmd->start_src, &cmd32->start_src);
+	err |= __put_user(cmd->start_arg, &cmd32->start_arg);
+	err |= __put_user(cmd->scan_begin_src, &cmd32->scan_begin_src);
+	err |= __put_user(cmd->scan_begin_arg, &cmd32->scan_begin_arg);
+	err |= __put_user(cmd->convert_src, &cmd32->convert_src);
+	err |= __put_user(cmd->convert_arg, &cmd32->convert_arg);
+	err |= __put_user(cmd->scan_end_src, &cmd32->scan_end_src);
+	err |= __put_user(cmd->scan_end_arg, &cmd32->scan_end_arg);
+	err |= __put_user(cmd->stop_src, &cmd32->stop_src);
+	err |= __put_user(cmd->stop_arg, &cmd32->stop_arg);
 	/* Assume chanlist pointer is unchanged. */
-	err |= __get_user(temp, &cmd->chanlist_len);
-	err |= __put_user(temp, &cmd32->chanlist_len);
+	err |= __put_user(cmd->chanlist_len, &cmd32->chanlist_len);
 	/* Assume data pointer is unchanged. */
-	err |= __get_user(temp, &cmd->data_len);
-	err |= __put_user(temp, &cmd32->data_len);
+	err |= __put_user(cmd->data_len, &cmd32->data_len);
 	return err ? -EFAULT : 0;
 }
 
 /* Handle 32-bit COMEDI_CMD ioctl. */
 static long compat_cmd(struct file *file, unsigned long arg)
 {
-	comedi_cmd __user *cmd;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
+	comedi_cmd cmd;
 	comedi32_cmd __user *cmd32;
+	int copy = 0;
 	long rc;
 	int err;
 
 	cmd32 = compat_ptr(arg);
-	cmd = compat_alloc_user_space(sizeof(*cmd));
 
-	err = get_compat_cmd(cmd, cmd32);
+	err = get_compat_cmd(&cmd, cmd32);
 	if (err) {
 		return err;
 	}
 
-	rc = comedi_unlocked_ioctl(file, COMEDI_CMD, (unsigned long)cmd);
-	if (rc == -EAGAIN) {
+	mutex_lock(&dev->mutex);
+	rc = do_cmd_i(dev, &cmd, &copy, file);
+	mutex_unlock(&dev->mutex);
+
+	if (rc && copy) {
 		/* Special case: copy cmd back to user. */
-		err = put_compat_cmd(cmd32, cmd);
+		err = put_compat_cmd(cmd32, &cmd);
 		if (err) {
 			rc = err;
 		}
@@ -614,69 +590,63 @@ static long compat_cmd(struct file *file, unsigned long arg)
 /* Handle 32-bit COMEDI_CMDTEST ioctl. */
 static long compat_cmdtest(struct file *file, unsigned long arg)
 {
-	comedi_cmd __user *cmd;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
+	comedi_cmd cmd;
 	comedi32_cmd __user *cmd32;
+	int copy = 0;
 	long rc;
 	int err;
 
 	cmd32 = compat_ptr(arg);
-	cmd = compat_alloc_user_space(sizeof(*cmd));
 
-	err = get_compat_cmd(cmd, cmd32);
+	err = get_compat_cmd(&cmd, cmd32);
 	if (err) {
 		return err;
 	}
 
-	rc = comedi_unlocked_ioctl(file, COMEDI_CMDTEST, (unsigned long)cmd);
-	if (rc < 0) {
-		return rc;
-	}
+	mutex_lock(&dev->mutex);
+	rc = do_cmdtest_i(dev, &cmd, &copy, file);
+	mutex_unlock(&dev->mutex);
 
-	err = put_compat_cmd(cmd32, cmd);
-	if (err) {
-		rc = err;
+	if (copy) {
+		err = put_compat_cmd(cmd32, &cmd);
+		if (err) {
+			rc = err;
+		}
 	}
 	return rc;
 }
 
 /* Copy 32-bit insn structure to native insn structure. */
-static int get_compat_insn(comedi_insn __user *insn,
+static int get_compat_insn(comedi_insn *insn,
 		comedi32_insn __user *insn32)
 {
 	int err;
-	union {
-		unsigned int uint;
-		compat_uptr_t uptr;
-	} temp;
+	compat_uptr_t temp_uptr;
 
 	/* Copy insn structure.  Ignore the unused members. */
 	err = 0;
-	if (!access_ok(insn32, sizeof(*insn32))
-			|| !access_ok(insn, sizeof(*insn))) {
+	if (!access_ok(insn32, sizeof(*insn32))) {
 		return -EFAULT;
 	}
-	err |= __get_user(temp.uint, &insn32->insn);
-	err |= __put_user(temp.uint, &insn->insn);
-	err |= __get_user(temp.uint, &insn32->n);
-	err |= __put_user(temp.uint, &insn->n);
-	err |= __get_user(temp.uptr, &insn32->data);
-	err |= __put_user(compat_ptr(temp.uptr), &insn->data);
-	err |= __get_user(temp.uint, &insn32->subdev);
-	err |= __put_user(temp.uint, &insn->subdev);
-	err |= __get_user(temp.uint, &insn32->chanspec);
-	err |= __put_user(temp.uint, &insn->chanspec);
+	err |= __get_user(insn->insn, &insn32->insn);
+	err |= __get_user(insn->n, &insn32->n);
+	err |= __get_user(temp_uptr, &insn32->data);
+	insn->data = (void __force *)compat_ptr(temp_uptr);
+	err |= __get_user(insn->subdev, &insn32->subdev);
+	err |= __get_user(insn->chanspec, &insn32->chanspec);
 	return err ? -EFAULT : 0;
 }
 
 /* Handle 32-bit COMEDI_INSNLIST ioctl. */
 static long compat_insnlist(struct file *file, unsigned long arg)
 {
-	struct combined_insnlist {
-		comedi_insnlist insnlist;
-		comedi_insn insn[1];
-	} __user *s;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
 	comedi32_insnlist __user *insnlist32;
 	comedi32_insn __user *insn32;
+	comedi_insn *insns;
 	compat_uptr_t uptr;
 	unsigned int n_insns, n;
 	int err;
@@ -695,48 +665,51 @@ static long compat_insnlist(struct file *file, unsigned long arg)
 		return -EFAULT;
 	}
 
-	/* Allocate user memory to copy insnlist and insns into. */
-	s = compat_alloc_user_space(offsetof(struct combined_insnlist,
-				insn[n_insns]));
-
-	/* Set native insnlist structure. */
-	if (!access_ok(&s->insnlist, sizeof(s->insnlist))) {
-		return -EFAULT;
-	}
-	err |= __put_user(n_insns, &s->insnlist.n_insns);
-	err |= __put_user(&s->insn[0], &s->insnlist.insns);
-	if (err) {
-		return -EFAULT;
+	/* Allocate memory to copy insns into. */
+	insns = kcalloc(n_insns, sizeof(*insns), GFP_KERNEL);
+	if (!insns) {
+		DPRINTK("kmalloc failed\n");
+		return -ENOMEM;
 	}
 
 	/* Copy insn structures. */
 	for (n = 0; n < n_insns; n++) {
-		err = get_compat_insn(&s->insn[n], &insn32[n]);
+		err = get_compat_insn(&insns[n], &insn32[n]);
 		if (err) {
-			return err;
+			goto out;
 		}
 	}
 
-	return comedi_unlocked_ioctl(file, COMEDI_INSNLIST,
-			(unsigned long)&s->insnlist);
+	mutex_lock(&dev->mutex);
+	err = do_insnlist_i(dev, insns, n_insns, file);
+	mutex_unlock(&dev->mutex);
+
+out:
+	kfree(insns);
+	return err;
 }
 
 /* Handle 32-bit COMEDI_INSN ioctl. */
 static long compat_insn(struct file *file, unsigned long arg)
 {
-	comedi_insn __user *insn;
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
+	comedi_insn insn;
 	comedi32_insn __user *insn32;
 	int err;
 
 	insn32 = compat_ptr(arg);
-	insn = compat_alloc_user_space(sizeof(*insn));
 
-	err = get_compat_insn(insn, insn32);
+	err = get_compat_insn(&insn, insn32);
 	if (err) {
 		return err;
 	}
 
-	return comedi_unlocked_ioctl(file, COMEDI_INSN, (unsigned long)insn);
+	mutex_lock(&dev->mutex);
+	err = do_insn_i(dev, &insn, file);
+	mutex_unlock(&dev->mutex);
+
+	return err;
 }
 
 /* compat_ioctl file operation. */
@@ -1108,33 +1081,39 @@ static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 */
 static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo __user * arg)
 {
-	comedi_subdevice *s;
-	comedi_chaninfo it;
+	comedi_chaninfo ci;
 
-	if (copy_from_user(&it, arg, sizeof(comedi_chaninfo)))
+	if (copy_from_user(&ci, arg, sizeof(ci)))
 		return -EFAULT;
 
-	if (it.subdev >= dev->n_subdevices)
-		return -EINVAL;
-	s = dev->subdevices + it.subdev;
+	return do_chaninfo_i(dev, &ci);
+}
 
-	if (it.maxdata_list) {
+static int do_chaninfo_i(comedi_device * dev, comedi_chaninfo *ci)
+{
+	comedi_subdevice *s;
+
+	if (ci->subdev >= dev->n_subdevices)
+		return -EINVAL;
+	s = dev->subdevices + ci->subdev;
+
+	if (ci->maxdata_list) {
 		if (s->maxdata || !s->maxdata_list)
 			return -EINVAL;
-		if (copy_to_user((lsampl_t __user *)it.maxdata_list,
+		if (copy_to_user((lsampl_t __user *)ci->maxdata_list,
 				s->maxdata_list, s->n_chan * sizeof(lsampl_t)))
 			return -EFAULT;
 	}
 
-	if (it.flaglist) {
+	if (ci->flaglist) {
 		if (!s->flaglist)
 			return -EINVAL;
-		if (copy_to_user((unsigned int __user *)it.flaglist,
+		if (copy_to_user((unsigned int __user *)ci->flaglist,
 				s->flaglist, s->n_chan * sizeof(unsigned int)))
 			return -EFAULT;
 	}
 
-	if (it.rangelist) {
+	if (ci->rangelist) {
 		int i;
 
 		if (!s->range_table_list)
@@ -1142,15 +1121,40 @@ static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo __user * arg)
 		for (i = 0; i < s->n_chan; i++) {
 			int x;
 
-			x = (dev->minor << 28) | (it.subdev << 24) | (i << 16) |
-				(s->range_table_list[i]->length);
-			put_user(x, (unsigned int __user *)it.rangelist + i);
+			x = (dev->minor << 28) | (ci->subdev << 24) |
+				(i << 16) | (s->range_table_list[i]->length);
+			if (put_user(x, (unsigned int __user *)ci->rangelist + i))
+				return -EFAULT;
 		}
-		//if(copy_to_user((unsigned int __user *)it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
+		//if(copy_to_user((unsigned int __user *)ci->rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
 		//      return -EFAULT;
 	}
 
 	return 0;
+}
+
+/*
+	COMEDI_RANGEINFO
+	range information ioctl
+
+	arg:
+		pointer to rangeinfo structure
+
+	reads:
+		range info structure
+
+	writes:
+		n comedi_krange structures to rangeinfo->range_ptr
+*/
+static int do_rangeinfo_ioctl(comedi_device * dev,
+		comedi_rangeinfo __user * arg)
+{
+	comedi_rangeinfo ri;
+
+	if (copy_from_user(&ri, arg, sizeof(ri)))
+		return -EFAULT;
+
+	return do_rangeinfo_i(dev, &ri);
 }
 
  /*
@@ -1280,40 +1284,44 @@ static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg,
 {
 	comedi_insnlist insnlist;
 	comedi_insn *insns = NULL;
+	int ret = 0;
+
+	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
+		return -EFAULT;
+
+	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
+	if (!insns) {
+		DPRINTK("kmalloc failed\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(insns, (comedi_insn __user *)insnlist.insns,
+			sizeof(*insns) * insnlist.n_insns)) {
+		DPRINTK("copy_from_user failed\n");
+		ret = -EFAULT;
+	} else {
+		ret = do_insnlist_i(dev, insns, insnlist.n_insns, file);
+	}
+	kfree(insns);
+	return ret;
+}
+
+static int do_insnlist_i(comedi_device * dev, comedi_insn *insns,
+	unsigned int n_insns, void *file)
+{
 	lsampl_t *data = NULL;
 	unsigned int max_samples;
 	int i;
 	int ret = 0;
 
-	if (copy_from_user(&insnlist, arg, sizeof(comedi_insnlist)))
-		return -EFAULT;
-
-	if (insnlist.n_insns <= ULONG_MAX / sizeof(comedi_insn))
-		insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns,
-				GFP_KERNEL);
-	if (!insns) {
-		DPRINTK("kmalloc failed\n");
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	if (copy_from_user(insns, (comedi_insn __user *)insnlist.insns,
-			sizeof(comedi_insn) * insnlist.n_insns)) {
-		DPRINTK("copy_from_user failed\n");
-		ret = -EFAULT;
-		goto error;
-	}
-
 	max_samples = 0;
-	for (i = 0; i < insnlist.n_insns; i++) {
+	for (i = 0; i < n_insns; i++) {
 		if (max_samples < insns[i].n)
 			max_samples = insns[i].n;
 	}
 
 	if (max_samples) {
-		if (max_samples <= ULONG_MAX / sizeof(lsampl_t))
-			data = kmalloc(sizeof(lsampl_t) * max_samples,
-					GFP_KERNEL);
+		data = kmalloc_array(max_samples, sizeof(*data), GFP_KERNEL);
 		if (!data) {
 			DPRINTK("kmalloc failed\n");
 			ret = -ENOMEM;
@@ -1321,7 +1329,7 @@ static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg,
 		}
 	}
 
-	for (i = 0; i < insnlist.n_insns; i++) {
+	for (i = 0; i < n_insns; i++) {
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data,
 					(lsampl_t __user *)insns[i].data,
@@ -1347,8 +1355,6 @@ static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg,
 	}
 
       error:
-	if (insns)
-		kfree(insns);
 	if (data)
 		kfree(data);
 
@@ -1603,41 +1609,44 @@ static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg,
 	void *file)
 {
 	comedi_insn insn;
+
+	if (copy_from_user(&insn, arg, sizeof(insn)))
+		return -EFAULT;
+
+	return do_insn_i(dev, &insn, file);
+}
+
+static int do_insn_i(comedi_device * dev, comedi_insn *insn, void *file)
+{
 	lsampl_t *data = NULL;
 	int ret = 0;
 
-	if (copy_from_user(&insn, arg, sizeof(comedi_insn))) {
-		ret = -EFAULT;
-		goto error;
-	}
-
-	if (insn.n) {
-		if (insn.n <= ULONG_MAX / sizeof(lsampl_t))
-			data = kmalloc(sizeof(lsampl_t) * insn.n, GFP_KERNEL);
+	if (insn->n) {
+		data = kmalloc_array(insn->n, sizeof(*data), GFP_KERNEL);
 		if (!data) {
 			ret = -ENOMEM;
 			goto error;
 		}
 	}
 
-	if (insn.insn & INSN_MASK_WRITE) {
-		if (copy_from_user(data, (lsampl_t __user *)insn.data,
-				insn.n * sizeof(lsampl_t))) {
+	if (insn->insn & INSN_MASK_WRITE) {
+		if (copy_from_user(data, (lsampl_t __user *)insn->data,
+				insn->n * sizeof(lsampl_t))) {
 			ret = -EFAULT;
 			goto error;
 		}
 	}
-	ret = parse_insn(dev, &insn, data, file);
+	ret = parse_insn(dev, insn, data, file);
 	if (ret < 0)
 		goto error;
-	if (insn.insn & INSN_MASK_READ) {
-		if (copy_to_user((lsampl_t __user *)insn.data, data,
-				insn.n * sizeof(lsampl_t))) {
+	if (insn->insn & INSN_MASK_READ) {
+		if (copy_to_user((lsampl_t __user *)insn->data, data,
+				insn->n * sizeof(lsampl_t))) {
 			ret = -EFAULT;
 			goto error;
 		}
 	}
-	ret = insn.n;
+	ret = insn->n;
 
       error:
 	if (data)
@@ -1663,35 +1672,50 @@ static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg,
 */
 static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 {
-	comedi_cmd user_cmd;
+	comedi_cmd cmd;
+	int copy = 0;
+	int rc;
+
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
+		DPRINTK("bad cmd address\n");
+		return -EFAULT;
+	}
+	rc = do_cmd_i(dev, &cmd, &copy, file);
+	if (rc && copy && copy_to_user(arg, &cmd, sizeof(cmd))) {
+		DPRINTK("fault writing cmd\n");
+		rc = -EFAULT;
+	}
+	return rc;
+}
+
+static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
+{
 	comedi_subdevice *s;
 	comedi_async *async;
 	int ret = 0;
 	unsigned int *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, arg, sizeof(comedi_cmd))) {
-		DPRINTK("bad cmd address\n");
-		return -EFAULT;
-	}
-	// save user's chanlist pointer so it can be restored later
-	chanlist_saver = user_cmd.chanlist;
+	*copy = 0;
 
-	if (user_cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", user_cmd.subdev);
+	// save user's chanlist pointer so it can be restored later
+	chanlist_saver = cmd->chanlist;
+
+	if (cmd->subdev >= dev->n_subdevices) {
+		DPRINTK("%d no such subdevice\n", cmd->subdev);
 		return -ENODEV;
 	}
 
-	s = dev->subdevices + user_cmd.subdev;
+	s = dev->subdevices + cmd->subdev;
 	async = s->async;
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", user_cmd.subdev);
+		DPRINTK("%d not valid subdevice\n", cmd->subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
 		DPRINTK("subdevice %i does not support commands\n",
-			user_cmd.subdev);
+			cmd->subdev);
 		return -EIO;
 	}
 
@@ -1708,20 +1732,20 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 	}
 
 	/* make sure channel/gain list isn't too long */
-	if (user_cmd.chanlist_len > s->len_chanlist) {
+	if (cmd->chanlist_len > s->len_chanlist) {
 		DPRINTK("channel/gain list too long %u > %d\n",
-			user_cmd.chanlist_len, s->len_chanlist);
+			cmd->chanlist_len, s->len_chanlist);
 		return -EINVAL;
 	}
 
 	/* make sure channel/gain list isn't too short */
-	if (user_cmd.chanlist_len < 1) {
+	if (cmd->chanlist_len < 1) {
 		DPRINTK("channel/gain list too short %u < 1\n",
-			user_cmd.chanlist_len);
+			cmd->chanlist_len);
 		return -EINVAL;
 	}
 
-	async->cmd = user_cmd;
+	async->cmd = *cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
 	async->cmd.chanlist =
@@ -1732,7 +1756,7 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 	}
 
 	if (copy_from_user(async->cmd.chanlist,
-			(unsigned int __user *)user_cmd.chanlist,
+			(unsigned int __user *)cmd->chanlist,
 			async->cmd.chanlist_len * sizeof(int))) {
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
@@ -1750,15 +1774,11 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 
 	if (async->cmd.flags & TRIG_BOGUS || ret) {
 		DPRINTK("test returned %d\n", ret);
-		user_cmd = async->cmd;
+		*cmd = async->cmd;
 		// restore chanlist pointer before copying back
-		user_cmd.chanlist = chanlist_saver;
-		user_cmd.data = NULL;
-		if (copy_to_user(arg, &user_cmd, sizeof(comedi_cmd))) {
-			DPRINTK("fault writing cmd\n");
-			ret = -EFAULT;
-			goto cleanup;
-		}
+		cmd->chanlist = chanlist_saver;
+		cmd->data = NULL;
+		*copy = 1;
 		ret = -EAGAIN;
 		goto cleanup;
 	}
@@ -1816,48 +1836,64 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg,
 	void *file)
 {
-	comedi_cmd user_cmd;
+	comedi_cmd cmd;
+	int copy = 0;
+	int rc;
+
+	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
+		DPRINTK("bad cmd address\n");
+		return -EFAULT;
+	}
+	rc = do_cmdtest_i(dev, &cmd, &copy, file);
+	if (copy && copy_to_user(arg, &cmd, sizeof(cmd))) {
+		DPRINTK("bad cmd address\n");
+		rc = -EFAULT;
+	}
+	return rc;
+}
+
+static int do_cmdtest_i(comedi_device * dev, comedi_cmd *cmd, int *copy,
+	void *file)
+{
 	comedi_subdevice *s;
 	int ret = 0;
 	unsigned int *chanlist = NULL;
 	unsigned int *chanlist_saver = NULL;
 
-	if (copy_from_user(&user_cmd, arg, sizeof(comedi_cmd))) {
-		DPRINTK("bad cmd address\n");
-		return -EFAULT;
-	}
-	// save user's chanlist pointer so it can be restored later
-	chanlist_saver = user_cmd.chanlist;
+	*copy = 0;
 
-	if (user_cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", user_cmd.subdev);
+	// save user's chanlist pointer so it can be restored later
+	chanlist_saver = cmd->chanlist;
+
+	if (cmd->subdev >= dev->n_subdevices) {
+		DPRINTK("%d no such subdevice\n", cmd->subdev);
 		return -ENODEV;
 	}
 
-	s = dev->subdevices + user_cmd.subdev;
+	s = dev->subdevices + cmd->subdev;
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", user_cmd.subdev);
+		DPRINTK("%d not valid subdevice\n", cmd->subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest) {
 		DPRINTK("subdevice %i does not support commands\n",
-			user_cmd.subdev);
+			cmd->subdev);
 		return -EIO;
 	}
 
 	/* make sure channel/gain list isn't too long */
-	if (user_cmd.chanlist_len > s->len_chanlist) {
+	if (cmd->chanlist_len > s->len_chanlist) {
 		DPRINTK("channel/gain list too long %d > %d\n",
-			user_cmd.chanlist_len, s->len_chanlist);
+			cmd->chanlist_len, s->len_chanlist);
 		ret = -EINVAL;
 		goto cleanup;
 	}
 
 	/* load channel/gain list */
-	if (user_cmd.chanlist) {
+	if (cmd->chanlist) {
 		chanlist =
-			kmalloc(user_cmd.chanlist_len * sizeof(int),
+			kmalloc(cmd->chanlist_len * sizeof(int),
 			GFP_KERNEL);
 		if (!chanlist) {
 			DPRINTK("allocation failed\n");
@@ -1866,33 +1902,30 @@ static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg,
 		}
 
 		if (copy_from_user(chanlist,
-				(unsigned int __user *)user_cmd.chanlist,
-				user_cmd.chanlist_len * sizeof(int))) {
+				(unsigned int __user *)cmd->chanlist,
+				cmd->chanlist_len * sizeof(int))) {
 			DPRINTK("fault reading chanlist\n");
 			ret = -EFAULT;
 			goto cleanup;
 		}
 
 		/* make sure each element in channel/gain list is valid */
-		if ((ret = check_chanlist(s, user_cmd.chanlist_len,
+		if ((ret = check_chanlist(s, cmd->chanlist_len,
 					chanlist)) < 0) {
 			DPRINTK("bad chanlist\n");
 			goto cleanup;
 		}
 
-		user_cmd.chanlist = chanlist;
+		cmd->chanlist = chanlist;
 	}
 
-	ret = s->do_cmdtest(dev, s, &user_cmd);
+	ret = s->do_cmdtest(dev, s, cmd);
 
 	// restore chanlist pointer before copying back
-	user_cmd.chanlist = chanlist_saver;
+	cmd->chanlist = chanlist_saver;
 
-	if (copy_to_user(arg, &user_cmd, sizeof(comedi_cmd))) {
-		DPRINTK("bad cmd address\n");
-		ret = -EFAULT;
-		goto cleanup;
-	}
+	*copy = 1;
+
       cleanup:
 	if (chanlist)
 		kfree(chanlist);
