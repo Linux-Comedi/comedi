@@ -31,30 +31,14 @@ const comedi_lrange range_unipolar10 = { 1, {UNI_RANGE(10)} };
 const comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
 const comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 
-/*
-   	COMEDI_RANGEINFO
-	range information ioctl
-
-	arg:
-		pointer to rangeinfo structure
-
-	reads:
-		range info structure
-
-	writes:
-		n comedi_krange structures to rangeinfo->range_ptr
-*/
-int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo __user * arg)
+int do_rangeinfo_i(comedi_device * dev, comedi_rangeinfo *ri)
 {
-	comedi_rangeinfo it;
 	int subd, chan;
 	const comedi_lrange *lr;
 	comedi_subdevice *s;
 
-	if (copy_from_user(&it, arg, sizeof(comedi_rangeinfo)))
-		return -EFAULT;
-	subd = (it.range_type >> 24) & 0xf;
-	chan = (it.range_type >> 16) & 0xff;
+	subd = (ri->range_type >> 24) & 0xf;
+	chan = (ri->range_type >> 16) & 0xff;
 
 	if (!dev->attached)
 		return -EINVAL;
@@ -71,13 +55,14 @@ int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo __user * arg)
 		return -EINVAL;
 	}
 
-	if (RANGE_LENGTH(it.range_type) != lr->length) {
+	if (RANGE_LENGTH(ri->range_type) != lr->length) {
 		DPRINTK("wrong length %d should be %d (0x%08x)\n",
-			RANGE_LENGTH(it.range_type), lr->length, it.range_type);
+			RANGE_LENGTH(ri->range_type), lr->length,
+			ri->range_type);
 		return -EINVAL;
 	}
 
-	if (copy_to_user((void __user *)it.range_ptr, lr->range,
+	if (copy_to_user((void __user *)ri->range_ptr, lr->range,
 			sizeof(comedi_krange) * lr->length))
 		return -EFAULT;
 
