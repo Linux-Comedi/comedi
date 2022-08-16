@@ -1233,7 +1233,7 @@ static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		 * count and address get set correctly */
 		clear_dma_ff(devpriv->dma_chan);
 		set_dma_addr(devpriv->dma_chan,
-			virt_to_bus(devpriv->dma_buffer));
+			isa_virt_to_bus(devpriv->dma_buffer));
 		// set appropriate size of transfer
 		devpriv->dma_transfer_size = labpc_suggest_transfer_size(*cmd);
 		if (cmd->stop_src == TRIG_COUNT &&
@@ -1479,7 +1479,7 @@ static void labpc_drain_dma(comedi_device * dev)
 		devpriv->count -= num_points;
 
 	// set address and count for next transfer
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	set_dma_addr(devpriv->dma_chan, isa_virt_to_bus(devpriv->dma_buffer));
 	set_dma_count(devpriv->dma_chan, leftover * sample_size);
 	release_dma_lock(flags);
 
