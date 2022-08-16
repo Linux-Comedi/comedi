@@ -1837,7 +1837,7 @@ static int pci9118_reset(comedi_device * dev)
 static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	int ret, pages, i;
+	int ret, order, i;
 	unsigned short master;
 	unsigned int irq;
 	unsigned long iobase_a, iobase_9;
@@ -1938,19 +1938,21 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	if (master) {		// alloc DMA buffers
 		devpriv->dma_doublebuf = 0;
 		for (i = 0; i < 2; i++) {
-			for (pages = 4; pages >= 0; pages--)
-				if ((devpriv->dmabuf_virt[i] = (sampl_t *)
-						__get_free_pages(GFP_KERNEL,
-							pages)))
+			dma_addr_t hwaddr;
+
+			for (order = 2; order >= 0; order--) {
+				if ((devpriv->dmabuf_virt[i] =
+					pci_alloc_consistent(devpriv->pcidev,
+						(PAGE_SIZE << order),
+						&hwaddr)))
 					break;
+			}
 			if (devpriv->dmabuf_virt[i]) {
-				devpriv->dmabuf_pages[i] = pages;
-				devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
+				devpriv->dmabuf_pages[i] = (1U << order);
+				devpriv->dmabuf_size[i] = (PAGE_SIZE << order);
 				devpriv->dmabuf_samples[i] =
 					devpriv->dmabuf_size[i] >> 1;
-				devpriv->dmabuf_hw[i] =
-					virt_to_bus((void *)devpriv->
-					dmabuf_virt[i]);
+				devpriv->dmabuf_hw[i] = hwaddr;
 			}
 		}
 		if (!devpriv->dmabuf_virt[0]) {
@@ -2084,11 +2086,15 @@ static int pci9118_detach(comedi_device * dev)
 			pci_dev_put(devpriv->pcidev);
 		}
 		if (devpriv->dmabuf_virt[0])
-			free_pages((unsigned long)devpriv->dmabuf_virt[0],
-				devpriv->dmabuf_pages[0]);
+			pci_free_consistent(devpriv->pcidev,
+				devpriv->dmabuf_size[0],
+				devpriv->dmabuf_virt[0],
+				devpriv->dmabuf_hw[0]);
 		if (devpriv->dmabuf_virt[1])
-			free_pages((unsigned long)devpriv->dmabuf_virt[1],
-				devpriv->dmabuf_pages[1]);
+			pci_free_consistent(devpriv->pcidev,
+				devpriv->dmabuf_size[1],
+				devpriv->dmabuf_virt[1],
+				devpriv->dmabuf_hw[1]);
 	}
 
 	return 0;
