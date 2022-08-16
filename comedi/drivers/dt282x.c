@@ -541,7 +541,7 @@ static int prep_ai_dma(comedi_device * dev, int dma_index, int n)
 
 	devpriv->dma[dma_index].size = n;
 	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+	dma_ptr = isa_virt_to_bus(devpriv->dma[dma_index].buf);
 
 	set_dma_mode(dma_chan, DMA_MODE_READ);
 	flags = claim_dma_lock();
@@ -563,7 +563,7 @@ static int prep_ao_dma(comedi_device * dev, int dma_index, int n)
 
 	devpriv->dma[dma_index].size = n;
 	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+	dma_ptr = isa_virt_to_bus(devpriv->dma[dma_index].buf);
 
 	set_dma_mode(dma_chan, DMA_MODE_WRITE);
 	flags = claim_dma_lock();
