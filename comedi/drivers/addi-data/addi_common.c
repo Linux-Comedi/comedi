@@ -2566,7 +2566,7 @@ COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	int ret, pages, i, n_subdevices;
+	int ret, order, i, n_subdevices;
 	DWORD dw_Dummy;
 	resource_size_t io_addr[5];
 	unsigned int irq;
@@ -2710,24 +2710,27 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 			// alloc DMA buffers
 			devpriv->b_DmaDoubleBuffer = 0;
 			for (i = 0; i < 2; i++) {
-				for (pages = 4; pages >= 0; pages--) {
+				dma_addr_t hwaddr;
+
+				for (order = 2; order >= 0; order--) {
 					if ((devpriv->ul_DmaBufferVirtual[i] =
-							(void *)
-							__get_free_pages
-							(GFP_KERNEL, pages))) {
+						pci_alloc_consistent(
+							devpriv->amcc->pcidev,
+							(PAGE_SIZE << order),
+							&hwaddr))) {
 						break;
 					}
 				}
 				if (devpriv->ul_DmaBufferVirtual[i]) {
-					devpriv->ui_DmaBufferPages[i] = pages;
+					devpriv->ui_DmaBufferPages[i] =
+						(1 << order);
 					devpriv->ui_DmaBufferSize[i] =
-						PAGE_SIZE * pages;
+						devpriv->ui_DmaBufferPages[i] *
+						PAGE_SIZE;
 					devpriv->ui_DmaBufferSamples[i] =
 						devpriv->
 						ui_DmaBufferSize[i] >> 1;
-					devpriv->ul_DmaBufferHw[i] =
-						virt_to_bus((void *)devpriv->
-						ul_DmaBufferVirtual[i]);
+					devpriv->ul_DmaBufferHw[i] = hwaddr;
 				}
 			}
 			if (!devpriv->ul_DmaBufferVirtual[0]) {
@@ -2959,15 +2962,17 @@ static int i_ADDI_Detach(comedi_device * dev)
 			}
 
 			if (devpriv->ul_DmaBufferVirtual[0]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[0],
-					devpriv->ui_DmaBufferPages[0]);
+				pci_free_consistent(devpriv->amcc->pcidev,
+					devpriv->ui_DmaBufferSize[0],
+					devpriv->ul_DmaBufferVirtual[0],
+					devpriv->ul_DmaBufferHw[0]);
 			}
 
 			if (devpriv->ul_DmaBufferVirtual[1]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[1],
-					devpriv->ui_DmaBufferPages[1]);
+				pci_free_consistent(devpriv->amcc->pcidev,
+					devpriv->ui_DmaBufferSize[1],
+					devpriv->ul_DmaBufferVirtual[1],
+					devpriv->ul_DmaBufferHw[1]);
 			}
 		} else {
 			iounmap((void *)devpriv->dw_AiBase);
