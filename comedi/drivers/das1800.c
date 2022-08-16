@@ -973,7 +973,7 @@ static void das1800_handle_dma(comedi_device * dev, comedi_subdevice * s,
 		devpriv->dma_current_buf);
 	// re-enable  dma channel
 	set_dma_addr(devpriv->dma_current,
-		virt_to_bus(devpriv->dma_current_buf));
+		isa_virt_to_bus(devpriv->dma_current_buf));
 	set_dma_count(devpriv->dma_current, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_current);
 	release_dma_lock(flags);
@@ -1439,7 +1439,7 @@ static void setup_dma(comedi_device * dev, comedi_cmd cmd)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma0);
-	set_dma_addr(devpriv->dma0, virt_to_bus(devpriv->ai_buf0));
+	set_dma_addr(devpriv->dma0, isa_virt_to_bus(devpriv->ai_buf0));
 	// set appropriate size of transfer
 	set_dma_count(devpriv->dma0, devpriv->dma_transfer_size);
 	devpriv->dma_current = devpriv->dma0;
@@ -1451,7 +1451,7 @@ static void setup_dma(comedi_device * dev, comedi_cmd cmd)
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
 		clear_dma_ff(devpriv->dma1);
-		set_dma_addr(devpriv->dma1, virt_to_bus(devpriv->ai_buf1));
+		set_dma_addr(devpriv->dma1, isa_virt_to_bus(devpriv->ai_buf1));
 		// set appropriate size of transfer
 		set_dma_count(devpriv->dma1, devpriv->dma_transfer_size);
 		enable_dma(devpriv->dma1);
