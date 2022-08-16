@@ -299,7 +299,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 	// re-enable  dma
 	if (leftover) {
-		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
+		set_dma_addr(devpriv->dma,
+			isa_virt_to_bus(devpriv->dma_buffer));
 		set_dma_count(devpriv->dma, leftover * sample_size);
 		enable_dma(devpriv->dma);
 	}
@@ -667,7 +668,7 @@ static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
+	set_dma_addr(devpriv->dma, isa_virt_to_bus(devpriv->dma_buffer));
 	// set size of transfer to fill in 1/3 second
 #define ONE_THIRD_SECOND 333333333
 	devpriv->dma_transfer_size =
