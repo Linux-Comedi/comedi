@@ -1829,7 +1829,8 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EBUSY;	/* no buffer :-( */
 		}
 		devpriv->dmapages[0] = pages;
-		devpriv->hwdmaptr[0] = virt_to_bus((void *)devpriv->dmabuf[0]);
+		devpriv->hwdmaptr[0] =
+			isa_virt_to_bus((void *)devpriv->dmabuf[0]);
 		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
 		//rt_printk("%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE);
 		if (devpriv->dma_rtc == 0) {	// we must do duble buff :-(
@@ -1841,7 +1842,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 			devpriv->dmapages[1] = pages;
 			devpriv->hwdmaptr[1] =
-				virt_to_bus((void *)devpriv->dmabuf[1]);
+				isa_virt_to_bus((void *)devpriv->dmabuf[1]);
 			devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 		}
 	}
