@@ -2706,6 +2706,18 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (devpriv->s_EeParameters.i_Dma) {
 		printk("\nDMA used");
+		pci_set_master(devpriv->amcc->pcidev);
+		if (pci_set_dma_mask(devpriv->amcc->pcidev,
+				((1ULL << 32) - 1)) != 0 ||
+			pci_set_consistent_dma_mask(devpriv->amcc->pcidev,
+				((1ULL << 32) - 1)) != 0) {
+			if (devpriv->us_UseDma == ADDI_ENABLE) {
+				rt_printk
+					(", Can't set DMA mask, DMA disabled!");
+			}
+			devpriv->us_UseDma = ADDI_DISABLE;
+		}
+
 		if (devpriv->us_UseDma == ADDI_ENABLE) {
 			// alloc DMA buffers
 			devpriv->b_DmaDoubleBuffer = 0;
