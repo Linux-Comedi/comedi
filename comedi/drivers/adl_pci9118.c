@@ -1935,6 +1935,16 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->irq = irq;
 
+	if (master) {
+		if (pci_set_dma_mask(devpriv->pcidev,
+				((1ULL << 32) - 1)) != 0 ||
+			pci_set_consistent_dma_mask(devpriv->pcidev,
+				((1ULL << 32) - 1)) != 0) {
+			rt_printk(", Can't set DMA mask, DMA disabled!");
+			master = 0;
+		}
+	}
+
 	if (master) {		// alloc DMA buffers
 		devpriv->dma_doublebuf = 0;
 		for (i = 0; i < 2; i++) {
