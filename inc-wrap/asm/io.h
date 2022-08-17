@@ -5,6 +5,8 @@
 #ifndef __COMPAT_ASM_IO_H_
 #define __COMPAT_ASM_IO_H_
 
+#include <linux/version.h>
+
 #include <linux/config.h>
 
 #include_next <asm/io.h>
@@ -38,5 +40,20 @@
 #endif
 
 #endif /* mmiowb */
+
+/*
+ * Try and define isa_virt_to_bus() if not already defined as a macro or
+ * an inline function, just for building purposes.  The actual modules that
+ * use it are unlikely to work on anything that does not have an ISA bus.
+ */
+#if !defined(isa_virt_to_bus) && \
+    !(defined(CONFIG_MIPS) && \
+      LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74)) && \
+    !(defined(CONFIG_PARISC) && \
+      LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)) && \
+    !(defined(CONFIG_X86) && \
+      LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,4))
+#define isa_virt_to_bus virt_to_phys
+#endif
 
 #endif
