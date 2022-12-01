@@ -1,7 +1,7 @@
 /*
     comedi/drivers/pcm724.c
 
-    Drew Csillag <drew_csillag@yahoo.com>
+    Drew Csillag <drew@thecsillags.com>
 
     hardware driver for Advantech card:
      card:   PCM-3724
@@ -13,7 +13,7 @@
 /*
 Driver: pcm3724
 Description: Advantech PCM-3724
-Author: Drew Csillag <drew_csillag@yahoo.com>
+Author: Drew Csillag <drew@thecsillags.com>
 Devices: [Advantech] PCM-3724 (pcm724)
 Status: tested
 
