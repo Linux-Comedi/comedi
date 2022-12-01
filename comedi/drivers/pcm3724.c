@@ -1,5 +1,5 @@
 /*
-    comedi/drivers/pcm724.c
+    comedi/drivers/pcm3724.c
 
     Drew Csillag <drew@thecsillags.com>
 
@@ -14,7 +14,7 @@
 Driver: pcm3724
 Description: Advantech PCM-3724
 Author: Drew Csillag <drew@thecsillags.com>
-Devices: [Advantech] PCM-3724 (pcm724)
+Devices: [Advantech] PCM-3724 (pcm3724)
 Status: tested
 
 This is driver for digital I/O boards PCM-3724 with 48 DIO.
