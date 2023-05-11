@@ -2825,7 +2825,7 @@ static int __init comedi_init(void)
 			COMEDI_NUM_MINORS);
 		return -EIO;
 	}
-	comedi_class = class_create(THIS_MODULE, "comedi");
+	comedi_class = class_create("comedi");
 	if (IS_ERR(comedi_class)) {
 		printk("comedi: failed to create class");
 		cdev_del(&comedi_cdev);

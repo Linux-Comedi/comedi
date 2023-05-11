@@ -46,6 +46,11 @@
  * The 'drvdata' parameter of COMEDI_DEVICE_CREATE() doesn't work for kernel
  * versions prior to 2.6.26, so please don't use it!
  *
+ * The API of class_create() changed in kernel version 6.4 to remove the
+ * first parameter of type 'struct module *owner'. This compatibility
+ * layer redefines class_create() to expect a single parameter.  For kernel
+ * versions prior to 6.4, it uses 'THIS_MODULE' as the owner.
+ *
  *
  * None of the above is currently supported for 2.4 kernels!
  */
@@ -60,7 +65,7 @@ struct device_driver {
 struct class;
 struct device;
 
-static inline struct class *class_create(struct module *owner, char *name)
+static inline struct class *class_create(char *name)
 {
 	return NULL;
 }
@@ -82,6 +87,52 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 #else
 
 #include_next <linux/device.h>
+#include <linux/module.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+
+#define class_create(name) \
+	(struct class *)class_simple_create(THIS_MODULE, name)
+#define class_destroy(cs) \
+	class_simple_destroy((struct class_simple *)(cs))
+
+#else
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
+
+/*
+ * Redefine class_create() to use single parameter and use THIS_MODULE as the
+ * owner for earlier kernels.
+ */
+#undef class_create
+#define class_create(name) comedi_internal_class_create(THIS_MODULE, name)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
+
+static inline struct class *
+comedi_internal_class_create(struct module *owner, const char *name)
+{
+	/*
+	 * Cast away the const qualifier to match function prototype for
+	 * kernel versions prior to 2.6.19.
+	 */
+	return class_create(owner, (char *)name);
+}
+
+#else
+
+#define comedi_internal_class_create(owner, name)	\
+({							\
+	static struct lock_class_key __key;		\
+	__class_create(owner, name, &__key);		\
+})
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
@@ -99,11 +150,6 @@ ssize_t func(struct class_device *dev, char *buf)
 ssize_t func(struct class_device *dev, const char *buf, size_t count)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
-
-#define class_create(owner, name) \
-	(struct class *)class_simple_create(owner, name)
-#define class_destroy(cs) \
-	class_simple_destroy((struct class_simple *)(cs))
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_simple_device_add((struct class_simple *)(cs), \
