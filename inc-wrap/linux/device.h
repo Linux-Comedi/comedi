@@ -100,13 +100,6 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 
-/*
- * Redefine class_create() to use single parameter and use THIS_MODULE as the
- * owner for earlier kernels.
- */
-#undef class_create
-#define class_create(name) comedi_internal_class_create(THIS_MODULE, name)
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 static inline struct class *
@@ -128,6 +121,13 @@ comedi_internal_class_create(struct module *owner, const char *name)
 })
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
+
+/*
+ * Redefine class_create() to use single parameter and use THIS_MODULE as the
+ * owner for earlier kernels.
+ */
+#undef class_create
+#define class_create(name) comedi_internal_class_create(THIS_MODULE, name)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 
