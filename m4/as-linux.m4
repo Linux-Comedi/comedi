@@ -195,6 +195,11 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 					dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
 				fi
 			fi
+			if expr "$dir" : '\$(' > /dev/null; then
+				# "$dir" looks like a Makefile variable.
+				# Discard it.
+				dir=""
+			fi
 		fi
 		if test -z "$dir"; then
 			AC_MSG_RESULT([no])
