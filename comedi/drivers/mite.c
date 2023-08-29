@@ -762,7 +762,7 @@ static void mite_decode(char **bit_str, unsigned int bits)
 #endif
 
 #ifdef MODULE
-int __init init_module(void)
+static int __init mite_init_module(void)
 {
 	mite_init();
 	mite_list_devices();
@@ -770,10 +770,14 @@ int __init init_module(void)
 	return 0;
 }
 
-void __exit cleanup_module(void)
+
+static void __exit mite_exit_module(void)
 {
 	mite_cleanup();
 }
+
+module_init(mite_init_module);
+module_exit(mite_exit_module);
 
 EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);

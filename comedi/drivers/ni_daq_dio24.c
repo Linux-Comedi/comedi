@@ -820,7 +820,7 @@ static void __exit exit_dio24_cs(void)
 	pcmcia_unregister_driver(&dio24_cs_driver);
 }
 
-int __init init_module(void)
+static int __init dio24_init_module(void)
 {
 	int ret;
 
@@ -831,10 +831,12 @@ int __init init_module(void)
 	return comedi_driver_register(&driver_dio24);
 }
 
-void __exit cleanup_module(void)
+static void __exit dio24_exit_module(void)
 {
 	exit_dio24_cs();
 	comedi_driver_unregister(&driver_dio24);
 }
 
+module_init(dio24_init_module);
+module_exit(dio24_exit_module);
 COMEDI_MODULE_MACROS;

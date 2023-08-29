@@ -659,14 +659,14 @@ struct pcmcia_driver ni_mio_cs_driver = {
 #endif
 };
 
-int init_module(void)
+static int __init ni_mio_cs_init_module(void)
 {
 	pcmcia_register_driver(&ni_mio_cs_driver);
 	comedi_driver_register(&driver_ni_mio_cs);
 	return 0;
 }
 
-void cleanup_module(void)
+static void __exit ni_mio_cs_exit_module(void)
 {
 	pcmcia_unregister_driver(&ni_mio_cs_driver);
 #if 0
@@ -676,3 +676,6 @@ void cleanup_module(void)
 	comedi_driver_unregister(&driver_ni_mio_cs);
 }
 #endif
+
+module_init(ni_mio_cs_init_module);
+module_exit(ni_mio_cs_exit_module);

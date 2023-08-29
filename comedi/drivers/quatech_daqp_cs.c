@@ -1566,7 +1566,7 @@ struct pcmcia_driver daqp_cs_driver = {
 #endif
 };
 
-int __init init_module(void)
+static int __init daqp_init_module(void)
 {
 	DEBUG(0, "%s\n", version);
 	pcmcia_register_driver(&daqp_cs_driver);
@@ -1574,13 +1574,15 @@ int __init init_module(void)
 	return 0;
 }
 
-void __exit cleanup_module(void)
+static void __exit daqp_exit_module(void)
 {
 	DEBUG(0, "daqp_cs: unloading\n");
 	comedi_driver_unregister(&driver_daqp);
 	pcmcia_unregister_driver(&daqp_cs_driver);
 }
 
+module_init(daqp_init_module);
+module_exit(daqp_exit_module);
 COMEDI_MODULE_MACROS;
 
 #endif

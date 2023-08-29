@@ -1064,7 +1064,7 @@ static void __exit exit_dio700_cs(void)
 	DEBUG(0, "ni_daq_700: unloading\n");
 	pcmcia_unregister_driver(&dio700_cs_driver);
 }
-int __init init_module(void)
+static int __init dio700_init_module(void)
 {
 	int ret;
 
@@ -1075,8 +1075,11 @@ int __init init_module(void)
 	return comedi_driver_register(&driver_dio700);
 }
 
-void __exit cleanup_module(void)
+static void __exit dio700_exit_module(void)
 {
 	exit_dio700_cs();
 	comedi_driver_unregister(&driver_dio700);
 }
+
+module_init(dio700_init_module);
+module_exit(dio700_exit_module);
