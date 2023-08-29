@@ -447,7 +447,7 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 						PAGE_SIZE,
 						&async->buf_page_list[i].
 						dma_addr,
-						GFP_KERNEL | __GFP_COMP);
+						GFP_KERNEL);
 				} else {
 					async->buf_page_list[i].virt_addr =
 						(void *)
