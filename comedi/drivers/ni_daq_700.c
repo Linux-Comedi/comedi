@@ -133,7 +133,7 @@ struct subdev_700_struct {
 
 static void do_config(comedi_device * dev, comedi_subdevice * s);
 
-void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
+static void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
 {
 	sampl_t d;
 
@@ -293,8 +293,8 @@ static int subdev_700_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-int subdev_700_init(comedi_device * dev, comedi_subdevice * s, int (*cb) (int,
-		int, int, unsigned long), unsigned long arg)
+static int subdev_700_init(comedi_device * dev, comedi_subdevice * s,
+	int (*cb) (int, int, int, unsigned long), unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -322,7 +322,7 @@ int subdev_700_init(comedi_device * dev, comedi_subdevice * s, int (*cb) (int,
 	return 0;
 }
 
-int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
+static int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
 	int (*cb) (int, int, int, unsigned long), unsigned long arg)
 {
 	int ret;
@@ -341,7 +341,7 @@ int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-void subdev_700_cleanup(comedi_device * dev, comedi_subdevice * s)
+static void subdev_700_cleanup(comedi_device * dev, comedi_subdevice * s)
 {
 	if (s->private) {
 		if (subdevpriv->have_irq) {
@@ -350,11 +350,6 @@ void subdev_700_cleanup(comedi_device * dev, comedi_subdevice * s)
 		kfree(s->private);
 	}
 }
-
-EXPORT_SYMBOL(subdev_700_init);
-EXPORT_SYMBOL(subdev_700_init_irq);
-EXPORT_SYMBOL(subdev_700_cleanup);
-EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 {
