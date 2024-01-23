@@ -2211,7 +2211,7 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s)
 	return ret;
 }
 
-void comedi_vm_open(struct vm_area_struct *area)
+static void comedi_vm_open(struct vm_area_struct *area)
 {
 	comedi_async *async;
 	comedi_device *dev;
@@ -2224,7 +2224,7 @@ void comedi_vm_open(struct vm_area_struct *area)
 	mutex_unlock(&dev->mutex);
 }
 
-void comedi_vm_close(struct vm_area_struct *area)
+static void comedi_vm_close(struct vm_area_struct *area)
 {
 	comedi_async *async;
 	comedi_device *dev;
@@ -2995,7 +2995,7 @@ static int is_device_busy(comedi_device * dev)
 	return 0;
 }
 
-void comedi_device_init(comedi_device *dev)
+static void comedi_device_init(comedi_device *dev)
 {
 	memset(dev, 0, sizeof(comedi_device));
 	spin_lock_init(&dev->spinlock);
@@ -3003,7 +3003,7 @@ void comedi_device_init(comedi_device *dev)
 	dev->minor = -1;
 }
 
-void comedi_device_cleanup(comedi_device *dev)
+static void comedi_device_cleanup(comedi_device *dev)
 {
 	if(dev == NULL) return;
 	mutex_lock(&dev->mutex);

@@ -511,7 +511,8 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 
 /* munging is applied to data by core as it passes between user
  * and kernel space */
-unsigned int comedi_buf_munge(comedi_async * async, unsigned int num_bytes)
+static unsigned int comedi_buf_munge(comedi_async * async,
+	unsigned int num_bytes)
 {
 	comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
