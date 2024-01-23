@@ -133,6 +133,7 @@ struct subdev_700_struct {
 
 static void do_config(comedi_device * dev, comedi_subdevice * s);
 
+#ifdef incomplete
 static void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
 {
 	sampl_t d;
@@ -144,6 +145,7 @@ static void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
 
 	comedi_event(dev, s);
 }
+#endif
 
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -204,6 +206,7 @@ static void do_config(comedi_device * dev, comedi_subdevice * s)
 	return;
 }
 
+#ifdef incomplete
 static int subdev_700_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
@@ -278,20 +281,25 @@ static int subdev_700_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	return 0;
 }
+#endif
 
+#ifdef incomplete
 static int subdev_700_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	/* FIXME */
 
 	return 0;
 }
+#endif
 
+#ifdef incomplete
 static int subdev_700_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	/* FIXME */
 
 	return 0;
 }
+#endif
 
 static int subdev_700_init(comedi_device * dev, comedi_subdevice * s,
 	int (*cb) (int, int, int, unsigned long), unsigned long arg)
@@ -322,6 +330,7 @@ static int subdev_700_init(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
+#ifdef incomplete
 static int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
 	int (*cb) (int, int, int, unsigned long), unsigned long arg)
 {
@@ -340,6 +349,7 @@ static int subdev_700_init_irq(comedi_device * dev, comedi_subdevice * s,
 
 	return 0;
 }
+#endif
 
 static void subdev_700_cleanup(comedi_device * dev, comedi_subdevice * s)
 {
