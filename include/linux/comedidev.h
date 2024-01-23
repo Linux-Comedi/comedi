@@ -502,6 +502,9 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 struct usb_device;	// forward declaration
 int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
 void comedi_usb_auto_unconfig(struct usb_device *usbdev);
+int comedi_auto_config(struct device *hardware_device, const char *board_name,
+	const int *options, unsigned num_options);
+void comedi_auto_unconfig(struct device *hardware_device);
 
 //#ifdef COMEDI_CONFIG_RT
 #include <linux/comedi_rt.h>
