@@ -33,7 +33,7 @@ static inline ssize_t comedi_strscpy(char *d, const char *s, size_t n)
 		}
 		*d = '\0';
 	}
-	return ch ? -E2BIG : (ssize_t)(s - orig_s);
+	return ch ? -E2BIG : (ssize_t)(s - s_orig);
 }
 
 #endif
