@@ -913,7 +913,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef COMEDI_COMPAT_HAVE_PCMCIA_LOOP_TUPLE
 	if (local->link->prod_id[2]) {
 		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
-			strlcpy(local->board_name, local->link->prod_id[2],
+			strscpy(local->board_name, local->link->prod_id[2],
 				sizeof(local->board_name));
 		}
 	}
@@ -937,7 +937,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 			i++;
 			if ((i < tuple.TupleDataLen - 4)
 				&& (strncmp(buf + i, "DAQP", 4) == 0)) {
-				strlcpy(local->board_name, buf + i,
+				strscpy(local->board_name, buf + i,
 					sizeof(local->board_name));
 			}
 		}
