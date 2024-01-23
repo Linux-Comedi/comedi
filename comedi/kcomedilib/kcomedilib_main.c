@@ -42,17 +42,11 @@ MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 
-comedi_t *comedi_open(const char *filename)
+comedi_t *comedi_open_old(unsigned int minor)
 {
 	comedi_device *dev;
-	unsigned int minor;
 
-	if (strncmp(filename, "/dev/comedi", 11) != 0)
-		return NULL;
-
-	minor = simple_strtoul(filename + 11, NULL, 0);
-
-	if (minor >= COMEDI_NUM_BOARD_MINORS)
+	if (minor >= COMEDI_NUM_MINORS)
 		return NULL;
 
 	dev = comedi_get_device_by_minor(minor);
@@ -66,19 +60,19 @@ comedi_t *comedi_open(const char *filename)
 	return (comedi_t *) dev;
 }
 
-comedi_t *comedi_open_old(unsigned int minor)
+comedi_t *comedi_open(const char *filename)
 {
-	comedi_device *dev;
+	unsigned int minor;
 
-	if (minor >= COMEDI_NUM_MINORS)
+	if (strncmp(filename, "/dev/comedi", 11) != 0)
 		return NULL;
 
-	dev = comedi_get_device_by_minor(minor);
+	minor = simple_strtoul(filename + 11, NULL, 0);
 
-	if(dev == NULL || !dev->attached)
+	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	return (comedi_t *) dev;
+	return comedi_open_old(minor);
 }
 
 int comedi_close(comedi_t * d)
