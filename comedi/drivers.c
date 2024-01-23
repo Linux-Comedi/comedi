@@ -58,11 +58,6 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 
 comedi_driver *comedi_drivers;
 
-int comedi_modprobe(int minor)
-{
-	return -EINVAL;
-}
-
 static void cleanup_device(comedi_device * dev)
 {
 	int i;
