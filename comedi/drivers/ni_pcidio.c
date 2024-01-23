@@ -473,7 +473,7 @@ static int nidio96_8255_cb(int dir, int port, int data, unsigned long iobase)
 	}
 }
 
-void ni_pcidio_event(comedi_device * dev, comedi_subdevice * s)
+static void ni_pcidio_event(comedi_device * dev, comedi_subdevice * s)
 {
 	if (s->async->
 		events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))

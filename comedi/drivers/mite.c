@@ -103,7 +103,7 @@ static void dump_chip_signature(u32 csigr_bits)
 	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits), mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
-unsigned mite_fifo_size(struct mite_struct * mite, unsigned channel)
+static unsigned mite_fifo_size(struct mite_struct * mite, unsigned channel)
 {
 	unsigned fcr_bits = readl(mite->mite_io_addr +
 		MITE_FCR(channel));
@@ -453,7 +453,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	MDPRINTK("exit mite_prep_dma\n");
 }
 
-u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
+static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));

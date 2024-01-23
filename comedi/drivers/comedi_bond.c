@@ -508,12 +508,12 @@ static void doDevUnconfig(comedi_device * dev)
 	}
 }
 
-int __init init(void)
+static int __init init(void)
 {
 	return comedi_driver_register(&driver_bonding);
 }
 
-void __exit cleanup(void)
+static void __exit cleanup(void)
 {
 	comedi_driver_unregister(&driver_bonding);
 }

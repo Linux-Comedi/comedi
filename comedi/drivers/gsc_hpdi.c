@@ -106,7 +106,7 @@ enum hpdi_registers {
 	INTERRUPT_POLARITY_REG = 0x54,
 };
 
-int command_channel_valid(unsigned int channel)
+static int command_channel_valid(unsigned int channel)
 {
 	if (channel == 0 || channel > 6) {
 		rt_printk("gsc_hpdi: bug! invalid cable command channel\n");
@@ -120,17 +120,18 @@ int command_channel_valid(unsigned int channel)
 enum firmware_revision_bits {
 	FEATURES_REG_PRESENT_BIT = 0x8000,
 };
-int firmware_revision(uint32_t fwr_bits)
+
+static int firmware_revision(uint32_t fwr_bits)
 {
 	return fwr_bits & 0xff;
 }
 
-int pcb_revision(uint32_t fwr_bits)
+static int pcb_revision(uint32_t fwr_bits)
 {
 	return (fwr_bits >> 8) & 0xff;
 }
 
-int hpdi_subid(uint32_t fwr_bits)
+static int hpdi_subid(uint32_t fwr_bits)
 {
 	return (fwr_bits >> 16) & 0xff;
 }
@@ -147,7 +148,8 @@ enum board_control_bits {
 	CABLE_THROTTLE_ENABLE_BIT = 0x20,
 	TEST_MODE_ENABLE_BIT = 0x80000000,
 };
-uint32_t command_discrete_output_bits(unsigned int channel, int output,
+
+static uint32_t command_discrete_output_bits(unsigned int channel, int output,
 	int output_value)
 {
 	uint32_t bits = 0;
@@ -182,22 +184,24 @@ enum board_status_bits {
 	RX_OVERRUN_BIT = 0x800000,
 };
 
-uint32_t almost_full_bits(unsigned int num_words)
+static uint32_t almost_full_bits(unsigned int num_words)
 {
 // XXX need to add or subtract one?
 	return (num_words << 16) & 0xff0000;
 }
 
-uint32_t almost_empty_bits(unsigned int num_words)
+static uint32_t almost_empty_bits(unsigned int num_words)
 {
 	return num_words & 0xffff;
 }
-unsigned int almost_full_num_words(uint32_t bits)
+
+static unsigned int almost_full_num_words(uint32_t bits)
 {
 // XXX need to add or subtract one?
 	return (bits >> 16) & 0xffff;
 }
-unsigned int almost_empty_num_words(uint32_t bits)
+
+static unsigned int almost_empty_num_words(uint32_t bits)
 {
 	return bits & 0xffff;
 }
@@ -223,39 +227,40 @@ enum interrupt_sources {
 	RX_ALMOST_FULL_INTR = 14,
 	RX_FULL_INTR = 15,
 };
-int command_intr_source(unsigned int channel)
+
+static int command_intr_source(unsigned int channel)
 {
 	if (command_channel_valid(channel) == 0)
 		channel = 1;
 	return channel + 1;
 }
 
-uint32_t intr_bit(int interrupt_source)
+static uint32_t intr_bit(int interrupt_source)
 {
 	return 0x1 << interrupt_source;
 }
 
-uint32_t tx_clock_divisor_bits(unsigned int divisor)
+static uint32_t tx_clock_divisor_bits(unsigned int divisor)
 {
 	return divisor & 0xff;
 }
 
-unsigned int fifo_size(uint32_t fifo_size_bits)
+static unsigned int fifo_size(uint32_t fifo_size_bits)
 {
 	return fifo_size_bits & 0xfffff;
 }
 
-unsigned int fifo_words(uint32_t fifo_words_bits)
+static unsigned int fifo_words(uint32_t fifo_words_bits)
 {
 	return fifo_words_bits & 0xfffff;
 }
 
-uint32_t intr_edge_bit(int interrupt_source)
+static uint32_t intr_edge_bit(int interrupt_source)
 {
 	return 0x1 << interrupt_source;
 }
 
-uint32_t intr_active_high_bit(int interrupt_source)
+static uint32_t intr_active_high_bit(int interrupt_source)
 {
 	return 0x1 << interrupt_source;
 }

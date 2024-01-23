@@ -909,9 +909,8 @@ static int usbduxsub_upload(usbduxsub_t * usbduxsub,
 	return 0;
 }
 
-int firmwareUpload(usbduxsub_t * usbduxsub,
-		   uint8_t * firmwareBinary,
-		   int sizeFirmware)
+static int firmwareUpload(usbduxsub_t * usbduxsub,
+	uint8_t * firmwareBinary, int sizeFirmware)
 {
 	int ret;
 
@@ -936,7 +935,7 @@ int firmwareUpload(usbduxsub_t * usbduxsub,
 	return 0;
 }
 
-int usbduxsub_submit_InURBs(usbduxsub_t * usbduxsub)
+static int usbduxsub_submit_InURBs(usbduxsub_t * usbduxsub)
 {
 	int i, errFlag;
 
@@ -965,7 +964,7 @@ int usbduxsub_submit_InURBs(usbduxsub_t * usbduxsub)
 	return 0;
 }
 
-int usbduxsub_submit_OutURBs(usbduxsub_t * usbduxsub)
+static int usbduxsub_submit_OutURBs(usbduxsub_t * usbduxsub)
 {
 	int i, errFlag;
 
@@ -2054,7 +2053,7 @@ static void usbduxsub_pwm_irq(struct urb *urb, struct pt_regs *regs)
 	}
 }
 
-int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
+static int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
 {
 	int errFlag;
 

@@ -1602,7 +1602,7 @@ static void init_stc_registers(comedi_device * dev)
 	disable_ai_pacing(dev);
 };
 
-int alloc_and_init_dma_members(comedi_device * dev)
+static int alloc_and_init_dma_members(comedi_device * dev)
 {
 	int i;
 
@@ -2979,7 +2979,7 @@ static void drain_dma_buffers(comedi_device * dev, unsigned int channel)
 	 * unused buffer) */
 }
 
-void handle_ai_interrupt(comedi_device * dev, unsigned short status,
+static void handle_ai_interrupt(comedi_device * dev, unsigned short status,
 	unsigned int plx_status)
 {
 	comedi_subdevice *s = dev->read_subdev;

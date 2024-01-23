@@ -795,7 +795,7 @@ static void __exit exit_labpc_cs(void)
 	pcmcia_unregister_driver(&labpc_cs_driver);
 }
 
-int __init labpc_init_module(void)
+static int __init labpc_init_module(void)
 {
 	int ret;
 
@@ -806,7 +806,7 @@ int __init labpc_init_module(void)
 	return comedi_driver_register(&driver_labpc_cs);
 }
 
-void __exit labpc_exit_module(void)
+static void __exit labpc_exit_module(void)
 {
 	exit_labpc_cs();
 	comedi_driver_unregister(&driver_labpc_cs);

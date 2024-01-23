@@ -547,7 +547,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 	return 0;
 }
 
-int firmwareUpload(usbduxfastsub_t * usbduxfastsub,
+static int firmwareUpload(usbduxfastsub_t * usbduxfastsub,
 	unsigned char *firmwareBinary, int sizeFirmware)
 {
 	int ret;
@@ -574,7 +574,7 @@ int firmwareUpload(usbduxfastsub_t * usbduxfastsub,
 	return 0;
 }
 
-int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
+static int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 {
 	int errFlag;
 
