@@ -84,7 +84,7 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #ifdef DEBUG
 #define DPRINTK(format, args...)	printk(format, ## args)
 #else
-#define DPRINTK(format, args...)
+#define DPRINTK(format, args...)	do {} while (0)
 #endif
 
 #define PCI_VENDOR_ID_NATINST	0x1093
