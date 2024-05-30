@@ -92,7 +92,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 #ifdef DEBUG
 #define DEBUG_PRINT(format, args...) rt_printk("das16: " format, ## args)
 #else
-#define DEBUG_PRINT(format, args...)
+#define DEBUG_PRINT(format, args...) do {} while (0)
 #endif
 
 #define DAS16_SIZE 20		// number of ioports
