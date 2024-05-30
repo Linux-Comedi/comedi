@@ -3428,7 +3428,6 @@ static int prep_ao_dma(comedi_device * dev, const comedi_cmd * cmd)
 	num_bytes = load_ao_dma_buffer(dev, cmd);
 	if (num_bytes == 0)
 		return -1;
-	if (num_bytes >= DMA_BUFFER_SIZE) ;
 	load_ao_dma(dev, cmd);
 
 	dma_start_sync(dev, 0);
