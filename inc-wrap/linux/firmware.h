@@ -40,7 +40,7 @@ static inline int comedi_internal_request_firmware_nowait(
 
 /* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
  * of request_firmware_nowait().  This version does nothing. */
-#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	do; while (0)
+#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	do {} while (0)
 #endif
 
 /*
