@@ -25,6 +25,7 @@
 #ifndef __COMPAT_LINUX_MUTEX_H_
 #define __COMPAT_LINUX_MUTEX_H_
 
+#include <linux/version.h>
 #include <linux/config.h>
 #include <linux/comedi-config.h>
 
@@ -32,10 +33,12 @@
 
 #include_next <linux/mutex.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
 #ifndef CONFIG_DEBUG_MUTEXES
 #ifndef mutex_destroy
 /* Some Redhat kernels include a backported mutex.h, lacking mutex_destroy */
 #define mutex_destroy(m) do {} while (0)
+#endif
 #endif
 #endif
 
