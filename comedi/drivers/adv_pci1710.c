@@ -60,7 +60,7 @@ Configuration options:
 #ifdef PCI171X_EXTDEBUG
 #define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
 #else
-#define DPRINTK(fmt, args...)
+#define DPRINTK(fmt, args...) do {} while (0)
 #endif
 
 // hardware types of the cards
