@@ -68,7 +68,7 @@ static int dio_config_block_size(comedi_device * dev, lsampl_t * data);
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
 #else
-#define DEBUG_PRINT(format, args...)
+#define DEBUG_PRINT(format, args...)  do {} while (0)
 #endif
 
 #define TIMER_BASE 50		// 20MHz master clock
