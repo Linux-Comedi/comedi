@@ -80,7 +80,7 @@ Configuration options:
 #ifdef PCI9118_EXTDEBUG
 #define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
 #else
-#define DPRINTK(fmt, args...)
+#define DPRINTK(fmt, args...) do {} while (0)
 #endif
 
 #define IORANGE_9118 	64	/* I hope */
