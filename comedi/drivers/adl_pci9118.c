@@ -1547,6 +1547,7 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 
 	if (usedma == 1) {
 		rot = 8;
+		(void)rot; // (avoid -Wunused-but-set-parameter)
 		usedma = 0;
 	}
 
