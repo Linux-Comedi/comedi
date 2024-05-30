@@ -67,7 +67,7 @@
 #include "comedi_fc.h"
 
 #ifndef MDPRINTK
-#define MDPRINTK(format,args...)
+#define MDPRINTK(format,args...)	do {} while (0)
 #endif
 
 /* A timeout count */
