@@ -35,7 +35,7 @@
 #ifndef CONFIG_DEBUG_MUTEXES
 #ifndef mutex_destroy
 /* Some Redhat kernels include a backported mutex.h, lacking mutex_destroy */
-#define mutex_destroy(m) do; while (0)
+#define mutex_destroy(m) do {} while (0)
 #endif
 #endif
 
@@ -45,7 +45,7 @@
 
 #define DEFINE_MUTEX(m) DECLARE_MUTEX(m)
 #define mutex_init(m) init_MUTEX(m)
-#define mutex_destroy(m) do; while (0)
+#define mutex_destroy(m) do {} while (0)
 #define mutex_lock(m) down(m)
 #define mutex_lock_interruptible(m) down_interruptible(m)
 #define mutex_trylock(m) (!down_trylock(m))
