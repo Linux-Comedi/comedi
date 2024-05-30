@@ -35,7 +35,7 @@
 #ifdef DEBUG_MITE
 #define MDPRINTK(format,args...)	printk(format , ## args )
 #else
-#define MDPRINTK(format,args...)
+#define MDPRINTK(format,args...)	do {} while (0)
 #endif
 
 #define MAX_MITE_DMA_CHANNELS 8
