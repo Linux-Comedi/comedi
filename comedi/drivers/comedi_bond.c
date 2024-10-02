@@ -377,10 +377,9 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 {
-#define MIN(a,b) (a < b ? a : b)
 	void *newmem = kmalloc(newlen, GFP_KERNEL);
 	if (newmem && oldmem)
-		memcpy(newmem, oldmem, MIN(oldlen, newlen));
+		memcpy(newmem, oldmem, min(oldlen, newlen));
 	if (oldmem)
 		kfree(oldmem);
 	return newmem;
