@@ -2246,11 +2246,13 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct comedi_file *cfp = file->private_data;
 	comedi_async *async = NULL;
-	unsigned long start = vma->vm_start;
+	unsigned long vm_start = vma->vm_start;
+	unsigned long vm_end = vma->vm_end;
+	unsigned long start = vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
-	int retval;
+	int retval = 0;
 	comedi_subdevice *s;
 	comedi_device *dev = cfp->dev;
 
@@ -2293,14 +2295,37 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	n_pages = size >> PAGE_SHIFT;
 	for (i = 0; i < n_pages; ++i) {
-		if (remap_pfn_range(vma, start,
-				page_to_pfn(virt_to_page(async->
-						buf_page_list[i].virt_addr)),
-				PAGE_SIZE, PAGE_SHARED)) {
-			retval = -EAGAIN;
-			goto done;
+		if (s->async_dma_dir != DMA_NONE) {
+			/*
+			 * Temporarily modify VMA start and end addresses
+			 * for calling dma_mmap_coherent()
+			 */
+			vma->vm_start = start;
+			vma->vm_end = start + PAGE_SIZE;
+			if (dma_mmap_coherent(dev->hw_dev, vma,
+					async->buf_page_list[i].virt_addr,
+					async->buf_page_list[i].dma_addr,
+					PAGE_SIZE)) {
+				break;
+			}
+		} else {
+			if (remap_pfn_range(vma, start,
+					page_to_pfn(virt_to_page(async->
+							buf_page_list[i].
+							virt_addr)),
+					PAGE_SIZE, PAGE_SHARED)) {
+				break;
+			}
 		}
 		start += PAGE_SIZE;
+	}
+	/* Restore VMA start and end address */
+	vma->vm_start = vm_start;
+	vma->vm_end = vm_end;
+	if (i < n_pages) {
+		/* Mapping failed (at least partially) */
+		retval = -EAGAIN;
+		goto done;
 	}
 
 	vma->vm_ops = &comedi_vm_ops;
