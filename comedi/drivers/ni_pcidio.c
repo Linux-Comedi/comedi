@@ -539,9 +539,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
 
-	//printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
-	//printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096));
-
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
@@ -1080,8 +1077,6 @@ static int ni_pcidio_change(comedi_device * dev, comedi_subdevice * s,
 	ret = mite_buf_change(devpriv->di_mite_ring, s->async);
 	if (ret < 0)
 		return ret;
-
-	memset(s->async->prealloc_buf, 0xaa, s->async->prealloc_bufsz);
 
 	return 0;
 }
