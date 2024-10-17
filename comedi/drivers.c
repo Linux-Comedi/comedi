@@ -401,9 +401,6 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 		unsigned i;
 		for (i = 0; i < async->n_buf_pages; ++i) {
 			if (async->buf_page_list[i].virt_addr) {
-				clear_bit(PG_reserved,
-					&(virt_to_page(async->buf_page_list[i].
-						virt_addr)->flags));
 				if (s->async_dma_dir != DMA_NONE) {
 					dma_free_coherent(dev->hw_dev,
 						PAGE_SIZE,
@@ -412,6 +409,10 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 						async->buf_page_list[i].
 						dma_addr);
 				} else {
+					clear_bit(PG_reserved,
+						&(virt_to_page(async->
+							buf_page_list[i].
+							virt_addr)->flags));
 					free_page((unsigned long)async->
 						buf_page_list[i].virt_addr);
 				}
@@ -451,9 +452,12 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 				if (async->buf_page_list[i].virt_addr == NULL) {
 					break;
 				}
-				set_bit(PG_reserved,
-					&(virt_to_page(async->buf_page_list[i].
-						virt_addr)->flags));
+				if (s->async_dma_dir == DMA_NONE) {
+					set_bit(PG_reserved,
+						&(virt_to_page(async->
+							buf_page_list[i].
+							virt_addr)->flags));
+				}
 				pages[i] =
 					virt_to_page(async->buf_page_list[i].
 					virt_addr);
@@ -475,10 +479,6 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 						NULL) {
 						break;
 					}
-					clear_bit(PG_reserved,
-						&(virt_to_page(async->
-							buf_page_list[i].
-							virt_addr)->flags));
 					if (s->async_dma_dir != DMA_NONE) {
 						dma_free_coherent(dev->hw_dev,
 							PAGE_SIZE,
@@ -487,6 +487,11 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 							async->buf_page_list[i].
 							dma_addr);
 					} else {
+						clear_bit(PG_reserved,
+							&(virt_to_page(async->
+								buf_page_list[i].
+								virt_addr)->
+								flags));
 						free_page((unsigned long)async->
 							buf_page_list[i].
 							virt_addr);
