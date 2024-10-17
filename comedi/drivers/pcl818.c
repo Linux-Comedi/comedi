@@ -350,7 +350,6 @@ typedef struct {
 	unsigned int *ai_chanlist;	// actaul chanlist
 	unsigned int ai_flags;	// flaglist
 	unsigned int ai_data_len;	// len of data buffer
-	sampl_t *ai_data;	// data buffer
 	unsigned int ai_timer1;	// timers
 	unsigned int ai_timer2;
 	comedi_subdevice *sub_ai;	// ptr to AI subdevice
@@ -1424,7 +1423,6 @@ static int ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->ai_chanlist = cmd->chanlist;
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
 
