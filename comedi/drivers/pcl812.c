@@ -406,7 +406,6 @@ typedef struct {
 	unsigned int ai_n_chan;	// how many channels is measured
 	unsigned int ai_flags;	// flaglist
 	unsigned int ai_data_len;	// len of data buffer
-	sampl_t *ai_data;	// data buffer
 	unsigned int ai_is16b;	// =1 we have 16 bit card
 	unsigned long dmabuf[2];	// PTR to DMA buf
 	unsigned int dmapages[2];	// how many pages we have allocated
@@ -816,7 +815,6 @@ static int pcl812_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	devpriv->ai_flags = cmd->flags;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
-	devpriv->ai_data = s->async->prealloc_buf;
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_scans = cmd->stop_arg;
 		devpriv->ai_neverending = 0;
