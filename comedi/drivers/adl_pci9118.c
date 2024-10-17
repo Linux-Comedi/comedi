@@ -271,7 +271,6 @@ typedef struct {
 	char ai12_startstop;	// measure can start/stop on external trigger
 	unsigned int ai_divisor1, ai_divisor2;	// divisors for start of measure on external start
 	unsigned int ai_data_len;
-	sampl_t *ai_data;
 	sampl_t ao_data[2];	// data output buffer
 	unsigned int ai_scans;	// number of scans to do
 	char dma_doublebuf;	// we can use double buffring
@@ -1298,7 +1297,6 @@ static int pci9118_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_n_scanlen = cmd->scan_end_arg;
 	devpriv->ai_chanlist = cmd->chanlist;
-	devpriv->ai_data = s->async->prealloc_buf;
 	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
