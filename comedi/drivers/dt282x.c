@@ -449,7 +449,7 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	update_supcsr(DT2821_CLRDMADNE);
 
-	if (!s->async->prealloc_buf) {
+	if (!s->async->prealloc_bufsz) {
 		printk("async->data disappeared.  dang!\n");
 		return;
 	}
@@ -482,7 +482,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 
 	update_supcsr(DT2821_CLRDMADNE);
 
-	if (!s->async->prealloc_buf) {
+	if (!s->async->prealloc_bufsz) {
 		printk("async->data disappeared.  dang!\n");
 		return;
 	}
