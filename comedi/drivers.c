@@ -527,20 +527,23 @@ static unsigned int comedi_buf_munge(comedi_async * async,
 	/* don't munge partial samples */
 	num_bytes -= num_bytes % num_sample_bytes;
 	while (count < num_bytes) {
-		int block_size;
+		unsigned int block_page = async->munge_ptr >> PAGE_SHIFT;
+		unsigned int block_page_offset = async->munge_ptr & ~PAGE_MASK;
+		unsigned int block_page_left = PAGE_SIZE - block_page_offset;
+		unsigned int block_size;
 
 		block_size = num_bytes - count;
-		if (block_size < 0) {
-			rt_printk("%s: %s: bug! block_size is negative\n",
-				__FILE__, __FUNCTION__);
-			break;
+		/*
+		 * Only munge to the end of the page this iteration.
+		 * Note that prealloc_bufsz is a multiple of the page size.
+		 */
+		if (block_size > block_page_left) {
+			block_size = block_page_left;
 		}
-		if ((int)(async->munge_ptr + block_size -
-				async->prealloc_bufsz) > 0)
-			block_size = async->prealloc_bufsz - async->munge_ptr;
-
-		s->munge(s->device, s, async->prealloc_buf + async->munge_ptr,
-			block_size, async->munge_chan);
+		s->munge(s->device, s,
+			async->buf_page_list[block_page].virt_addr +
+				block_page_offset, block_size,
+			async->munge_chan);
 
 		smp_wmb();	//barrier insures data is munged in buffer before munge_count is incremented
 
