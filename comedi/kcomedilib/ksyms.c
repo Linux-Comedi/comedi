@@ -48,8 +48,6 @@ EXPORT_SYMBOL(comedi_register_callback);
 EXPORT_SYMBOL(comedi_get_krange);
 EXPORT_SYMBOL(comedi_get_buf_head_pos);
 EXPORT_SYMBOL(comedi_set_user_int_count);
-EXPORT_SYMBOL(comedi_map);
-EXPORT_SYMBOL(comedi_unmap);
 
 /* This list comes from user-space comedilib, to show which
  * functions are not ported yet. */
