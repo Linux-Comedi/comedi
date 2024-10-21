@@ -2376,6 +2376,63 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
+static unsigned int comedi_buf_copy_to_user(comedi_async * async,
+	void __user *dest, unsigned int src_offset, unsigned int n)
+{
+	unsigned int src_page = src_offset >> PAGE_SHIFT;
+	unsigned int src_page_offset = src_offset & ~PAGE_MASK;
+
+	while (n) {
+		unsigned int copy_amount = PAGE_SIZE - src_page_offset;
+		unsigned int uncopied;
+
+		if (copy_amount > n)
+			copy_amount = n;
+
+		uncopied = copy_to_user(dest,
+				async->buf_page_list[src_page].virt_addr +
+					src_page_offset, copy_amount);
+		copy_amount -= uncopied;
+		n -= copy_amount;
+		if (uncopied) {
+			break;
+		}
+
+		dest += copy_amount;
+		src_page++;
+		src_page_offset = 0;
+	}
+	return n;
+}
+
+static unsigned int comedi_buf_copy_from_user(comedi_async * async,
+	unsigned int dst_offset, const void __user *src, unsigned int n)
+{
+	unsigned int dst_page = dst_offset >> PAGE_SHIFT;
+	unsigned int dst_page_offset = dst_offset & ~PAGE_MASK;
+
+	while (n) {
+		unsigned int copy_amount = PAGE_SIZE - dst_page_offset;
+		unsigned int uncopied;
+
+		if (copy_amount > n)
+			copy_amount = n;
+
+		uncopied = copy_from_user(async->buf_page_list[dst_page].
+				virt_addr + dst_page_offset, src, copy_amount);
+		copy_amount -= uncopied;
+		n -= copy_amount;
+		if (uncopied) {
+			break;
+		}
+
+		src += copy_amount;
+		dst_page++;
+		dst_page_offset = 0;
+	}
+	return n;
+}
+
 static ssize_t comedi_write(struct file *file, const char __user *buf,
 	size_t nbytes, loff_t * offset)
 {
@@ -2469,7 +2526,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		}
 
 		set_current_state(TASK_RUNNING);
-		m = copy_from_user(async->prealloc_buf + async->buf_write_ptr,
+		m = comedi_buf_copy_from_user(async, async->buf_write_ptr,
 			buf, n);
 		if (m) {
 			n -= m;
@@ -2578,8 +2635,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			continue;
 		}
 		set_current_state(TASK_RUNNING);
-		m = copy_to_user(buf, async->prealloc_buf +
-			async->buf_read_ptr, n);
+		m = comedi_buf_copy_to_user(async, buf, async->buf_read_ptr, n);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
