@@ -255,7 +255,6 @@ static int postconfig(comedi_device * dev)
 
 			async->max_bufsize = DEFAULT_BUF_MAXSIZE;
 
-			async->prealloc_buf = NULL;
 			async->prealloc_bufsz = 0;
 			if (comedi_buf_alloc(dev, s, DEFAULT_BUF_SIZE) < 0) {
 				printk("Buffer allocation failed\n");
@@ -388,15 +387,11 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	/* if no change is required, do nothing */
-	if (async->prealloc_buf && async->prealloc_bufsz == new_size) {
+	if (async->prealloc_bufsz == new_size) {
 		return 0;
 	}
 	// deallocate old buffer
-	if (async->prealloc_buf) {
-		vunmap(async->prealloc_buf);
-		async->prealloc_buf = NULL;
-		async->prealloc_bufsz = 0;
-	}
+	async->prealloc_bufsz = 0;
 	if (async->buf_page_list) {
 		unsigned i;
 		for (i = 0; i < async->n_buf_pages; ++i) {
@@ -426,16 +421,12 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	if (new_size) {
 		unsigned i = 0;
 		unsigned n_pages = new_size >> PAGE_SHIFT;
-		struct page **pages = NULL;
 
 		async->buf_page_list =
 			vmalloc(sizeof(struct comedi_buf_page) * n_pages);
 		if (async->buf_page_list) {
 			memset(async->buf_page_list, 0,
 				sizeof(struct comedi_buf_page) * n_pages);
-			pages = vmalloc(sizeof(struct page *) * n_pages);
-		}
-		if (pages) {
 			for (i = 0; i < n_pages; i++) {
 				if (s->async_dma_dir != DMA_NONE) {
 					async->buf_page_list[i].virt_addr =
@@ -458,20 +449,9 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 							buf_page_list[i].
 							virt_addr)->flags));
 				}
-				pages[i] =
-					virt_to_page(async->buf_page_list[i].
-					virt_addr);
 			}
 		}
-		if (i == n_pages) {
-			async->prealloc_buf =
-				vmap(pages, n_pages, VM_MAP,
-				PAGE_KERNEL_NOCACHE);
-		}
-		if (pages) {
-			vfree(pages);
-		}
-		if (async->prealloc_buf == NULL) {
+		if (i < n_pages) {
 			/* Some allocation failed above. */
 			if (async->buf_page_list) {
 				for (i = 0; i < n_pages; i++) {

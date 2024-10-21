@@ -207,7 +207,6 @@ struct comedi_buf_page {
 struct comedi_async_struct {
 	comedi_subdevice *subdevice;
 
-	void *prealloc_buf;	/* pre-allocated buffer */
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
 	struct comedi_buf_page *buf_page_list;	/* virtual and dma address of each page */
 	unsigned n_buf_pages;	/* num elements in buf_page_list */
