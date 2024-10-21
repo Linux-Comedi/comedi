@@ -644,7 +644,7 @@ int i_APCI3120_CommandAnalogInput(comedi_device * dev, comedi_subdevice * s)
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
 	//UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data;
-	devpriv->AiData = s->async->prealloc_buf;
+	//devpriv->AiData = s->async->prealloc_buf;
 	//UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len;
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 

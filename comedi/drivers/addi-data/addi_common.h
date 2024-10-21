@@ -401,7 +401,7 @@ typedef struct {
 	UINT ui_AiTimer1;	//Timer constant for Timer1 
 	UINT ui_AiFlags;
 	UINT ui_AiDataLength;
-	sampl_t *AiData;	// Pointer to sample data
+	//sampl_t *AiData;	// Pointer to sample data
 	UINT ui_AiNbrofScans;	// number of scans to do
 	USHORT us_UseDma;	// To use Dma or not
 	BYTE b_DmaDoubleBuffer;	// we can use double buffering
