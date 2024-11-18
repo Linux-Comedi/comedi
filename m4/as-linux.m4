@@ -115,7 +115,7 @@ dnl defines LINUX_DIR to the absolute location of a usable kernel build tree
 AC_DEFUN([AS_LINUX_DIR],
 [
 	AC_ARG_WITH([linuxdir],
-		[AC_HELP_STRING([--with-linuxdir=DIR],
+		[AS_HELP_STRING([--with-linuxdir=DIR],
 			[specify path to Linux build directory])],
 		[LINUX_DIR="${withval}"],
 		[LINUX_DIR=default])
@@ -165,7 +165,7 @@ dnl defines LINUX_SRC_DIR to the absolute location of kernel source tree
 AC_DEFUN([AS_LINUX_SRC_DIR],
 [
 	AC_ARG_WITH([linuxsrcdir],
-		[AC_HELP_STRING([--with-linuxsrcdir=DIR],
+		[AS_HELP_STRING([--with-linuxsrcdir=DIR],
 			[specify path to Linux source directory])],
 		[LINUX_SRC_DIR="${withval}"],
 		[LINUX_SRC_DIR=default])
@@ -241,7 +241,7 @@ dnl store result in LINUX_KERNEL_RELEASE
 AC_DEFUN([AS_LINUX_KERNEL_RELEASE],
 [
 	AC_ARG_WITH([kernel-release],
-		[AC_HELP_STRING([--with-kernel-release=RELEASE],
+		[AS_HELP_STRING([--with-kernel-release=RELEASE],
 			[specify the "uname -r"-value to build for])],
 		[LINUX_KERNEL_RELEASE="${withval}"],
 		[LINUX_KERNEL_RELEASE=`uname -r`])
@@ -284,7 +284,7 @@ dnl store result in LINUX_MACHINE
 AC_DEFUN([AS_LINUX_MACHINE],
 [
 	AC_ARG_WITH([machine],
-		[AC_HELP_STRING([--with-machine=MACHINE],
+		[AS_HELP_STRING([--with-machine=MACHINE],
 			[specify the "uname -m"-value to build for])],
 		[LINUX_MACHINE="${withval}"],
 		[LINUX_MACHINE=`uname -m`])
@@ -308,7 +308,7 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 [
 	RELEASE=$LINUX_KERNEL_RELEASE
 	AC_ARG_WITH([rpm-target],
-		[AC_HELP_STRING([--with-rpm-target=TARGET],
+		[AS_HELP_STRING([--with-rpm-target=TARGET],
 			[specify the target arch to build for])],
 		[LINUX_RPM_TARGET="${withval}"],
 		[LINUX_RPM_TARGET=])
@@ -364,7 +364,7 @@ AC_DEFUN([AS_LINUX_CONFIG],
 	KERNEL_RELEASE=[$2]
 	MACHINE=[$3]
 	AC_ARG_WITH([linuxconfig],
-		[AC_HELP_STRING([--with-linuxconfig=FILE],
+		[AS_HELP_STRING([--with-linuxconfig=FILE],
 			[specify path to Linux configuration file])],
 		[LINUX_CONFIG="${withval}"],
 		[LINUX_CONFIG=default])
@@ -507,7 +507,7 @@ AC_DEFUN([AS_LINUX_MODULESDIR],
 [
 	KERNEL_RELEASE=[$1]
 	AC_ARG_WITH([modulesdir],
-		[AC_HELP_STRING([--with-modulesdir=DIR],
+		[AS_HELP_STRING([--with-modulesdir=DIR],
 			[specify path to kernel-specific modules install directory])],
 		[MODULESDIR="${withval}"],
 		[MODULESDIR=default])
@@ -526,7 +526,7 @@ AC_DEFUN([AS_LINUX_MODULESDEVELDIR],
 [
 	LINUXDIR=[$1]
 	AC_ARG_WITH([modulesdeveldir],
-		[AC_HELP_STRING([--with-modulesdeveldir=DIR],
+		[AS_HELP_STRING([--with-modulesdeveldir=DIR],
 			[specify path to kernel-specific module development install directory])],
 		[MODULESDEVELDIR="${withval}"],
 		[MODULESDEVELDIR=default])

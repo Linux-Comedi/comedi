@@ -2,7 +2,7 @@
 AC_DEFUN([DS_RTLINUX],
 [
 	AC_ARG_WITH([rtlinuxdir],
-		[AC_HELP_STRING([--with-rtlinuxdir=DIR],
+		[SC_HELP_STRING([--with-rtlinuxdir=DIR],
 			[specify path to RTLinux source directory])],
 		[RTLINUX_DIR="${withval}"],
 		[RTLINUX_DIR=/usr/src/rtlinux])

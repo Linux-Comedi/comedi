@@ -1,5 +1,5 @@
 
-AC_PREREQ(2.53)
+AC_PREREQ(2.58)
 
 dnl For second parameter of AC_INIT, use [$major.$minor.$micro] for releases,
 dnl otherwise [$major.$minor.$micro.$nano], where $nano is 1 for Git,

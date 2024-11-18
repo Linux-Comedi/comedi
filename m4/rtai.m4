@@ -2,7 +2,7 @@
 AC_DEFUN([DS_RTAI],
 [
 	AC_ARG_WITH([rtaidir],
-		[AC_HELP_STRING([--with-rtaidir=DIR],
+		[AS_HELP_STRING([--with-rtaidir=DIR],
 			[specify path to RTAI installation or build directory])],
 		[RTAI_DIR="${withval}"],
 		[RTAI_DIR=/usr/realtime])
