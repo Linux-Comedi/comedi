@@ -109,7 +109,7 @@ Configuration options:
 #include "comedi_fc.h"
 #include <linux/comedidev.h>
 #include <linux/usb.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define BOARDNAME "usbduxsigma"
 
