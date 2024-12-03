@@ -191,9 +191,7 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 			fi
 			if test -z "$dir"; then
 				# 5.2
-				if test "`grep -cv '^[[[:space:]]]*\(#.*\|\)$' "$1/Makefile"`" = "1"; then
-					dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
-				fi
+				dir=`sed -n -e 's/^include[[[:space:]]][[[:space:]]]*\(.*\)\/Makefile$/\1/p' "$1/Makefile"`
 			fi
 			if expr "$dir" : '\$(' > /dev/null; then
 				# "$dir" looks like a Makefile variable.
