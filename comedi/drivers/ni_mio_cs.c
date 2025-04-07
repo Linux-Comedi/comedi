@@ -641,6 +641,8 @@ static struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 
+MODULE_DESCRIPTION("Comedi driver for National Instruments DAQCard E series");
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
 
 struct pcmcia_driver ni_mio_cs_driver = {
