@@ -665,6 +665,9 @@ static void __exit das08_cs_exit_module(void)
 	comedi_driver_unregister(&driver_das08_cs);
 }
 
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_DESCRIPTION("Comedi driver for ComputerBoards DAS-08 PCMCIA boards");
 MODULE_LICENSE("GPL");
 module_init(das08_cs_init_module);
 module_exit(das08_cs_exit_module);
