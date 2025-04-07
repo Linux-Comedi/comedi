@@ -935,7 +935,7 @@ static int jr3_pci_detach(comedi_device * dev)
 
 	printk("comedi%d: jr3_pci: remove\n", dev->minor);
 	if (devpriv) {
-		del_timer_sync(&devpriv->timer);
+		timer_delete_sync(&devpriv->timer);
 
 		if (dev->subdevices) {
 			for (i = 0; i < devpriv->n_channels; i++) {
