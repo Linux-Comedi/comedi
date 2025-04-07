@@ -188,7 +188,7 @@ static void waveform_ai_interrupt(struct timer_list *t)
 	if ((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + 1);
 	else
-		del_timer(&devpriv->timer);
+		timer_delete(&devpriv->timer);
 
 	comedi_event(dev, dev->read_subdev);
 }
@@ -433,7 +433,7 @@ static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 static int waveform_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->timer_running = 0;
-	del_timer_sync(&devpriv->timer);
+	timer_delete_sync(&devpriv->timer);
 	return 0;
 }
 
