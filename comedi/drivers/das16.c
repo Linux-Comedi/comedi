@@ -1018,7 +1018,7 @@ static int das16_cancel(comedi_device * dev, comedi_subdevice * s)
 	// disable SW timer
 	if (devpriv->timer_mode && devpriv->timer_running) {
 		devpriv->timer_running = 0;
-		del_timer(&devpriv->timer);
+		timer_delete(&devpriv->timer);
 	}
 
 	/* disable burst mode */
@@ -1653,7 +1653,7 @@ static int das16_detach(comedi_device * dev)
 		int i;
 		if (devpriv->timer_mode) {
 			devpriv->timer_running = 0;
-			del_timer_sync(&devpriv->timer);
+			timer_delete_sync(&devpriv->timer);
 		}
 		for (i = 0; i < 2; i++) {
 			if (devpriv->dma_buffer[i])
