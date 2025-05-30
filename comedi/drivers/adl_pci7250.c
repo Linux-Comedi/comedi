@@ -166,7 +166,7 @@ static int adl_pci7250_attach(comedi_device *dev, comedi_devconfig *it)
 
 		base = pci_resource_start(pcidev, bar);
 		len = pci_resource_len(pcidev, bar);
-		if (len < 4) {
+		if (len < 8) {
 			printk(KERN_ERR
 				"comedi%d: PCI region size too small!\n",
 				dev->minor);
