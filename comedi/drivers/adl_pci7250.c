@@ -241,7 +241,7 @@ static int adl_pci7250_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
 		unsigned int bmask = data[0];
 		unsigned int i;
 
-		s->state &= ~bmask;
+		state &= ~bmask;
 		state |= (bmask & data[1]);
 		if (s->n_chan < 32)
 			state &= ((1u << s->n_chan) - 1);
