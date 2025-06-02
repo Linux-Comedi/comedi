@@ -2,7 +2,7 @@
     comedi/drivers/adl_pci7250.c
 
     Hardware comedi driver for PCI7250 ADLINK card
-    Copyright (C) 2015 Ian Abbott <abbotti@mev.co.uk>
+    Copyright (C) 2015, 2025 Ian Abbott <abbotti@mev.co.uk>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@ Description: Driver for the ADLINK PCI-7250 relay output & digital input card
 Devices: [ADLINK] PCI-7250 (adl_pci7250) LPCI-7250 LPCIe-7250
 Author: Ian Abbott <abbotti@mev.co.uk>
 Status: works
-Updated: Wed, 17 Jun 2015 09:22:58 +0000
+Updated: Mon, 02 Jun 2025 13:54:11 +0100
 
 The driver assumes that 3 PCI-7251 modules are fitted to the PCI-7250,
 giving 32 channels of relay outputs and 32 channels of isolated digital
-inputs.  That is also the case for the LPCI-7250 and LPCIe-7250 cards
-although they do not physically support the PCI-7251 modules.
+inputs.  That is also the case for the LPCI-7250 and older LPCIe-7250
+cards although they do not physically support the PCI-7251 modules.
+Newer LPCIe-7250 cards have a different PCI subsystem device ID, so
+set the number of channels to 8 for these cards.
 
 Not fitting the PCI-7251 modules shouldn't do any harm, but the extra
 inputs and relay outputs won't work!
