@@ -1163,7 +1163,7 @@ static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG)
 
 static void das16_timer_interrupt(struct timer_list *t)
 {
-	struct das16_private_struct *priv = from_timer(priv, t, timer);
+	struct das16_private_struct *priv = timer_container_of(priv, t, timer);
 	comedi_device *dev = priv->dev;
 
 	das16_interrupt(dev);
