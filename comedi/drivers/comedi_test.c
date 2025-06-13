@@ -143,7 +143,7 @@ static const comedi_lrange waveform_ai_ranges = {
 */
 static void waveform_ai_interrupt(struct timer_list *t)
 {
-	waveform_private *priv = from_timer(priv, t, timer);
+	waveform_private *priv = timer_container_of(priv, t, timer);
 	comedi_device *dev = priv->dev;
 	comedi_async *async = dev->read_subdev->async;
 	comedi_cmd *cmd = &async->cmd;
