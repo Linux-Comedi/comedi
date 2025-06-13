@@ -38,15 +38,6 @@ static inline void timer_setup(struct timer_list *timer,
 	container_of(callback_timer, typeof(*var), timer_fieldname)
 #endif /* timer_container_of */
 
-#ifndef from_timer
-/*
- * Define from_timer for backwards compatibility until callers updated to
- * call timer_container_of instead.
- */
-#define from_timer(var, callback_timer, timer_fieldname) \
-	container_of(callback_timer, typeof(*var), timer_fieldname)
-#endif /* from_timer */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,2,0)
 
 #undef timer_delete
