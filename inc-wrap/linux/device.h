@@ -112,22 +112,41 @@ comedi_internal_class_create(struct module *owner, const char *name)
 	return class_create(owner, (char *)name);
 }
 
+/* Also define it as a macro, tested for later. */
+#define comedi_internal_class_create(owner, name)	\
+	comedi_internal_class_create(owner, name)
+
 #else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
+/*
+ * Red Hat back-ported the 6.4 version of class_create() to their later
+ * 5.14 kernels.  Detect this by the fact that the class_create macro
+ * will not be defined as a result of the back-port.
+ */
+#ifdef class_create
+
+/* class_create was not back-ported from 6.4. */
 #define comedi_internal_class_create(owner, name)	\
 ({							\
 	static struct lock_class_key __key;		\
 	__class_create(owner, name, &__key);		\
 })
 
+#endif // ifdef class_create
+
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 /*
- * Redefine class_create() to use single parameter and use THIS_MODULE as the
- * owner for earlier kernels.
+ * If comedi_internal_class_create() was defined above, redefine
+ * class_create() to use single parameter and use THIS_MODULE as
+ * the owner for earlier kernels.
  */
+#ifdef comedi_internal_class_create
+
 #undef class_create
 #define class_create(name) comedi_internal_class_create(THIS_MODULE, name)
+
+#endif // ifdef comedi_internal_class_create
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 
