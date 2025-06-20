@@ -84,7 +84,7 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 {
 }
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
 #include_next <linux/device.h>
 #include <linux/module.h>
@@ -96,7 +96,7 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 #define class_destroy(cs) \
 	class_simple_destroy((struct class_simple *)(cs))
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
 
@@ -112,7 +112,7 @@ comedi_internal_class_create(struct module *owner, const char *name)
 	return class_create(owner, (char *)name);
 }
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 #define comedi_internal_class_create(owner, name)	\
 ({							\
@@ -157,7 +157,7 @@ ssize_t func(struct class_device *dev, const char *buf, size_t count)
 #define COMEDI_DEVICE_DESTROY(cs, devt) \
 	class_simple_device_remove(devt)
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
@@ -166,7 +166,7 @@ ssize_t func(struct class_device *dev, const char *buf, size_t count)
 #define COMEDI_DEVICE_DESTROY(cs, devt) \
 	class_device_destroy(cs, devt)
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_device_create(cs, parent, devt, device, fmt)
@@ -177,7 +177,7 @@ ssize_t func(struct class_device *dev, const char *buf, size_t count)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
 /* Use 'struct device' from kernel 2.6.19 onwards. */
 
@@ -200,7 +200,7 @@ ssize_t func(struct device *dev, struct device_attribute *_attr, \
 #define COMEDI_DEVICE_DESTROY(cs, devt) \
 	device_destroy(cs, devt)
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
@@ -209,7 +209,7 @@ ssize_t func(struct device *dev, struct device_attribute *_attr, \
 #define COMEDI_DEVICE_DESTROY(cs, devt) \
 	device_destroy(cs, devt)
 
-#else
+#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
