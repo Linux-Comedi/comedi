@@ -658,8 +658,7 @@ void comedi_buf_memcpy_to(comedi_async * async, unsigned int offset,
 			block_size = num_bytes;
 
 		memcpy(async->buf_page_list[block_page].virt_addr +
-				block_page_offset + write_ptr, data,
-			block_size);
+				block_page_offset, data, block_size);
 
 		data += block_size;
 		num_bytes -= block_size;
