@@ -1,5 +1,5 @@
-PACKAGE_VERSION=0.7.76.1+20210513git-1.nodist
-PACKAGE_NAME=comedi
+PACKAGE_VERSION=@PACKAGE_VERSION@
+PACKAGE_NAME=@PACKAGE_TARNAME@
 AUTOINSTALL="YES"
 MAKE[0]="./configure --with-linuxdir=${kernel_source_dir} && make -j `getconf _NPROCESSORS_ONLN`"
 local nn

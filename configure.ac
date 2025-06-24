@@ -233,6 +233,7 @@ comedi/comedi_kbuild.inc
 comedi/drivers/Makefile
 comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile
+dkms.conf
 include/Makefile
 include/linux/Makefile
 inc-wrap/Makefile
