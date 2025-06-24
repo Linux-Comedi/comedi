@@ -194,8 +194,11 @@ if test -d /lib/modules/${kernelver}/source ; then
 else
 	src="${kernel_source_dir}"
 fi
-if ! grep -q CONFIG_SET_FS ${src}/include/asm-generic/uaccess.h 2>/dev/null || \
-	grep -q '^CONFIG_SET_FS=y' ${kernel_src_dir}/.config 2>/dev/null ; then
+if grep -q '^CONFIG_SET_FS=y' ${kernel_src_dir}/.config 2>/dev/null ||
+	! test -f ${src}/include/asm-generic/uaccess.h ||
+	! test -f ${src}/include/asm-generic/access_ok.h &&
+	! grep -q CONFIG_SET_FS ${src}/include/asm-generic/uaccess.h 2>/dev/null
+then
 BUILT_MODULE_NAME[$nn]="serial2002"
 BUILT_MODULE_LOCATION[$nn]="comedi/drivers/"
 DEST_MODULE_LOCATION[$((nn++))]="/kernel/comedi/drivers/"
