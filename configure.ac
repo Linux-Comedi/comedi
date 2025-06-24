@@ -1,5 +1,5 @@
 
-AC_PREREQ(2.58)
+AC_PREREQ([2.64])
 
 dnl For second parameter of AC_INIT, use [$major.$minor.$micro] for releases,
 dnl otherwise [$major.$minor.$micro.$nano], where $nano is 1 for Git,
@@ -10,7 +10,14 @@ AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_HEADERS(include/linux/comedi-config.h)
 
+dnl Replace version, getting from .tarball-version or git.
+VERSION_NUMBER=`cd $srcdir && scripts/git-version-gen .tarball-version`
+gl_INIT_PACKAGE_VERSION([$VERSION_NUMBER])
+
 AC_CANONICAL_TARGET([])
+
+AM_INIT_AUTOMAKE([foreign])
+AM_MAINTAINER_MODE([enable])
 
 if test x$prefix = xNONE ; then
   prefix=/
@@ -23,9 +30,6 @@ COMEDI_MICROVERSION=[`expr $PACKAGE_VERSION : \
 	'^[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
 COMEDI_NANOVERSION=[`expr $PACKAGE_VERSION : \
 	'^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
-
-AM_INIT_AUTOMAKE([foreign])
-AM_MAINTAINER_MODE([enable])
 
 AC_DEFINE_UNQUOTED(COMEDI_MAJORVERSION, $COMEDI_MAJORVERSION, [Comedi major version])
 AC_DEFINE_UNQUOTED(COMEDI_MINORVERSION, $COMEDI_MINORVERSION, [Comedi minor version])

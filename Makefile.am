@@ -29,7 +29,8 @@ EXTRA_DIST = autogen.sh \
 	scripts/check_kernel \
 	scripts/call_trace \
 	scripts/doc_devlist \
-	scripts/dump_doc
+	scripts/dump_doc \
+	scripts/git-version-gen
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -66,3 +67,7 @@ install-data-hook:
 	@echo "***"
 	@echo "***"
 
+dist-hook: dist-tarball-version
+.PHONY: dist-tarball-version
+dist-tarball-version:
+	echo '$(VERSION)' > $(distdir)/.tarball-version
