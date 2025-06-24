@@ -247,6 +247,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;
+	s->insn_read = waveform_ai_insn_read;	/* do same as AI insn_read */
 	s->do_cmd = 0;
 	s->do_cmdtest = 0;
 	s->cancel = 0;
