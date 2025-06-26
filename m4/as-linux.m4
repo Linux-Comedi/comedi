@@ -71,14 +71,14 @@ AC_DEFUN([AS_LINUX],
 	AS_LINUX_KERNEL_RELEASE()
 	dnl check if user supplied a uname -m, and if not use the running one
 	AS_LINUX_MACHINE()
-	dnl check if the user supplied an rpm target arch
-	dnl override the LINUX_MACHINE value if he did
-	AS_LINUX_RPM_TARGET()
 
 	dnl find the kernel build tree for the given uname -r
 	AS_LINUX_DIR()
 	dnl override kernel release uname -r value with info from build tree
 	AS_LINUX_OVERRIDE_KERNEL_RELEASE($LINUX_DIR)
+	dnl check if the user supplied an rpm target arch
+	dnl override the LINUX_MACHINE value if they did
+	AS_LINUX_RPM_TARGET()
 	dnl find the kernel source tree from the build tree or --with-linuxsrcdir
 	AS_LINUX_SRC_DIR($LINUX_DIR)
 	dnl check if user supplied a config file; if not, guess a good one
