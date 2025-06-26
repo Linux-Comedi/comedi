@@ -16,7 +16,6 @@ dnl --with-linuxdir        to specify a kernel build tree location
 dnl --with-linuxsrcdir     to specify a kernel source tree location
 dnl --with-linuxconfig     to specify a kernel .config file
 dnl --with-kernel-release  to specify an alternative uname -r
-dnl --with-machine         to specify an alternative uname -m
 dnl --with-rpm-target      to specify to match the given rpm --target option
 dnl --with-modulesdir      to specify the base install location of modules
 dnl --with-modulesdeveldir to specify the base install location of build stuff
@@ -69,20 +68,16 @@ AC_DEFUN([AS_LINUX],
 [
 	dnl check if user supplied a uname -r, and if not use the running one
 	AS_LINUX_KERNEL_RELEASE()
-	dnl check if user supplied a uname -m, and if not use the running one
-	AS_LINUX_MACHINE()
-
 	dnl find the kernel build tree for the given uname -r
 	AS_LINUX_DIR()
 	dnl override kernel release uname -r value with info from build tree
 	AS_LINUX_OVERRIDE_KERNEL_RELEASE($LINUX_DIR)
 	dnl check if the user supplied an rpm target arch
-	dnl override the LINUX_MACHINE value if they did
 	AS_LINUX_RPM_TARGET()
 	dnl find the kernel source tree from the build tree or --with-linuxsrcdir
 	AS_LINUX_SRC_DIR($LINUX_DIR)
 	dnl check if user supplied a config file; if not, guess a good one
-	AS_LINUX_CONFIG($LINUX_DIR, $LINUX_KERNEL_RELEASE, $LINUX_MACHINE)
+	AS_LINUX_CONFIG($LINUX_DIR, $LINUX_KERNEL_RELEASE)
 	dnl check if we're building on pre-FC2 Red Hat/Fedora,
 	dnl and add some flags if we are
 	AS_CHECK_REDHAT_PRE_FC2()
@@ -276,30 +271,12 @@ AC_DEFUN([AS_LINUX_OVERRIDE_KERNEL_RELEASE],
 	fi
 ])
 
-dnl allow for specifying a machine (uname -m) to build for
-dnl use uname -m, of running one if not specified
-dnl store result in LINUX_MACHINE
-AC_DEFUN([AS_LINUX_MACHINE],
-[
-	AC_ARG_WITH([machine],
-		[AS_HELP_STRING([--with-machine=MACHINE],
-			[specify the "uname -m"-value to build for])],
-		[LINUX_MACHINE="${withval}"],
-		[LINUX_MACHINE=`uname -m`])
-        if test "x$LINUX_MACHINE" = "xyes";
-        then
-		LINUX_MACHINE=`uname -m`
-        fi
-        AC_MSG_NOTICE([Using $LINUX_MACHINE as the uname -m value])
-])
 dnl allow for specifying an rpm target arch
 dnl if none specified, try to guess one from running rpm querying for
 dnl the kernel with the uname -r
 dnl this is so configure without arguments works out of the box
 dnl FIXME: investigate if uname -p is a correct guess for this, and if
 dnl we should have a flag for specifying it instead
-
-dnl this macro possibly overrides LINUX_MACHINE
 
 dnl first argument is the kernel release building for
 AC_DEFUN([AS_LINUX_RPM_TARGET],
@@ -324,23 +301,6 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 			fi
 		fi
 	fi
-
-	dnl now override LINUX_MACHINE if LINUX_RPM_TARGET is set
-	if test "x$LINUX_RPM_TARGET" != "x"
-	then
-		dnl override LINUX_MACHINE based on this
-		dnl FIXME: add other possible Red Hat/Fedora/rpm targets here
-		LINUX_MACHINE=
-		case "$LINUX_RPM_TARGET" in
-			i?86) LINUX_MACHINE=i386;;
-			athlon) LINUX_MACHINE=i386;;
-			x86_64) LINUX_MACHINE=x86_64;;
-		esac
-		if test "x$LINUX_MACHINE" = "x"
-		then
-		AC_MSG_ERROR(Could not guess uname -m value from target $LINUX_RPM_TARGET)
-		fi
-	fi
 ])
 
 
@@ -354,13 +314,11 @@ dnl (FIXME: move this to an argument instead ?)
 
 dnl first argument is LINUX_DIR to check for possible configs
 dnl second argument is kernel-release (uname -r)
-dnl third argument is machine (uname -m)
 
 AC_DEFUN([AS_LINUX_CONFIG],
 [
 	LINUXDIR=[$1]
 	KERNEL_RELEASE=[$2]
-	MACHINE=[$3]
 	AC_ARG_WITH([linuxconfig],
 		[AS_HELP_STRING([--with-linuxconfig=FILE],
 			[specify path to Linux configuration file])],
@@ -369,7 +327,7 @@ AC_DEFUN([AS_LINUX_CONFIG],
 
 	dnl if a file got specified, try it as a linux config file
 	if test "${LINUX_CONFIG}" != "default" ; then
-		AS_TRY_LINUX_CONFIG($LINUX_CONFIG, $MACHINE,
+		AS_TRY_LINUX_CONFIG($LINUX_CONFIG,
                                     ,, AC_MSG_ERROR([Linux config not found]) )
 	fi
 
@@ -377,7 +335,7 @@ AC_DEFUN([AS_LINUX_CONFIG],
         dnl in LINUXDIR created by manual configuration
 	if test "${LINUX_CONFIG}" = "default" ; then
 		file="$LINUXDIR/.config";
-		AS_TRY_LINUX_CONFIG($file, $MACHINE,
+		AS_TRY_LINUX_CONFIG($file,
 		                    [LINUX_CONFIG=${file}], )
 	fi
         dnl second, try to guess what config file to use for the current kernel
@@ -397,7 +355,7 @@ AC_DEFUN([AS_LINUX_CONFIG],
 		echo $KERNEL_RELEASE | grep bigmem && EXTRA="-bigmem"
 		echo $KERNEL_RELEASE | grep BOOT && EXTRA="-BOOT"
 		file="$LINUXDIR/configs/kernel-$KVERSION-$LINUX_RPM_TARGET$EXTRA.config"
-		AS_TRY_LINUX_CONFIG($file, $MACHINE,
+		AS_TRY_LINUX_CONFIG($file,
 		                    [LINUX_CONFIG=${file}], )
 	fi
 	if test "${LINUX_CONFIG}" = "default" ; then
@@ -411,20 +369,17 @@ Fix before continuing or specify a config file using --with-configfile.])
 ])
 
 dnl check if the given candidate config file is usable
-dnl FIXME: it would be nice if it could check if it matches the
-dnl given machine (uname -m)
 AC_DEFUN([AS_TRY_LINUX_CONFIG],
 [
 	CFG=[$1]
-	MACHINE=[$2]
 	AC_MSG_CHECKING($CFG)
 
 	if test -f "$CFG" ; then
 		result=yes
-		ifelse([$3], , :, [$3])
+		ifelse([$2], , :, [$2])
 	else
 		result="not found"
-		ifelse([$4], , :, [$4])
+		ifelse([$3], , :, [$3])
 	fi
 	AC_MSG_RESULT($result)
 ])
