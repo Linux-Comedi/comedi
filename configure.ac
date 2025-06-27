@@ -232,7 +232,7 @@ AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
 AC_CONFIG_FILES([
 Makefile
 comedi/Makefile
-comedi/comedi_kbuild.inc
+comedi/comedi_kbuild_copy.inc
 comedi/drivers/Makefile
 comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile

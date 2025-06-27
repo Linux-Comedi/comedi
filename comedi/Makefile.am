@@ -15,7 +15,7 @@ COMEDI_PREPEND_CFLAGS = \
 export COMEDI_PREPEND_CFLAGS
 
 module_PROGRAMS =
-all-local:
+all-local: comedi_kbuild.inc
 #if builddir is not srcdir, make symbolic links in the builddir to the source files so
 #the kernel's build system doesn't get lost.
 	if test "$(srcdir)" != "."; then \
@@ -30,12 +30,21 @@ all-local:
 # For nfs filesystem with root_squash, you may need to change the following
 # "$(MAKE)" to "-$(MAKE)" to avoid failure of make install.
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ modules
-install-data-local:
+install-data-local: comedi_kbuild.inc
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
 		INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
 		INSTALL_MOD_PATH="$(DESTDIR)$(prefix)" modules_install
 clean-local:
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ clean
+	if test -f comedi_kbuild.inc ; then \
+	  $(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ clean ; \
+	fi
+	-rm -f comedi_kbuild.inc
+
+# This nonsense is because comedi_kbuild.inc was being removed too early by
+# `make distclean` when make is running parallel jobs.
+comedi_kbuild.inc: comedi_kbuild_copy.inc
+	cp $< $@
+
 else
 module_PROGRAMS = comedi.ko
 all-local:
