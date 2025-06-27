@@ -10,7 +10,10 @@ AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_HEADERS(include/linux/comedi-config.h)
 
-dnl Replace version, getting from .tarball-version or git.
+dnl Replace package version number, getting from .tarball-version file,
+dnl or from git repository, or from .tarball-version-git file.
+dnl Note that the contents of the .tarball-version-git file are replaced
+dnl in archive files created by 'git archive'.
 VERSION_NUMBER=`cd $srcdir && scripts/git-version-gen .tarball-version`
 gl_INIT_PACKAGE_VERSION([$VERSION_NUMBER])
 
