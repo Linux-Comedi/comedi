@@ -36,14 +36,11 @@ install-data-local:
 		INSTALL_MOD_PATH="$(DESTDIR)$(prefix)" modules_install
 clean-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ clean
-uninstall-local:
-	find $(DESTDIR)$(prefix)/$(LINUX_MODLIB)/$(COMEDI_MOD_DIR) -name '*.ko' -exec $(RM) {} \;
 else
 module_PROGRAMS = comedi.ko
 all-local:
 install-data-local:
 clean-local:
-uninstall-local:
 endif
 
 EXTRA_DIST = \
