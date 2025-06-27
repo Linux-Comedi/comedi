@@ -67,6 +67,11 @@ install-data-hook:
 	@echo "***"
 	@echo "***"
 
+# Skip the distcheck uninstall step because we do not actually uninstall
+# anything!
+distuninstallcheck:
+	@:
+
 dist-hook: dist-tarball-version
 .PHONY: dist-tarball-version
 dist-tarball-version:
