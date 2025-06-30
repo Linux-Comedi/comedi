@@ -558,6 +558,7 @@ modules:
 	@echo LINUX_CC=\"\$(CC)\"
 	@echo LINUX_LD=\"\$(LD) \$(LDFLAGS)\"
 	@echo LINUX_AS=\"\$(AS)\"
+	@echo LINUX_MODLIB=\"\$(MODLIB)\" >>\$(obj)/flags
 EOF
 	make -C ${LINUX_DIR} SUBDIRS=${tmpdir} modules | grep ^LINUX_ >${tmpdir}/ack
 	if (($?)); then
@@ -589,6 +590,7 @@ EOF
 	AC_SUBST(LINUX_AS)
 	AC_SUBST(LINUX_MODULE_EXT)
 	AC_SUBST(LINUX_MODULE_STYLE)
+	AC_SUBST(LINUX_MODLIB)
 
 	AC_MSG_RESULT([ok])
 
