@@ -17,8 +17,6 @@ dnl --with-linuxsrcdir     to specify a kernel source tree location
 dnl --with-linuxconfig     to specify a kernel .config file
 dnl --with-kernel-release  to specify an alternative uname -r
 dnl --with-rpm-target      to specify to match the given rpm --target option
-dnl --with-modulesdir      to specify the base install location of modules
-dnl --with-modulesdeveldir to specify the base install location of build stuff
 
 dnl this macro defines:
 dnl LINUX_DIR
@@ -55,10 +53,6 @@ dnl LINUX_MODULE_EXT
 dnl   Module extension (.o or .ko)
 dnl LINUX_MODPOST
 dnl   path to modpost script
-dnl MODULESDIR
-dnl   base install path for kernel modules
-dnl MODULESDEVELDIR
-dnl   base install path for kernel module development files
 dnl
 dnl End of search list.
 
@@ -81,10 +75,6 @@ AC_DEFUN([AS_LINUX],
 	dnl check if we're building on pre-FC2 Red Hat/Fedora,
 	dnl and add some flags if we are
 	AS_CHECK_REDHAT_PRE_FC2()
-	dnl check for where to install modules
-	AS_LINUX_MODULESDIR($LINUX_KERNEL_RELEASE)
-	dnl check for where to install module development files
-	AS_LINUX_MODULESDEVELDIR($LINUX_DIR)
 	dnl check for the MAJOR/MINOR version of Linux
 	AS_LINUX_VERSION_MAJOR_MINOR($LINUX_SRC_DIR)
 
@@ -452,44 +442,6 @@ int code = RED_HAT_LINUX_KERNEL;
 	LINUX_REDHAT_CFLAGS="$REDHAT_CFLAGS"
 
 	AC_SUBST(LINUX_KERNEL_TYPE, "$KERNEL_TYPE")
-])
-
-dnl add an argument to specify/override the module install path
-dnl if nothing specified, it will be /lib/modules/(kernelrel)
-AC_DEFUN([AS_LINUX_MODULESDIR],
-[
-	KERNEL_RELEASE=[$1]
-	AC_ARG_WITH([modulesdir],
-		[AS_HELP_STRING([--with-modulesdir=DIR],
-			[specify path to kernel-specific modules install directory])],
-		[MODULESDIR="${withval}"],
-		[MODULESDIR=default])
-
-	if test "${MODULESDIR}" = "default" ; then
-		MODULESDIR="/lib/modules/${KERNEL_RELEASE}"
-	fi
-	dnl make it available to Makefiles so it can be used in ...dir
-	AC_SUBST(modulesdir, $MODULESDIR)
-	AC_MSG_NOTICE([Putting kernel modules under ${MODULESDIR}])
-])
-
-dnl add an argument to specify/override the module devel install path
-dnl if nothing specified, it will be the passed in LINUXDIR)
-AC_DEFUN([AS_LINUX_MODULESDEVELDIR],
-[
-	LINUXDIR=[$1]
-	AC_ARG_WITH([modulesdeveldir],
-		[AS_HELP_STRING([--with-modulesdeveldir=DIR],
-			[specify path to kernel-specific module development install directory])],
-		[MODULESDEVELDIR="${withval}"],
-		[MODULESDEVELDIR=default])
-
-	if test "${MODULESDEVELDIR}" = "default" ; then
-		MODULESDEVELDIR="${LINUXDIR}"
-	fi
-	dnl make it available to Makefiles so it can be used in ...dir
-	AC_SUBST(modulesdeveldir, $MODULESDEVELDIR)
-	AC_MSG_NOTICE([Putting kernel module development files under ${MODULESDEVELDIR}])
 ])
 
 AC_DEFUN([AS_LINUX_2_6],
