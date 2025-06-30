@@ -22,6 +22,9 @@ AC_CANONICAL_TARGET([])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE([enable])
 
+PACKAGE_RPMVERSION=`echo "$PACKAGE_VERSION" | tr - _`
+AC_SUBST(PACKAGE_RPMVERSION)
+
 COMEDI_MAJORVERSION=[`expr $PACKAGE_VERSION : '^\([0-9][0-9]*\)' '|' 0 + 0`]
 COMEDI_MINORVERSION=[`expr $PACKAGE_VERSION : \
 	'^[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
@@ -235,6 +238,7 @@ AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
 
 AC_CONFIG_FILES([
 Makefile
+comedi-kmod.spec
 comedi/Makefile
 comedi/comedi_kbuild_copy.inc
 comedi/drivers/Makefile

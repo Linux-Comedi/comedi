@@ -1,0 +1,116 @@
+%if 0%{?fedora}
+%global buildforkernels akmod
+%endif
+%if 0%{?el9}
+# kmod fails on rhel9 kernel with aarch64 - just build an akmod there
+%ifarch aarch64
+%global buildforkernels akmod
+%endif
+%endif
+%global debug_package %{nil}
+
+%global mybasename @PACKAGE_TARNAME@
+%global mybasedir  %{mybasename}-@PACKAGE_VERSION@
+
+Name:           %{mybasename}-kmod
+Summary:        Kernel modules for COMEDI drivers.
+Version:        @PACKAGE_RPMVERSION@
+Release:        1%{?dist}%{?prov}
+License:        GPL
+Group:          System Environment/Kernel
+
+Source0:        @PACKAGE_TARNAME@-@PACKAGE_VERSION@.tar.gz
+
+# Verify that the package build for all architectures.
+# In most time you should remove the Exclusive/ExcludeArch directives
+# and fix the code (if needed).
+# ExclusiveArch:  i686 x86_64 ppc64 ppc64le armv7hl aarch64
+# ExcludeArch: i686 x86_64 ppc64 ppc64le armv7hl aarch64
+
+# get the proper build-sysbuild package from the repo, which
+# tracks in all the kernel-devel packages
+%ifnarch noarch
+BuildRequires:  %{_bindir}/kmodtool
+%else
+BuildRequires: systemd-rpm-macros
+%endif
+
+%ifnarch noarch
+%{!?kernels:BuildRequires: buildsys-build-rpmfusion-kerneldevpkgs-%{?buildforkernels:%{buildforkernels}}%{!?buildforkernels:current}-%{_target_cpu} }
+
+# kmodtool does its magic here
+%{expand:%(kmodtool --target %{_target_cpu} --repo rpmfusion --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} %{?kernels:--for-kernels "%{?kernels}"} 2>/dev/null) }
+%endif
+
+%description
+@PACKAGE_NAME@ is a set of Linux kernel drivers for the COMEDI project.
+It is intended to be used with the comedilibs package, and the
+comedilibs-devel development package.
+
+%ifarch noarch
+%package -n %{mybasename}-common
+Summary:        Common files for COMEDI drivers
+Group:          Unspecified
+Provides:       %{mybasename}-kmod-common = %{version}
+#Requires:       %{mybasename}-kmod >= %{version}
+
+%description -n %{mybasename}-common
+This package contains common files for %{name}.
+%endif
+
+
+%prep
+%ifnarch noarch
+# error out if there was something wrong with kmodtool
+%{?kmodtool_check}
+
+# print kmodtool output for debugging purposes:
+kmodtool  --target %{_target_cpu}  --repo rpmfusion --kmodname %{name} %{?buildforkernels:--%{buildforkernels}} %{?kernels:--for-kernels "%{?kernels}"} 2>/dev/null
+%endif
+
+%setup -q -c -T -a 0
+
+# apply patches and do other stuff here
+# pushd foo-%{version}
+# #patch0 -p1 -b .suffix
+# popd
+
+%ifnarch noarch
+for kernel_version in %{?kernel_versions} ; do
+    cp -a %{mybasedir} _kmod_build_${kernel_version%%___*}
+done
+%endif
+
+%build
+%ifnarch noarch
+for kernel_version in %{?kernel_versions}; do
+    pushd _kmod_build_${kernel_version%%___*}
+    %configure --with-linuxdir=${kernel_version##*___} --with-modules-subdir=%{kmodinstdir_postfix}/comedi
+    make %{?_smp_mflags} -C comedi
+    popd
+done
+%endif
+
+
+%install
+%ifnarch noarch
+for kernel_version in %{?kernel_versions}; do
+    pushd _kmod_build_${kernel_version%%___*}
+    make -C comedi install DESTDIR=${RPM_BUILD_ROOT}
+    rm -f ${RPM_BUILD_ROOT}%{kmodinstdir_prefix}/${kernel_version%%___*}/modules.*
+    popd
+done
+%{?akmod_install}
+%endif
+
+%ifarch noarch
+%files -n %{mybasename}-common
+%doc %{mybasedir}/README.md %{mybasedir}/Documentation/comedi/drivers.txt
+%endif
+
+%clean
+rm -rf ${RPM_BUILD_ROOT}
+
+%changelog
+* Mon Jun 30 2025 Ian Abbott <abbotti@mev.co.uk>
+- Initial spec file test, using kmod-Standard 2 and akmods.
