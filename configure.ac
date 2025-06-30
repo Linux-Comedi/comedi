@@ -22,10 +22,6 @@ AC_CANONICAL_TARGET([])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE([enable])
 
-if test x$prefix = xNONE ; then
-  prefix=/
-fi
-
 COMEDI_MAJORVERSION=[`expr $PACKAGE_VERSION : '^\([0-9][0-9]*\)' '|' 0 + 0`]
 COMEDI_MINORVERSION=[`expr $PACKAGE_VERSION : \
 	'^[0-9][0-9]*\.\([0-9][0-9]*\)' '|' 0 + 0`]
@@ -50,6 +46,14 @@ fi
 
 AS_LINUX()
 AS_LINUX_MODTOOL()
+
+AC_ARG_ENABLE([modulesdir-prefix],
+	[AS_HELP_STRING([--enable-modulesdir-prefix],
+		[enable prefix for the kernel modules installation directory
+		 (modulesdir) (needed for "make distcheck")])],
+	[ENABLE_MODULESDIR_PREFIX=$enableval], [ENABLE_MODULESDIR_PREFIX="no"])
+AM_CONDITIONAL([COMEDI_ENABLE_MODULESDIR_PREFIX],
+	[test "${ENABLE_MODULESDIR_PREFIX}" == "yes"])
 
 AC_ARG_ENABLE([rtai], [AS_HELP_STRING([--disable-rtai], [disable use of rtai])],
 	[ENABLE_RTAI=$enableval], [ENABLE_RTAI="yes"])
@@ -226,7 +230,7 @@ AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AC_DEFINE(COMEDI_CONFIG_DEBUG, true, [Define if debugging is enabled])
 AC_DEFINE(COMEDI_CONFIG_8255, true, [Define if 8255 support is enabled])
 
-DISTCHECK_CONFIGURE_FLAGS="--with-modulesdir=\\\$\$\(prefix\)/modules"
+DISTCHECK_CONFIGURE_FLAGS="--enable-modulesdir-prefix"
 AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
 
 AC_CONFIG_FILES([

@@ -5,6 +5,16 @@ CLEANFILES = Modules.symvers Module.symvers
 
 COMEDI_MOD_DIR = "comedi"
 
+if COMEDI_ENABLE_MODULESDIR_PREFIX
+
+MOD_PATH_PREFIX = $(prefix)
+
+else
+
+MOD_PATH_PREFIX =
+
+endif
+
 if CONFIG_KBUILD
 
 COMEDI_PREPEND_CFLAGS = \
@@ -33,7 +43,7 @@ all-local: comedi_kbuild.inc
 install-data-local: comedi_kbuild.inc
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
 		INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
-		INSTALL_MOD_PATH="$(DESTDIR)$(prefix)" modules_install
+		INSTALL_MOD_PATH="$(DESTDIR)$(MOD_PATH_PREFIX)" modules_install
 clean-local:
 	if test -f comedi_kbuild.inc ; then \
 	  $(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ clean ; \
