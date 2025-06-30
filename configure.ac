@@ -51,7 +51,7 @@ fi
 AS_LINUX()
 AS_LINUX_MODTOOL()
 
-AC_ARG_ENABLE([rtai], [  --disable-rtai	disable use of rtai],
+AC_ARG_ENABLE([rtai], [AS_HELP_STRING([--disable-rtai], [disable use of rtai])],
 	[ENABLE_RTAI=$enableval], [ENABLE_RTAI="yes"])
 DS_RTAI([HAVE_RTAI=yes],[HAVE_RTAI=no])
 if test "$HAVE_RTAI" == "yes" -a "$ENABLE_RTAI" == "yes"; then
@@ -79,7 +79,7 @@ AC_SUBST(COMEDI_CFLAGS)
 
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_PCI],[HAVE_PCI="yes"],[HAVE_PCI="yes"],[HAVE_PCI="no"])
 AM_CONDITIONAL([CONFIG_PCI],[test "$HAVE_PCI" = "yes"])
-AC_ARG_ENABLE([pci],[  --disable-pci		Disable support for PCI devices],
+AC_ARG_ENABLE([pci],[AS_HELP_STRING([--disable-pci], [disable support for PCI devices])],
 	[ENABLE_PCI=$enableval],[ENABLE_PCI="maybe"])
 if test "$HAVE_PCI" = "yes" ; then
 	if test "$ENABLE_PCI" = "no" ; then
@@ -102,7 +102,7 @@ COMEDI_CHECK_PCMCIA_DRIVER_PROBE([$LINUX_SRC_DIR],
 		[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="no"])],
 	[HAVE_PCMCIA="no"])
 AM_CONDITIONAL([CONFIG_PCMCIA],[test "$HAVE_PCMCIA" = "yes"])
-AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
+AC_ARG_ENABLE([pcmcia],[AS_HELP_STRING([--disable-pcmcia], [disable support for PCMCIA devices])],
 	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="maybe"])
 if test "$HAVE_PCMCIA" = "yes" ; then
 	if test "$ENABLE_PCMCIA" = "no" ; then
@@ -183,7 +183,7 @@ fi
 
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
-AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],
+AC_ARG_ENABLE([usb],[AS_HELP_STRING([--disable-usb], [disable support for USB devices])],
 	[ENABLE_USB=$enableval],[ENABLE_USB="maybe"])
 if test "$HAVE_USB" = "yes" ; then
 	if test "$ENABLE_USB" = "no" ; then
@@ -210,7 +210,7 @@ fi
 AM_CONDITIONAL([COMEDI_CONFIG_SET_FS],[test "$HAVE_SET_FS" = "yes"])
 
 COMEDI_CHECK_LINUX_KBUILD([$LINUX_SRC_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
-AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
+AC_ARG_ENABLE([kbuild], [AS_HELP_STRING([--enable-kbuild], [force use of kernel's Kbuild system to build modules (needs recent 2.6 kernel)])],
 	[ENABLE_KBUILD=$enableval], [])
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_SRC_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
