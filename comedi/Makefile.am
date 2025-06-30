@@ -3,8 +3,6 @@ SUBDIRS = . kcomedilib drivers
 
 CLEANFILES = Modules.symvers Module.symvers
 
-COMEDI_MOD_DIR = "comedi"
-
 if COMEDI_ENABLE_MODULESDIR_PREFIX
 
 MOD_PATH_PREFIX = $(prefix)
@@ -42,7 +40,7 @@ all-local: comedi_kbuild.inc
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ modules
 install-data-local: comedi_kbuild.inc
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
-		INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
+		INSTALL_MOD_DIR=$(PACKAGE_MOD_DIR) \
 		INSTALL_MOD_PATH="$(DESTDIR)$(MOD_PATH_PREFIX)" modules_install
 clean-local:
 	if test -f comedi_kbuild.inc ; then \
