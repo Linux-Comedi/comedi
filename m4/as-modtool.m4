@@ -11,6 +11,7 @@ dnl $Id$
 dnl AS_LINUX_MODTOOL()
 dnl
 dnl this macro defines:
+dnl PACKAGE_MOD_DIR
 dnl moduledir
 dnl modulePROGRAMS_INSTALL
 dnl modulePROGRAMS_UNINSTALL
@@ -26,15 +27,28 @@ dnl
 dnl SYMVERS_INCLUDES can be used to add additional .symvers files to the
 dnl modpost step
 
+dnl allow configuration of sub directory path for module installation
+dnl $1 is default
+AC_DEFUN([AS_LINUX_MOD_DIR],
+[
+	AC_ARG_WITH([modules-subdir],
+		[AS_HELP_STRING([--with-modules-subdir=SUBDIR],
+			[specify subdirectory path for Linux kernel module installation])],
+		[PACKAGE_MOD_DIR=${withval}],
+		[PACKAGE_MOD_DIR=$1])
+	AC_SUBST(PACKAGE_MOD_DIR)
+])
+
 AC_DEFUN([AS_LINUX_MODTOOL],
 [
 	AC_PATH_TOOL([STRIP], [strip])
 	AC_PATH_PROG([DEPMOD], [depmod], [no], [$PATH:/sbin:/usr/sbin:/usr/local/sbin])
+	AS_LINUX_MOD_DIR($PACKAGE)
 
 	dnl this can be overridden in Makefile.am
 	dnl FIXME: it'd be nice if we could specify different target_PROGRAMS
 	dnl and different targetdir
-	moduledir="\$(modulesdir)/\$(PACKAGE)"
+	moduledir="\$(LINUX_MODLIB)/\$(PACKAGE_MOD_DIR)"
 	modulePROGRAMS_INSTALL="\$(top_builddir)/modtool --install"
 	modulePROGRAMS_UNINSTALL="\$(top_builddir)/modtool --uninstall"
 	AC_SUBST(moduledir)
