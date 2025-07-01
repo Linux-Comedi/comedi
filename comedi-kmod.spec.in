@@ -85,7 +85,7 @@ done
 %ifnarch noarch
 for kernel_version in %{?kernel_versions}; do
     pushd _kmod_build_${kernel_version%%___*}
-    %configure --with-linuxdir=${kernel_version##*___} --with-modules-subdir=%{kmodinstdir_postfix}/comedi
+    %configure --with-linuxdir=${kernel_version##*___} --with-modules-subdir=%{kmodinstdir_postfix}
     make %{?_smp_mflags} -C comedi
     popd
 done
@@ -112,5 +112,10 @@ done
 rm -rf ${RPM_BUILD_ROOT}
 
 %changelog
+* Tue Jul  1 2025 Ian Abbott <abbotti@mev.co.uk>
+- Changed --with-modules-subdir=%{kmodinstdir_postfix}/comedi to
+  --with-modules-subdir=%{kmodinstdir_postfix} so that modules get installed
+  to [...]/extra/comedi instead of [...]/extra/comedi/comedi .
+
 * Mon Jun 30 2025 Ian Abbott <abbotti@mev.co.uk>
 - Initial spec file test, using kmod-Standard 2 and akmods.
