@@ -6,6 +6,7 @@ EXTRA_DIST = autogen.sh \
 	comedi-kmod.spec \
 	dkms.conf \
 	README.md \
+	INSTALL.md \
 	m4/as-linux.m4 \
 	m4/as-modtool.m4 \
 	m4/rtai.m4 \
