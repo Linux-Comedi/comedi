@@ -96,9 +96,7 @@ by hand from a user process.  These can be created from the Comedi
 build directory using the **`make dev`** command, or by using the
 following shell command:
 
-> **```
-sudo for i in $(seq 0 15); do mknod -m 666 /dev/comedi$i c 98 Si; done
-```**
+> **`sudo for i in $(seq 0 15); do mknod -m 666 /dev/comedi$i c 98 Si; done`**
 
 The following special files will be created:
 
@@ -146,12 +144,12 @@ Information about option lists appropriate for a driver is in
 drivers.txt.  The following commands are examples:
 
 > **`comedi_config /dev/comedi0 dt2821 0x240,3`**
-<br>
-**`comedi_config /dev/comedi1 ni_atmio 0x260,4`**
-<br>
-**`comedi_config /dev/comedi2 dt2817 0x228`**
-<br>
-**`comedi_config /dev/comedi3 ni_pcimio`**
+> <br>
+> **`comedi_config /dev/comedi1 ni_atmio 0x260,4`**
+> <br>
+> **`comedi_config /dev/comedi2 dt2817 0x228`**
+> <br>
+> **`comedi_config /dev/comedi3 ni_pcimio`**
 
 Try running **`man comedi_config`** for information on how to use
 this utility.  Scripts have been written for a few of the drivers
