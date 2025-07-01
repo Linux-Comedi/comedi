@@ -45,19 +45,20 @@ dev:
 COMEDI_DRIVER_FILES := $(shell find $(srcdir)/comedi/drivers -name '*\.c' | grep -v mod\.c | sort)
 
 Documentation/comedi/drivers.txt: $(COMEDI_DRIVER_FILES)
-	for each in $(COMEDI_DRIVER_FILES); do $(srcdir)/scripts/dump_doc $$each;\
-		done >$(srcdir)/Documentation/comedi/drivers.txt
+	$(MKDIR_P) Documentation/comedi
+	for each in $(COMEDI_DRIVER_FILES); \
+		do $(srcdir)/scripts/dump_doc $$each; \
+		done > $@
 
 Documentation/comedi/devices.txt: Documentation/comedi/drivers.txt
-	$(srcdir)/scripts/doc_devlist $(srcdir)/Documentation/comedi/drivers.txt | sort >\
-		$(srcdir)/Documentation/comedi/devices.txt
+	$(srcdir)/scripts/doc_devlist Documentation/comedi/drivers.txt | sort > $@
 
 drivers.check: $(COMEDI_DRIVER_FILES)
 	for each in $(COMEDI_DRIVER_FILES);\
-		do $(srcdir)/scripts/check_driver $$each;done >drivers.check
+		do $(srcdir)/scripts/check_driver $$each;done > $@
 
 drivers.summary: drivers.check
-	$(GREP) '^.:' drivers.check >drivers.summary
+	$(GREP) '^.:' drivers.check > $@
 
 DISTCLEANFILES = modtool
 
