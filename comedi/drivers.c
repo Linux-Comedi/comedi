@@ -347,6 +347,8 @@ static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	const unsigned base_bitfield_channel =
 		(chan < channels_per_bitfield) ? 0 : chan;
 	lsampl_t new_data[2];
+	unsigned int mask;
+	unsigned int i;
 
 	if ((insn->insn == INSN_WRITE) && !(s->subdev_flags & SDF_WRITABLE))
 		return -EINVAL;
@@ -361,21 +363,25 @@ static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	new_insn.n = 2;
 	new_insn.data = new_data;
 	new_insn.subdev = insn->subdev;
+	mask = 1U << (chan - base_bitfield_channel);
 
-	if (insn->insn == INSN_WRITE) {
-		new_data[0] = 1 << (chan - base_bitfield_channel);	/* mask */
-		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel)) : 0;	/* bits */
+	for (i = 0; i < insn->n; i++) {
+		if (insn->insn == INSN_WRITE) {
+			/* new_data[0] = mask, new_data[1] = bits */
+			new_data[0] = mask;
+			new_data[1] = data[i] ? mask : 0;
+		}
+
+		ret = s->insn_bits(dev, s, &new_insn, new_data);
+		if (ret < 0)
+			return ret;
+
+		if (insn->insn == INSN_READ) {
+			data[i] = !!(new_data[1] & mask);
+		}
 	}
 
-	ret = s->insn_bits(dev, s, &new_insn, new_data);
-	if (ret < 0)
-		return ret;
-
-	if (insn->insn == INSN_READ) {
-		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
-	}
-
-	return 1;
+	return insn->n;
 }
 
 int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
