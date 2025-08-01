@@ -6,12 +6,12 @@
 
 ## About Comedi
 
-**[Comedi][]** is a collection of drivers for data acquisition hardware.
-These drivers work with **[Linux][]**, and also with **Linux** combined
-with the real-time extensions **[RTAI][]** and **RTLinux** (dead
-project, not to be confused with **Real-Time Linux** (**PREEMPT_RT**)).
-The **Comedi** core, which ties all the driver together, allows
-applications to be written that are completely hardware-independent.
+**[Comedi][comedi.org]** is a collection of drivers for data acquisition
+hardware.  These drivers work with **[Linux][]**, and also with **Linux**
+combined with the real-time extensions **[RTAI][]** and **RTLinux** (dead
+project, not to be confused with **Real-Time Linux** (**PREEMPT_RT**)).  The
+**Comedi** core, which ties all the driver together, allows applications to be
+written that are completely hardware-independent.
 
 **Comedi** supports a variety of data acquisition hardware; an
 incomplete list may be found at
