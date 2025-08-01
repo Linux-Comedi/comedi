@@ -1,215 +1,512 @@
-# Comedi installation
+# Comedi Installation
 
-NOTE: These instructions are very out-of-date and need to be rewritten
-for modern systems.
+## Introduction
 
-## Linux source
+See the *[README.md][]* file for general information about
+**[Comedi][]** and where to obtain the source code.
 
-In order to compile the Comedi modules, you will need to have
-a correctly configured Linux kernel source tree.  The best
-way to get one is to download a tarball from [kernel.org][1] and
-compile your own kernel.  Comedi should work with most 2.2,
-2.4, and 2.6 Linux kernels.  2.6.x kernels older than 2.6.6 are
-not supported.  Support for 2.0.3x is not actively maintained,
-but it should work and bugs will be fixed as they are reported.
+Each instance of the **Comedi** installation is configured to be build
+for a specific installation of the **[Linux][]** kernel, so when a new
+kernel is installed, the **Comedi** installation needs to be
+reconfigured and rebuilt for that kernel.  Most distributions support
+building external modules for the kernels they install.
 
-You can also prepare a kernel source tree that matches
-the kernel you are currently running if you have its config file (in
-the Debian distibution the config files for the kernel-image packages
-are installed into the *`/boot`* directory).  The following steps will
-(almost) set up your kernel sources correctly.  You will also need
-write permission to the kernel source directory the first time you
-run Comedi's configure script, so you might want to unpack the kernel
-source into a directory you own.
+There have not been any official releases since **Comedi 0.7.76** on
+2008-01-28, which will not build for any recent **Linux** kernels.
+However, it is possible to generate unofficial releases from the **Git**
+sources; see the section *[Generating Unofficial Releases][genrel]* for
+details.
 
-1. Get a copy of the kernel source that matches the kernel you are
-   running.  Unpack it and copy your kernel config file to *`.config`*
-   in the top directory of your kernel source.
-2. You might need to edit the file *`Makefile`* in the kernel source.
-   At the top of the Makefile, the variable `EXTRAVERSION` is defined.
-   If necessary, change it to match your kernel (for example, if the
-   command **`uname -r`** produces `2.4.16-386` then your `EXTRAVERSION`
-   should be set as `EXTRAVERSION=-386`.
-3. Run **`make oldconfig`** in your kernel source directory.
-4. Run **`make dep`** (for 2.6 kernels, do a **`make modules_prepare`**
-   instead, or even better a full **`make`**) in the kernel source
-   directory and you are done.
+**Comedi** can be built using either the sources from the **Git**
+repository after some preparation, or the sources from an unofficial
+release.
 
-Red Hat users note: Kernel sources that are distributed with Red
-Hat Linux are not supported, because they are too heavily
-modified.  However, there is some information in
-*`Documentation/comedi/redhat-notes`* on how to use Red Hat kernels.
+It is possible to configure the operating system to build and install
+the **Comedi** modules automatically when the kernel is updated, by
+using an unofficial release to create **[Akmods][]** packages for Red
+Hat based distributions, or to use **[Dynamic Kernel Module System
+(DKMS)][dkms]** for other distributions.  These options are described in
+the section *[Automatic Installation][autoins]*.
 
-## RTAI support
+### Build Failures
 
-If you want to use the real-time capabilities of Comedi with
-RTAI, you need to compile and install RTAI first.  If you
-don't install the rtai kernel modules, you may get unresolved
-symbols when installing the comedi kernel modules.
+**Comedi** may fail to build for some kernels, particularly for brand
+new kernel releases, or due to certain vendors (mostly Red Hat)
+backporting kernel API features from new kernel release series to older
+series.  For brand new kernels, pull updates from the **Git** repository
+and try building from the updated sources, because the problem may have
+already been fixed in the latest sources.  Build failures for older
+kernels (including vendor's long term kernels) are less likely to have
+been fixed in the updated sources.
 
-## RTLinux support
+Please do try to build from the latest sources before reporting problems
+on the [Comedi mailing list][mail]. When reporting problems capture
+output from the build in a text file and include that in the email, and
+include other details such as the **Linux** distribution and **Linux**
+kernel version.  Build output from the shell session can be captured by
+redirecting the standard output and standard error output to a text
+file:
 
-If you want to use the real-time capabilities of Comedi with
-RTLinux, you need to compile RTLinux (both the kernel and the
-modules) first.  Known working versions are 2.x and 3.0.
+```
+some command > errors.txt 2>&1
+```
+
+## Obtaining Sources From Git
+
+> [!NOTE]
+> If the **git** command cannot be used to clone the **Comedi** **Git**
+> repository remotely, it is possible to download a snapshot.  See the
+> section *[Downloading A Snapshot Of The Sources][snap]*.
+
+It is recommended to use the **git clone** command from a shell session
+to clone the **Git** repository for the **Comedi** sources:
+
+```
+git clone https://github.com/Linux-Comedi/comedi.git
+```
+
+The above command will create the sub-directory *comedi* in the current
+working directory and check out the "master" branch of the **Comedi**
+**Git** repository into that sub-directory.
+
+Change directory to the *comedi* sub-directory for further operations on
+the **Git** repository sources:
+
+```
+cd comedi
+```
+
+> [!NOTE]
+> The checked out sources in this sub-directory will need to be prepared
+> before Comedi can be configured to be built.  See the section
+> *[Preparing The Sources From Git][prep]*.
+
+When using the "master" branch, the sources can be brought up to date
+using the **git pull** command:
+
+```
+git pull
+```
+
+See the **[Git web site][git]** for more information about **Git**.
+
+### Downloading A Snapshot Of The Sources
+
+If the **git** command is unavailable, or the system has no network
+access, a tarball file containing a snapshot of the latest sources can
+be downloaded (using a system with network access) by visiting the link
+<https://github.com/Linux-Comedi/comedi/tarball/master>.  The downloaded
+file will have a weird name something like
+*Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6.tar.gz*, depending on the
+state of the **Comedi** **Git** repository at the time.  This can be
+unpacked using the **tar** command, and will create a sub-directory with
+a similar name (but without the *.tar.gz* extension) containing the
+snapshot of the sources.  For example:
+
+```
+tar zxvf Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6.tar.gz
+```
+
+Change directory to that sub-directory for further operations on the
+sources.  For example:
+
+```
+cd Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6
+```
+
+> [!NOTE]
+> The checked out sources in this sub-directory will need to be prepared
+> before **Comedi** can be configured to be built.  See the section
+> *[Preparing The Sources From Git][prep]*.
+
+To check for updated sources, visit
+<https://github.com/Linux-Comedi/comedi/activity?ref=master>. To update
+the sources, download and unpack another snapshot.
+
+## Preparing The Sources From Git
+
+> [!NOTE]
+> This is not needed when using the sources from an unofficial (or
+> official) release tarball, because the sources therein have already
+> been prepared for use.
+
+The **Comedi** project uses **[Autoconf][]** and **[Automake][]** to
+generate the configuration scripts and Makefiles used to configure and
+build the project.  The generated files are not stored in the **Git**
+repository, so the **Comedi** sources from the **Git** repository need
+to be prepared before the **Comedi** build can be configured.
+
+The **Linux** distribution should have packages for **autoconf** and
+**automake** that can be installed using the distribution's package
+manager.
+
+The minimum version requirements are:
+
+* **automake** >= 1.6
+* **autoconf** >= 2.64
+
+There is a shell script in the top-level **Comedi** source directory
+called **autogen.sh** that should have been marked as executable when
+the Git repository was cloned or the snapshot was unpacked.
+
+To prepare the **Comedi** sources using a shell session, change
+directory to the top-level **Comedi** source directory, and run the
+following command:
+
+```
+./autogen.sh
+```
+
+If there is a "Permission denied" error (**EPERM**) when running the
+script, check that the script is executable and that the top-level
+source directory and its sub-directories are readable and writeable.
+
+If there is an "autoreconf: command not found" error from running the
+script, check that the **autoconf** package is installed.
+
+If there a an error from **autoreconf** about failing to run
+**aclocal**, check that the **automake** package is installed.
+
+If there are no errors running the **autogen.sh** script, then the sources
+have been prepared successfully.
+
+## In-Tree And Out-Of-Tree Builds
+
+It is possible to configure and build **Comedi** in the top-level source
+directory itself (an *in-tree* build), or in a separate *build*
+directory (an *out-of-tree* build).  An out-of-tree build has the
+advantage of allowing the same source directory to be shared by several
+builds.  **Comedi** will be configured and built in the working
+directory from which the **configure** script is run. (See section
+*[Configuration][config]*.)  A relative or absolute pathname may be used
+to specify the location of the **configure** script.  For an in-tree
+build, this will be **`./configure`**.
 
 ## Configuration
 
-Configure with **`./configure`**.  **`./configure --help`** will give
-the configuration options.  If the *`configure`* script does not exist
-(if you checked comedi out from git for example), it can be generated by
-running **`./autogen.sh`**.  The **autoconf**, **automake**,
-**autoheader**, etc. tools are required to generate the *`configure`*
-script (**automake** version >= 1.7 recommended).  The
-**`--with-linuxdir`** option is particularly useful, as it allows you to
-specify the location of your Linux kernel source directory.  If you are
-using an RT-patched kernel, the **`--with-rtaidir`** or
+Configuration of the **Comedi** build is performed by running the
+**configure** script contained in the top-level **Comedi** source
+directory.  It is run by a relative or absolute pathname from the
+*build* directory, which will be the same as top-level **Comedi** source
+directory for an in-tree build, but will be a different directory for an
+out-of-tree build. (See section *[In-Tree And Out-Of-Tree
+Builds][builddir]*.)
+
+> [!NOTE]
+> If the **configure** script does not exist in the top-level **Comedi**
+> source directory, see section *[Preparing The Sources From
+> Git][prep]*.
+
+The **configure** script supports various command-line options to
+configure the build.  Run it with the **`--help`** option to list the
+available configuration options.  The **`--with-linuxdir`** option is
+particularly useful, as it allows you to specify the location of your
+**Linux** kernel build directory.  If you are building for a Linux kernel
+patched for **[RTAI][]** or **RTLinux**, the **`--with-rtaidir`** or
 **`--with-rtlinuxdir`** options allow you to specify the location of
-your RTAI or RTLinux source directory.
+your **RTAI** or **RTLinux** source directory.
 
-## Compiling
+> [!NOTE]
+> **RTLinux** is a dead project, not to be confused with **Real-Time
+> Linux** (**PREEMPT_RT**).
 
-Compile using **`make`**.  If this fails for some reason, send the
-_entire_ build log to the mailing list.  Without the build
-log, it is impossible to find problems.
+A successful run of the **configure** script requires at least the
+following:
+
+* the **awk** program or equivalent (usually **gawk**);
+* a C compiler (usually **gcc**, but can be overridden with the *`CC`*
+  environment variable);
+  compiler that was used to build the **Linux** kernel);
+* the **make** program;
+* the **strip** program (usually installed by the **binutils** package);
+* the **depmod** program (usually installed by the **kmod** or
+  **modutils** package);
+* **Linux** kernel headers for the desired kernel (usually installed by
+  a **kernel-devel** or **linux-headers** package specific to the kernel
+  version);
+
+> [!NOTE]
+> The C compiler needs to be compatible with the C compiler that the
+> kernel was built with.
+
+## Building
+
+Once the **Comedi** build has been configured, run **`make`** in the build
+directory to build the modules.  If the system has multiple CPUs, use
+the **`-j $(nproc)`** option to increase the number of parallel jobs
+according to the number of CPUs.
 
 ## Installation
 
-Install using **`make install`** as root.  This installs the files:
+After a successful build, install using **`make install`** as user
+*root*, or via the **`sudo`** command. For example:
 
-* *`/lib/modules/${KERNEL_RELEASE}/comedi/comedi.ko`*
-* *`/lib/modules/${KERNEL_RELEASE}/comedi/kcomedilib/kcomedilib.ko`*
-* *`/lib/modules/${KERNEL_RELEASE}/comedi/drivers/*.ko`*
+```
+sudo make install
+```
 
-Comedi communicates with userspace via device files (*`/dev/comedi*`*).
-If you have devices which are able to auto-configure themselves and
-you've got **udev** support, these devices are created automatically.
-You can disable this mechanism by setting the main `comedi` module's
-`comedi_autoconfig` parameter to `0` when loading the module. In case
-you have got an old ISA card or no **udev** support (embedded systems),
-you can create static devices by setting the main `comedi` module's
-`comedi_num_legacy_minors` parameter to the number of desired static
-*`/dev/comedi*`* devices when loading the module. You can then configure
-your device from userspace with **`comedi_config`**. If there is no
-**udev** support, you need to create device files to access the hardware
-by hand from a user process.  These can be created from the Comedi
-build directory using the **`make dev`** command, or by using the
-following shell command:
+> [!NOTE]
+> If the kernel is digitally signed, there may be errors signing the
+> modules, but the unsigned modules should still be installed, and
+> should be loadable as long as the system is not enforcing the use of
+> signed modules.  It is possible to enroll and use your own signing
+> keys, but that is beyond the scope of this article.
 
-> **`sudo for i in $(seq 0 15); do mknod -m 666 /dev/comedi$i c 98 Si; done`**
+## Post-Installation Steps
 
-The following special files will be created:
+### Module Parameters
 
-* *`/dev/comedi0`*
-* *`/dev/comedi1`*
-* *`/dev/comedi2`*
-* &#8942;
-* *`/dev/comedi15`*
+If **Comedi** will be used with "legacy" devices that do not support
+auto-configuration, such as drivers for ISA cards, or dummy test devices
+for the **comedi_test** kernel module, then the **comedi** kernel module
+needs to be loaded with the **comedi_num_legacy_minors** module
+parameter set to the number of **Comedi** device minor numbers to be
+reserved for legacy devices.  If special device files in */dev* are
+managed dynamically by **udev**, the special device files for the
+reserved legacy devices will be created when the **comedi** module is
+loaded.  For example if the **comedi** module is loaded with the
+parameter **`comedi_num_legacy_minors=4`**, the special device files
+*/dev/comedi0*, */dev/comedi1*, */dev/comedi2*, and */dev/comedi3* will
+be created when the module is loaded.  Some **Comedi** low-level drivers
+(for PCI and USB devices) will auto-configure a new **Comedi** device
+when matching hardware is detected.  These will be created with minor
+device numbers after the legacy reserved minor device numbers.
 
-## Comedilib
+If using **modprobe** to load (or auto-load) the **comedi** kernel
+module, the options can be specified in the
+*`/etc/modprobe.d/comedi.conf`* file (or the *`/etc/modprobe.conf`* file
+on older systems, containing an **`options comedi`** line such as:
 
-Now would be a good time to compile and install Comedilib.  Comedi and
-Comedilib are completely independent, so it doesn't matter which is
-installed first.
+```
+options comedi comedi_num_legacy_minors=4
+```
+
+### Configure Modules To Load At System Boot
+
+The _/etc/modules-load.d/*.conf_ files list the names of modules to be
+loaded at system boot.  The module names are separated by newlines.
+Empty lines and comment lines (whose first non-whitespace character is
+**`;`** or **`#`**) are ignored.  This may be useful for loading modules
+to support legacy **Comedi** device types at system boot.  This is not
+usually required for PCI and USB device drivers that will be loaded
+automatically when a matching device is detected.
+
+You may also want to run a script during system boot to configure the
+legacy devices using the **comedi_config** command from the
+**Comedilib** project.
+
+### UDEV rules
+
+By default, device files in */dev* that are dynamically created by
+**udev** will be owned by user *root* and group *root*, and will only be
+readable and writable by the owner *root* (mode `0600`).  This can be
+changed by creating UDEV rules to change the permissions.
+
+A new UDEV rules file can be created in the */etc/udev/rules.d*
+directory, for example */etc/udev/rules.d/90-comedi.rules*.  To make the
+*/dev/comedi\** files readable and writable by everyone, use the
+following UDEV rule:
+
+```
+KERNEL=="comedi[0-9]*", MODE=0666
+```
+
+However, it would be more secure limit access to the user *root* and
+members of a supplementary system group to which legitimate users can be
+added.  **Debian GNU/Linux** suggests creating the group called
+*iocard*.  Debian's **libcomedi0** package (to install **Comedilib**)
+creates the system group *iocard* and installs the following UDEV rule
+(in */lib/udev/rules.d/90-comedi.rules*):
+
+```
+KERNEL=="comedi[0-9]*", MODE=0660, GROUP="iocard"
+```
+
+The **groupadd** command may be used to create the group if necessary,
+for example (using **sudo** to run it):
+
+```
+sudo groupadd -r iocard
+```
+
+The **`-r`** or **`--system`** option creates the group within the range
+of group ID numbers reserved for system groups, but the any group ID
+number will do.
+
+The **gpasswd** command (or various other commands) may be used to add
+an existing user to the group, for example (using **sudo** to run it):
+
+```
+sudo gpasswd -a francis iocard
+```
+
+The user will need to log in again to inherit the group permissions.
+
+### Static Device Files
+
+Originally, */dev* was used as part of a normal filesystem (rather than
+a mountpoint for a virtual filesystem managed by **udev**), and static
+device files had to be created using the **mknod** program.  There may
+be some modern systems where this is still the case for some reason.
+
+If the device files need to be created statically, note that the
+character special major device number 98 has been reserved for
+**Comedi** devices.  Up to 16 special character device files may be
+created with major device number 98 and minor device numbers 0 to 15.
+These can be created by running **`sudo make dev`** from the **Comedi**
+build directory, or by running the following shell command:
+
+```
+sudo for i in $(seq 0 15); do mknod -m 666 /dev/comedi$i c 98 $i; done
+```
+
+That will make the device files accessible to everyone. To make them
+accessible only to the owning user and group, change **`-m 666`** to
+**`-m 660`** in the above command, or change the mode afterwards using
+__`chmod 660 /dev/comedi*`__  Use the **chgrp** command to change the
+group owner of the files, for example __`chgrp iocard /dev/comedi*`__.
+
+### Comedilib
+
+Now would be a good time to compile and install **Comedilib**.
+**Comedi** and **Comedilib** are completely independent, so it doesn't
+matter which is installed first.
 
 ## Running Comedi
 
-To use Comedi, the driver module and the core Comedi modules must be
-loaded into the kernel.  This is done by a command similar to
-
-> **`/sbin/modprobe` _`driver`_**
-
-If your module dependencies are set up correctly, this will load both
-`comedi.ko` and your driver module (and possibly other Comedi modules).
-If you get unresolved symbols, check the *`FAQ`* or the mailing list
-archives.  Also look at the **man** pages for **modprobe** and
-**insmod**.
-
-In order to configure a driver module to use a particular device
-file (`/dev/comedi`_`N`_) and a particular device, you need to use the
-command **`comedi_config`**, which is built from the Comedilib
-distribution.  The **`comedi_config`** command is invoked using
-
-> **`comedi_config /dev/comedi0` _`device-name`_ _`option-list`_**
-
-The device name may or may not be the same as the module name.  In
-general, if the device type can be autoprobed (as with ISA PnP or
-PCI devices), the device name will be the same as the module name.
-Otherwise, you will need to check
-*`Documentation/comedi/drivers.txt`*[^1] (or *`doc/drivers.txt`* in
-Comedilib) for information about what device name is appropriate for
-your hardware.  The option list is to supply additional information,
-such as I/O address, IRQ, DMA channels, and other jumper settings.
-Information about option lists appropriate for a driver is in
-drivers.txt.  The following commands are examples:
-
-> **`comedi_config /dev/comedi0 dt2821 0x240,3`**
-> <br>
-> **`comedi_config /dev/comedi1 ni_atmio 0x260,4`**
-> <br>
-> **`comedi_config /dev/comedi2 dt2817 0x228`**
-> <br>
-> **`comedi_config /dev/comedi3 ni_pcimio`**
-
-Try running **`man comedi_config`** for information on how to use
-this utility.  Scripts have been written for a few of the drivers
-with very complicated option lists.  These may be found in Comedilib's
-*`etc`* directory.
-
-## Module Autoloading
-
-For recent kernels, module autoloading is handled by **udev**.  The
-following is only applicable to older kernels.
-
-If you like to autoload your modules, put the following lines
-into *`/etc/modules.conf`* (this does not apply for PCMCIA cards):
+To use **Comedi**, the low-level hardware driver module and its
+dependencies, including the core **comedi** module need to be loaded
+into the kernel.  This is done automatically for some devices that are
+detected during system boot (mostly PCI and USB devices), but for legacy
+"Comedi" devices, this is done manually by using the **modprobe**
+command, similar to:
 
 ```
-alias char-major-98 comedi
-alias char-major-98-0 your_driver
-post-install your_driver PATH=/sbin:/usr/sbin:/usr/local/sbin:$PATH;comedi_config /dev/comedi0 board_name option_list
+sudo modprobe your_driver
 ```
 
-Alternatively, for complicated option lists, the scripts in Comedilib's
-*`etc`* are designed to be copied into *`/etc`*, so that you could put
-the following lines into *`/etc/conf.modules`*:
+where **`your_driver`** is the name of the **Comedi** low-level hardware
+driver module.  See section *[Configure Modules To Load At System
+Boot][modload]* to do this automatically.
+
+In order to configure a **Comedi** device file to use a particular type
+of **Comedi** legacy device (specified by a "board name" that is
+supported by the driver module, and may or may not be the same as the
+module's "driver name"), you need to use the command **comedi_config**,
+which is built from the **Comedilib** distribution.  The
+**comedi_config** command is invoked using:
 
 ```
-alias char-major-98-0 dt282x
-post-install dt282x /etc/dt282x.conf
+sudo comedi_config /dev/comediN BOARDNAME OPTION-LIST
 ```
 
-## Calibration:
+where **`/dev/comediN`** is the pathname of the device file,
+**`BOARDNAME`** is the device's *board name* (which may or may not be
+the same as the module name), and **`OPTION-LIST`** is a comma-separated
+list of integer values to set information required by the device, for
+example its I/O base address and IRQ number.  These options are specific
+to the particular board name and are documented in the
+*Documentation/comedi/drivers.txt* file in the **Comedi** source
+directory (for sources from a release tarball), or the **Comedi** build
+directory (when building sources from the **Git** repository), and in
+the **Comedilib** reference manual.
 
-If your board has self-calibration capabilities, you will want to run
-**comedi_calibrate** (an autocalibration tool that is packaged in a
-separate tarball) in a bootup script.
+The following commands are examples:
 
-## PCMCIA
+```
+sudo comedi_config /dev/comedi0 dt2821 0x240,3
+sudo comedi_config /dev/comedi1 ni_atmio 0x260,4
+sudo comedi_config /dev/comedi2 dt2817 0x228
+```
 
-The PCMCIA drivers require at least a 2.6.16 kernel (at least for
-unpatched mainline kernels).  You must also have **pcmciautils**
-and **udev** installed.  You can write a *udev* rule to automatically
-run **gpib_config** after the driver is loaded.
+You may wish to use a script to run the commands (without the **sudo**
+part) during system boot.
 
-## Upgrading
+Try running **`man comedi_config`** for information on how to use this
+utility.  Scripts have been written for a few of the drivers with very
+complicated option lists.  These may be found in **Comedilib**'s *etc*
+directory.
 
-From versions prior to 0.6.0, you will need to edit and recompile
-all programs that use Comedi or Comedilib, since the names of
-functions and *ioctls* have changed.
+The **Comedilib** project includes a program **comedi_test** to run some
+basic tests on the **Comedi** device, and a program
+**comedi_board_info** to get information about a configured **Comedi**
+device.  The **Comedilib** project also includes source code for various
+demonstration programs.
 
-From versions prior to 0.5.0, you will need to recompile all programs
-that use Comedi or Comedilib, since the interface to both of these has
-changed.  No changes should need to be made to the source of the
-programs.  The format for parameters of **comedi_config** has changed.
+The */proc/comedi* file includes information about configured **Comedi**
+devices and loaded **Comedi** drivers.
 
-From versions prior to 0.4.0, you will need to run **`make dev`** again
-to recreate *`/dev/comedi*`*, since the major number has changed.
+## Generating Unofficial Releases
+
+An unofficial release tarball is useful when using **[Akmods][]** or
+**[DKMS][]**. It may also be useful when building on a different Linux
+system that does not have **[Autoconf]** and **[Automake]** installed.
+
+An unofficial release tarball can be generated by running this command
+in the **Comedi** build directory after configuring the
+**Comedi** build:
+
+```
+make dist-gzip
+```
+
+> [!NOTE]
+> The configuration needs to complete successfully, which requires it to
+> be configured to build for a specific kernel, even though we are not
+> building **Comedi** modules at this stage.  This limitation may be
+> fixed in the future.
+
+The tarball file will be generated in the build directory and will have
+a weird name something like *comedi-0.7.76.1.373-58cbb.tar.gz*.  The
+files within the tarball will be in a sub-directory with the same name,
+but without the *.tar.gz* extension.
+
+The files in the tarball will be listed as belonging to the current user
+ID and group ID.  It may be better to use the **fakeroot** command
+(installed by the **fakeroot** package) to make the files in the tarball
+owned by user ID 0 (*root*) and group ID 0 (*root*).  For example:
+
+```
+fakeroot make dist-gzip
+```
+
+### Installing From The Tarball
+
+To do a manual build using the sources from the unofficial release
+tarball, change to a suitable directory and unpack the tarball using the
+**tar** command, for example:
+
+```
+tar zxvf /path/to/comedi-0.7.76.1.373-58cbb.tar.gz
+```
+
+The sources will be unpacked in the current directory, which will create
+a directory with a similar name, such as *comedi-0.7.76.1.373-58cbb*.
+Follow the instructions from section *[In-Tree And Out-Of-Tree
+Builds][builddir]* onwards, using the created directory as the
+**Comedi** top-level source directory.
+
+## Automatic Installation
+
+TBA
 
 
-[1]: <https://www.kernel.org/> "The Linux Kernel Archives"
 
-[^1]: Note that *`Documentation/comedi/drivers.txt`* is not present in
-the Git repository or in archives generated by Git, but is in the
-distribution tarballs.  It can be built from the Comedi build directory
-using the command:<br>**`make Documentation/comedi/drivers.txt`**
+
+[akmods]: https://rpmfusion.org/Packaging/KernelModules/Akmods "Akmods"
+[autoconf]: https://www.gnu.org/software/autoconf/ "Autoconf"
+[automake]: https://www.gnu.org/software/automake/ "Automake"
+[autoins]: #automatic-installation "Automatic installation"
+[comedi]: https://www.comedi.org/ "Comedi"
+[mail]: README.md#mailing-list "Comedi mailing list"
+[config]: #configuration "Configuration"
+[modload]: #configure-modules-to-load-at-system-boot "Configure modules to load at system boot"
+[snap]: #downloading-a-snapshot-of-the-sources "Downloading a snapshot"
+[dkms]: https://github.com/dell/dkms "Dynamic Kernel Module System (DKMS)"
+[genrel]: #generating-unofficial-releases "Generating unofficial releases"
+[git]: https://git-scm.com/ "Git web site"
+[builddir]: #in-tree-and-out-of-tree-builds "In-tree and out-of-tree builds"
+[linux]: https://www.kernel.org/ "Linux kernel"
+[prep]: #preparing-the-sources-from-git "Preparing the sources"
+[readme.md]: README.md "READ ME"
+[rtai]: https://www.rtai.org] "RTAI - Real Time Application Interface"

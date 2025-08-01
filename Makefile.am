@@ -7,6 +7,7 @@ EXTRA_DIST = autogen.sh \
 	dkms.conf \
 	README.md \
 	INSTALL.md \
+	INSTALL-old.md \
 	m4/as-linux.m4 \
 	m4/as-modtool.m4 \
 	m4/rtai.m4 \
