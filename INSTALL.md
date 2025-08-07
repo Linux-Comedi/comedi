@@ -509,4 +509,4 @@ TBA
 [linux]: https://www.kernel.org/ "Linux kernel"
 [prep]: #preparing-the-sources-from-git "Preparing the sources"
 [readme.md]: README.md "READ ME"
-[rtai]: https://www.rtai.org] "RTAI - Real Time Application Interface"
+[rtai]: https://www.rtai.org/ "RTAI - Real Time Application Interface"
