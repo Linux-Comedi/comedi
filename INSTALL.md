@@ -570,9 +570,9 @@ sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm
 sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-next-release-latest-$(rpm -E %rhel).noarch.rpm
 ```
 
-> [!NOTE] The **`$(rpm -E %rhel)`** part can be replaced with an
-> explicit **EL** number, such as __`9`__ for RHEL 9, Rocky Linux 9,
-> etc.
+> [!NOTE]
+> The **`$(rpm -E %rhel)`** part can be replaced with an explicit **EL**
+> number, such as __`9`__ for RHEL 9, Rocky Linux 9, etc.
 
 Once the **EPEL** repository has been enabled (not needed for Fedora
 Linux), the **akmods** package and its dependencies (including
