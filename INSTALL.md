@@ -754,26 +754,55 @@ where:
 
 For example:
 
+* *comedi-common-0.7.76.1.373_58cbb-1.fc42.noarch.rpm*
+* *akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm*
+
+> [!WARNING]
+> Before installing the **akmod-comedi** package, check for any
+> installed kernel-specific **kmod-comedi** packages and remove them,
+> otherwise there will be problems.  The kernel-specific **kmod-comedi**
+> packages are built and installed by the **akmods** **systemd**
+> service, but the installation phase will fail due to file conflicts
+> with the currently installed package.
+>
+> The old **kmod-comedi** packages can be removed using the command:
+>
+> ```
+> sudo dnf remove 'kmod-comedi-*_*_*'
+> ```
+
+Example commands to install the **comedi-common** and **akmod-comedi**
+packages from RPM files in the current directory:
+
 ```
 sudo dnf install comedi-common-0.7.76.1.373_58cbb-1.fc42.noarch.rpm
-sudo dnf install akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm
+sudo dnf akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm
 ```
+
+(Adjust those commands to use the actual version being installed.)
 
 The **Comedi** kernel modules will be built, signed, and installed on
 the target system by the **akmods** **[systemd][]** service, which
-normally runs during system boot.
+normally runs during system boot, but may also be triggered to
+run in the background after an __akmod-__ package is installed.
 
 > [!NOTE]
 > As **Comedi** consists of many kernel modules, it may take a few
 > minutes for **akmods** to build them.
 
-If you do not want to wait for a reboot, and to get some idea of how
-long it will take, the **akmods** **systemd** service can be started
+If the **akmods** **systemd** service was not triggered automatically,
+and you do not want to wait for a reboot, the service can be started
 manually:
 
 ```
 sudo systemctl start akmods.service
 ```
+
+> [!NOTE]
+> **akmods** will generate kernel-specific **kmod-comedi** packages in
+> the */var/cache/akmods/comedi* directory, along with some _\*.log_
+> files on success, or _\*.failed.log_ files on failure.  Check the
+> latest _\*.failed.log_ file for problems.
 
 ### Installation Via DKMS
 
