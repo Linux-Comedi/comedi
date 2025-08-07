@@ -1,12 +1,4 @@
-%if 0%{?fedora}
 %global buildforkernels akmod
-%endif
-%if 0%{?el9}
-# kmod fails on rhel9 kernel with aarch64 - just build an akmod there
-%ifarch aarch64
-%global buildforkernels akmod
-%endif
-%endif
 %global debug_package %{nil}
 
 %global mybasename @PACKAGE_TARNAME@
