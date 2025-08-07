@@ -488,6 +488,295 @@ Builds][builddir]* onwards, using the created directory as the
 
 ## Automatic Installation
 
+On several Linux distributions, it is possible to configure the
+operating system to rebuild and install external kernel modules from
+source automatically when a new Linux kernel is installed (possibly
+during the next system reboot for **Akmods**).  It can also be
+configured to digitally sign these modules with a local key that can be
+enrolled for use with **Secure Boot**.
+
+On modern Red Hat distributions (including Fedora Linux, RHEL, CentOS,
+and derivatives such as AlmaLinux and Rocky Linux), the **[Akmods][]**
+system is used.  See the section *[Installation Via Akmods][akmodsins]*
+for details.
+
+On non Red Hat distributions (including Debian, Ubuntu, Arch Linux,
+amongst others), the **[Dynamic Kernel Module System (DKMS)][dkms]**
+system is used.  See the section *[Installation Via DKMS][dkmsins]* for
+details.
+
+When using **Akmods** or **DKMS**, you need to supply a release of the
+**Comedi** sources to be built.  See the section *[Generating Unofficial
+Releases][genrel]* for details of generating an unofficial release
+tarball suitable for use with **Akmods** or **DKMS**.
+
+### Installation Via Akmods
+
+**[Akmods][]** is used on modern Red Hat distributions to manage the
+building and installation of external, out-of-tree Linux kernel modules
+for new kernels installed by the system.
+
+We differentiate between the "build" system used to generate the
+_akmod-*.rpm_ packages, and the "target" system where those packages
+will be installed (although there will be some automatic building work
+on the target system to build the actual Linux kernel modules).  The
+build system may also be the target system.
+
+#### Installing The akmods Package
+
+The **akmods** package needs to be installed on both the build system
+and the target system (if different).
+
+If planning to install **akmods** on a target system without Internet
+access, RPMs of the **akmods** and **kmodtool** packages for the distro
+need to be obtained.  They have several dependencies, but those should
+be installable from official distribution ISOs.  For Fedora Linux,
+browse the **[Fedora Packages][fedpack]** website for the required
+packages.  For RHEL, CentOS, AlmaLinux, and Rocky Linux, search for
+"Available Packages" on the **[Extra Packages for Enterprise Linux
+(EPEL)][epel]** website for the required packages.  The downloaded
+**kmodtool** and **akmods** RPM packages can then be installed using the
+**dnf install** command:
+
+```
+sudo dnf install kmodtool-*.rpm akmods-*.rpm
+```
+
+(Substitute the full RPM filenames for __`*`__ if necessary.)
+
+It is easier to install the **akmods** package and its dependencies from
+online repositories, if possible.  On the build system, the online
+repositories need to be enabled anyway, so they might as well be used to
+install the **akmods** package.  For Fedora Linux, the required
+repositories are already enabled, but for RHEL, CentOS, AlmaLinux, and
+Rocky Linux, the **EPEL** repository needs to be enabled.  See the
+**[EPEL][]** website for reference if the following commands are
+out-of-date.
+
+For RHEL, the following commands are used to enable the **EPEL**
+repository:
+
+```
+sudo subscription-manager repos --enable codeready-builder-for-rhel-$(rpm -E %rhel)-$(arch)-rpms
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm
+```
+
+For CentOS, AlmaLinux, and Rocky Linux, the following commands are used
+to enable the **EPEL** repository:
+
+```
+sudo dnf config-manager --set-enabled crb
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm
+sudo dnf install https://dl.fedoraproject.org/pub/epel/epel-next-release-latest-$(rpm -E %rhel).noarch.rpm
+```
+
+> [!NOTE] The **`$(rpm -E %rhel)`** part can be replaced with an
+> explicit **EL** number, such as __`9`__ for RHEL 9, Rocky Linux 9,
+> etc.
+
+Once the **EPEL** repository has been enabled (not needed for Fedora
+Linux), the **akmods** package and its dependencies (including
+**kmodtool**) can be installed with the following command:
+
+```
+sudo dnf install akmods
+```
+
+#### Enrolling A Signing Key For Akmods
+
+When **akmods** is installed, or when the **akmods** Systemd service is
+first run, the **akmods** package creates a certificate and signing key
+pair, but it does not automatically enroll the public key as a "Machine
+Owner Key" ("MOK").  It is possible to replace the automatically created
+certificate and signing key pair with your own version.  See the
+*/usr/share/doc/README.secureboot* file installed by the **akmods**
+package for details on creating your own certificate and key pair and
+for enrolling the (original or replacement) public key as a MOK.
+
+> [!NOTE]
+> The MOK enrollment process involves the use of a temporary password
+> that needs to be repeated during the next system boot, and it may be
+> using a default US English keyboard layout at that time.  If you do
+> not know the positions of the characters on the US English keyboard
+> layout, use something fairly universal (such as a string of ASCII
+> digit characters 0 to 9) for the temporary password.
+
+That only needs to be done on the target system when UEFI secure boot is
+enabled and/or the kernel is enforcing valid signature checks during
+module loading.  The signing key is not needed to generate the packages
+on the build system.
+
+#### Setting Up The Build Environment
+
+On the build system, the **[RPM Fusion][rpmfusion]** repository needs to
+be enabled so that the
+**buildsys-build-rpmfusion-kerneldevpkgs-current** package can be
+installed.  See the instructions at
+<https://rpmfusion.org/Configuration> for reference.  There are **free**
+and **nonfree** repositories, but we only need to set up the **free**
+repository.
+
+For Fedora, use the following command to set up the **RPM Fusion free**
+repository:
+
+```
+sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+```
+
+For RHEL, CentOS, AlmaLinux and Rocky Linux, the **EPEL** repository
+needs to be enabled as described in the section *[Installing The akmods
+Package][akmodspkgins]*.  Then use the following command to set up the
+**RPM Fusion free** repository:
+
+```
+sudo dnf install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm
+```
+
+Once the **RPM Fusion free** repository has been enabled, install the
+**buildsys-build-rpmfusion-kerneldevpkgs-current** package:
+
+```
+sudo dnf install buildsys-build-rpmfusion-kerneldevpkgs-current
+```
+
+(The **rpmdevtools** and **akmods** packages are also required, but
+**akmods** was installed in a previous step, and **rpmdevtools** is one
+of its dependencies.)
+
+Now the *rpmbuild* need to be created in the builder's home directory.
+
+Run the **`rpmdev-setuptree`** command to set up the *rpmbuild*
+directories.  This will create the *~/rpmbuild* directory (where *~*
+represents the builder's home directory), containing subdirectories
+*BUILD*, *RPMS*, *SOURCES*, *SPECS*, and *SRPMS*. It also creates a
+*~/.rpmmacros* file.
+
+The *~/.rpmmacros* file can be edited to set a "provider" tag that will
+appear in the names of the generated RPM files.  If used, the provider
+tag should start with a ".".  For example, to set the provider tag to
+".mytag", edit the *~/.rpmmacros* file and add the following line to the
+end of the file:
+
+```
+%prov .mytag
+```
+
+#### Building The Comedi RPM Files For akmods
+
+Once the build environment has been set up, follow these steps on the
+build system to generate the RPM files to be installed on the target
+system:
+
+> [!NOTE]
+> In the following steps:
+>
+> * The **`~`** shell expansion character represents the builder's home
+>   directory.
+>
+> * **`${VER_TGZ}`** represents the **Comedi** version in the name
+>   of the tarball, such as **`0.7.76.1.373-58cbb`**.
+> * **`${VER_RPM}`** represents the **Comedi** version in the RPM files,
+>   which is the same as **`${VER_TGZ}`** with hyphens changed to
+>   underscores, such as **`0.7.76.1.373_58cbb`**.
+> * **`${DIST}`** represents the output from the **`rpm -E '%{?dist}'`**
+>   command, such as **.fc42** for Fedora 42.
+> * **`${PROV}`** represents the provider tag (if configured) from the
+>   output of the **`rpm -E '%{?prov}'`** command.
+> * **`${ARCH}`** represents the architecture of the target machine as
+>   output by the **`arch`** or **`uname -m`** command on the target
+>   machine.
+> * **`${KVER}`** represents the kernel version of an installed
+>   **kernel-devel** package.
+
+1.  Copy the (unofficial) release tarball file to the
+    *~/rpmbuild/SOURCES* directory:
+
+    ```
+    cp /path/to/comedi-${VER_TGZ}.tar.gz ~/rpmbuild/SOURCES
+    ```
+
+    Note that the file will be automatically deleted in the next step, so
+    keep a copy!
+
+2.  Convert the tarball to an SRPM file, which will delete the tarball in
+    *~/rpmbuild/SOURCES* and create the
+    *comedi-${VER_RPM}-1${DIST}${PROV}.src.rpm* file:
+
+    ```
+    rpmbuild -ts ~/rpmbuild/SOURCES/comedi-${VER_TGZ}.tar.gz
+    ```
+
+3.  Build the arch-specific RPM files from the SRPM file:
+
+    ```
+    rpmbuild --rebuild --target ${ARCH} ~/rpmbuild/SRPMS/comedi-${VER_RPM}-1${DIST}${PROV}.src.rpm
+    ```
+
+    The following generated RPM files will be placed in the
+    *~/rpmbuild/RPMS/${ARCH}* directory:
+
+    * *akmod-comedi-${VER_RPM}-1${DIST}${PROV}.${ARCH}.rpm*
+    * *kmod-comedi-${VER_RPM}-1${DIST}${PROV}.${ARCH}.rpm*
+    * Zero or more kernel-specific
+     *kmod-comedi-${KVER}-${VER_RPM}-1${DIST}${PROV}.${ARCH}.rpm* files.
+
+    The *akmod-comedi-${VER_RPM}-1${DIST}${PROV}.${ARCH}.rpm* file is
+    required to be installed on the target system.  The other RPM files
+    are not required.
+
+4. Build the non-arch-specific RPM files from the SRPM file:
+
+    ```
+    rpmbuild --rebuild --target noarch ~/rpmbuild/SRPMS/comedi-${VER_RPM}-1${DIST}${PROV}.src.rpm
+    ```
+
+    The following generated RPM files will be placed in the
+    *~/rpmbuild/RPMS/noarch* directory:
+
+    * *comedi-common-${VER_RPM}-1${DIST}${PROV}.noarch.rpm*
+
+    The *comedi-common-${VER_RPM}-1${DIST}${PROV}.noarch.rpm* file is
+    required to be installed on the target system.
+
+#### Installing The Comedi RPM Files On The Target System
+
+The following files need to installed on the target system:
+
+* *comedi-common-${VER_RPM}-1${DIST}${PROV}.noarch.rpm*
+* *akmod-comedi-${VER_RPM}-1${DIST}${PROV}.${ARCH}.rpm*
+
+where:
+
+* *${VER_RPM}* is the RPM package version, such as *0.7.76.1.373_58cbb*
+* *${DIST}* is the Linux distribution code, such as *.fc42* or *.el9*
+* *${PROV}* is an optional "provider" tag, such as *.mytag*
+* *${ARCH}* is the machine architecture, such as *x86_64*
+
+For example:
+
+```
+sudo dnf install comedi-common-0.7.76.1.373_58cbb-1.fc42.noarch.rpm
+sudo dnf install akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm
+```
+
+The **Comedi** kernel modules will be built, signed, and installed on
+the target system by the **akmods** **[systemd][]** service, which
+normally runs during system boot.
+
+> [!NOTE]
+> As **Comedi** consists of many kernel modules, it may take a few
+> minutes for **akmods** to build them.
+
+If you do not want to wait for a reboot, and to get some idea of how
+long it will take, the **akmods** **systemd** service can be started
+manually:
+
+```
+sudo systemctl start akmods.service
+```
+
+### Installation Via DKMS
+
 TBA
 
 
@@ -503,10 +792,17 @@ TBA
 [modload]: #configure-modules-to-load-at-system-boot "Configure modules to load at system boot"
 [snap]: #downloading-a-snapshot-of-the-sources "Downloading a snapshot"
 [dkms]: https://github.com/dell/dkms "Dynamic Kernel Module System (DKMS)"
+[epel]: https://docs.fedoraproject.org/en-US/epel/ "Extra Packages for Enterprise Linux (EPEL)"
+[fedpack]: https://packages.fedoraproject.org/ "Fedora Packages"
 [genrel]: #generating-unofficial-releases "Generating unofficial releases"
 [git]: https://git-scm.com/ "Git web site"
 [builddir]: #in-tree-and-out-of-tree-builds "In-tree and out-of-tree builds"
+[akmodspkgins]: #installing-the-akmods-package "Installing the akmods package"
+[akmodsins]: #installation-via-akmods "Installation via Akmods"
+[dkmsins]: #installation-via-dkms "Installation via DKMS"
 [linux]: https://www.kernel.org/ "Linux kernel"
 [prep]: #preparing-the-sources-from-git "Preparing the sources"
 [readme.md]: README.md "READ ME"
+[rpmfusion]: https://rpmfusion.org/ "RPM Fusion"
 [rtai]: https://www.rtai.org/ "RTAI - Real Time Application Interface"
+[systemd]: https://systemd.io/ "Systemd"
