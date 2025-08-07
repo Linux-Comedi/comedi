@@ -363,8 +363,8 @@ sudo for i in $(seq 0 15); do mknod -m 666 /dev/comedi$i c 98 $i; done
 That will make the device files accessible to everyone. To make them
 accessible only to the owning user and group, change **`-m 666`** to
 **`-m 660`** in the above command, or change the mode afterwards using
-__`chmod 660 /dev/comedi*`__  Use the **chgrp** command to change the
-group owner of the files, for example __`chgrp iocard /dev/comedi*`__.
+__`chmod 660 /dev/comedi*`__ and use the **chgrp** command to change the
+group owner of the files, for example: __`chgrp iocard /dev/comedi*`__.
 
 ### Comedilib
 
