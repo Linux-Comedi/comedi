@@ -283,7 +283,7 @@ options comedi comedi_num_legacy_minors=4
 
 ### Configure Modules To Load At System Boot
 
-The _/etc/modules-load.d/*.conf_ files list the names of modules to be
+The _/etc/modules-load.d/\*.conf_ files list the names of modules to be
 loaded at system boot.  The module names are separated by newlines.
 Empty lines and comment lines (whose first non-whitespace character is
 **`;`** or **`#`**) are ignored.  This may be useful for loading modules
@@ -517,7 +517,7 @@ building and installation of external, out-of-tree Linux kernel modules
 for new kernels installed by the system.
 
 We differentiate between the "build" system used to generate the
-_akmod-*.rpm_ packages, and the "target" system where those packages
+_akmod-\*.rpm_ packages, and the "target" system where those packages
 will be installed (although there will be some automatic building work
 on the target system to build the actual Linux kernel modules).  The
 build system may also be the target system.
