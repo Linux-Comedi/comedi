@@ -589,9 +589,10 @@ first run, the **akmods** package creates a certificate and signing key
 pair, but it does not automatically enroll the public key as a "Machine
 Owner Key" ("MOK").  It is possible to replace the automatically created
 certificate and signing key pair with your own version.  See the
-*/usr/share/doc/README.secureboot* file installed by the **akmods**
-package for details on creating your own certificate and key pair and
-for enrolling the (original or replacement) public key as a MOK.
+*/usr/share/doc/akmods/README.secureboot* file installed by the
+**akmods** package for details on creating your own certificate and key
+pair and for enrolling the (original or replacement) public key as a
+MOK.
 
 > [!NOTE]
 > The MOK enrollment process involves the use of a temporary password
