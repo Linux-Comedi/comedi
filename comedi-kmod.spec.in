@@ -104,6 +104,10 @@ done
 rm -rf ${RPM_BUILD_ROOT}
 
 %changelog
+* Thu Aug  7 2025 Ian Abbott <abbotti@mev.co.uk>
+- Always set `%global buildforkernels akmod`, assuming the modules will be
+  installed using akmods.
+
 * Tue Jul  1 2025 Ian Abbott <abbotti@mev.co.uk>
 - Changed --with-modules-subdir=%{kmodinstdir_postfix}/comedi to
   --with-modules-subdir=%{kmodinstdir_postfix} so that modules get installed
