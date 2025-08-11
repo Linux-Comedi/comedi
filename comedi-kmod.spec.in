@@ -77,7 +77,7 @@ done
 %ifnarch noarch
 for kernel_version in %{?kernel_versions}; do
     pushd _kmod_build_${kernel_version%%___*}
-    %configure --with-linuxdir=${kernel_version##*___} --with-modules-subdir=%{kmodinstdir_postfix}
+    %configure --disable-maintainer-mode --with-linuxdir=${kernel_version##*___} --with-modules-subdir=%{kmodinstdir_postfix}
     make %{?_smp_mflags} -C comedi
     popd
 done
@@ -104,6 +104,9 @@ done
 rm -rf ${RPM_BUILD_ROOT}
 
 %changelog
+* Mon Aug 11 2025 Ian Abbott <abbotti@mev.co.uk>
+- Run the configure script with the `--disable-maintainer-mode` option.
+
 * Thu Aug  7 2025 Ian Abbott <abbotti@mev.co.uk>
 - Always set `%global buildforkernels akmod`, assuming the modules will be
   installed using akmods.
