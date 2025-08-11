@@ -1,7 +1,7 @@
 PACKAGE_VERSION=@PACKAGE_VERSION@
 PACKAGE_NAME=@PACKAGE_TARNAME@
 AUTOINSTALL="YES"
-MAKE[0]="./configure --with-linuxdir=${kernel_source_dir} && make -j `getconf _NPROCESSORS_ONLN`"
+MAKE[0]="./configure --disable-maintainer-mode --with-linuxdir=${kernel_source_dir} && make -j `getconf _NPROCESSORS_ONLN`"
 local nn
 nn=0
 # Main comedi module
