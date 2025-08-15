@@ -815,5 +815,6 @@ static void __exit labpc_exit_module(void)
 MODULE_DESCRIPTION("Comedi driver for National Instruments Lab-PC");
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 module_init(labpc_init_module);
 module_exit(labpc_exit_module);

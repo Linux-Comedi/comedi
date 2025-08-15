@@ -971,5 +971,6 @@ module_exit(usb_dt9812_exit);
 MODULE_AUTHOR("Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_DESCRIPTION("Comedi DT9812 driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 #endif // LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)

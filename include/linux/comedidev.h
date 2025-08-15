@@ -68,6 +68,7 @@
 	MODULE_AUTHOR("Comedi http://www.comedi.org");		\
 	MODULE_DESCRIPTION("Comedi low-level driver");			\
 	MODULE_LICENSE("GPL");						\
+	MODULE_VERSION(COMEDI_RELEASE);
 
 #define COMEDI_INITCLEANUP(x)						\
 	COMEDI_MODULE_MACROS		\

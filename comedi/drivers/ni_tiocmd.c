@@ -54,6 +54,7 @@ TODO:
 MODULE_AUTHOR("Comedi <comedi@comedi.org>");
 MODULE_DESCRIPTION("Comedi command support for NI general-purpose counters");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 	short read_not_write)

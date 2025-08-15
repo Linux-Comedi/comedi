@@ -195,6 +195,7 @@ MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
 	"series.  Currently only supports PCIM-DDA06-16 (which "
 	"also happens to be the only board in this series. :) ) ");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,

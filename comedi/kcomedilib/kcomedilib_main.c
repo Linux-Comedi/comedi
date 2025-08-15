@@ -41,6 +41,7 @@
 MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 comedi_t *comedi_open_old(unsigned int minor)
 {

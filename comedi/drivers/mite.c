@@ -64,6 +64,7 @@
 MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi helper for NI Mite PCI interface chip");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 struct mite_struct *mite_devices = NULL;
 

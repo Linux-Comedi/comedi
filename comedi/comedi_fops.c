@@ -53,6 +53,7 @@
 MODULE_AUTHOR("http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 struct comedi_file {
 	comedi_device *dev;

@@ -1041,6 +1041,7 @@ MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
 MODULE_DESCRIPTION(
 	"Comedi driver for National Instruments PCMCIA DAQCard-700 DIO/AI");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
 
 struct pcmcia_driver dio700_cs_driver = {

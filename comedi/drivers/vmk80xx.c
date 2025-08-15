@@ -1182,3 +1182,4 @@ module_exit(vmk80xx_exit);
 MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
 MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);

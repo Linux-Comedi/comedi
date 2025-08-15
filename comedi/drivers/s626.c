@@ -81,6 +81,7 @@ INSN_CONFIG instructions:
 MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
 MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 typedef struct s626_board_struct {
 	const char *name;

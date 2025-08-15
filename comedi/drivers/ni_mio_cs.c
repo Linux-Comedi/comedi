@@ -631,6 +631,7 @@ static int ni_getboardtype(comedi_device * dev, struct pcmcia_device *link)
 #ifdef MODULE
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 static struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d),	/* DAQCard-ai-16xe-50 */

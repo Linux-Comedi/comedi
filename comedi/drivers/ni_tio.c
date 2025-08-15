@@ -57,6 +57,7 @@ static unsigned ni_tio_generic_clock_src_select(const struct ni_gpct *counter);
 MODULE_AUTHOR("Comedi <comedi@comedi.org>");
 MODULE_DESCRIPTION("Comedi support for NI general-purpose counters");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(COMEDI_RELEASE);
 
 static inline enum Gi_Counting_Mode_Reg_Bits Gi_Alternate_Sync_Bit(enum
 	ni_gpct_variant variant)
