@@ -809,7 +809,384 @@ sudo systemctl start akmods.service
 
 ### Installation Via DKMS
 
-TBA
+**[DKMS][]** can be used on several distributions (including **Arch
+Linux**, **Debian GNU/Linux**, **Linux Mint**, **openSUSE** (and
+**SLES** with the addition of an **openSUSE** package repository), and
+**Ubuntu**, amongst others) to manage the building and installation of
+external, out-of-tree **Linux** kernel modules for new and existing
+kernels installed by the system.  It can also sign the modules it builds
+for use with **Secure Boot**.
+
+#### Installing DKMS
+
+##### Installing DKMS On Arch Linux
+
+On **Arch Linux**, use the following commands to install the **dkms**
+package:
+
+```
+sudo pacman -Sy
+sudo pacman -S dkms
+```
+
+It is also be necessary to install one of the **linux-headers**,
+**linux-hardened-headers**, **linux-lts-headers**, or
+**linux-rt-headers** packages depending on which flavor of the **linux**
+package is installed.  Check with the command **`pacman -Qo
+{/usr,}/lib/modules`**, which will show the names and versions of
+packages that have installed **Linux** kernel modules or headers.
+(There may be several packages installed for different versions of the
+kernel and kernel headers packages.)
+
+##### Installing DKMS On Debian, Linux Mint, and Ubuntu
+
+On Debian-based distributions, use the following commands to install the
+**dkms** package:
+
+```
+sudo apt-get update
+sudo apt-get install dkms
+```
+
+It may also be necessary to install a **linux-headers** or
+**linux-headers-generic** virtual package to add support for building
+external kernel modules.  The choice depends on the virtual package that
+was selected to install the **linux-image** flavor.  Check the output of
+the **`dpkg-query -l 'linux-image-*'`** command to determine that.
+Alternatively, the command **`dpkg-query -S {/usr,}/lib/modules`** will
+show the names and versions of all packages that have installed
+**Linux** kernel modules or headers.  (There may be several packages
+installed for different versions of the kernel and kernel headers
+packages.)
+
+On some distributions, **dkms** and/or the appropriate **linux-headers**
+package may have been already installed as part of the initial system
+installation.
+
+##### Installing DKMS on openSUSE
+
+On **openSUSE**, use the following commands to install the **dkms**
+package:
+
+```
+sudo zypper refresh
+sudo zypper install dkms
+```
+
+It may install a **kernel-syms** package as a dependency for building
+external kernel modules.
+
+#### Setting Up Module Signing Support
+
+On systems with kernels that enforce checks for valid signatures during
+module loading for secure boot, the kernel modules built by **DKMS**
+need to be signed with a Machine Owner Key (MOK) that has a matching
+certificate enrolled in the system.
+
+The **dkms** command can generate a certificate key automatically, but
+depending on the version of the **dkms** package, and the operating
+system, the automatically generated key might be suitable.  For example,
+**openSUSE Leap 15.6** requires the certificate to have "Code Signing"
+extended key usage, but its **dkms** package version is too old to
+generate a certificate with this usage.  So it may be necessary to
+generate the certicate and key manually.
+
+##### Setting Up Module Signing Support On Arch Linux
+
+**Arch Linux** installations do not use **Secure Boot** by default.  In
+particular, **Linux** kernels booted securely will normally be signed
+with a Machine Owner Key (MOK) that has already been enrolled for use by
+**Secure Boot**.  Since the certificate and signing key that was used to
+sign the kernel image should be already on the system somewhere, it may
+be tempting to configure **DKMS** to use the same certificate and
+signing key to sign the modules that it builds.  Alternatively, a
+separate signing key and certificate may be used for **DKMS**.
+
+###### Using An Existing MOK On Arch Linux
+
+If a kernel installed by **Arch Linux** are already being signed by with
+a MOK (for example, by a post installation hook script), then **DKMS**
+can be configured to use the same key pair to sign the modules it
+builds.  This is done by setting the *`mok_signing_key`* and
+*`mok_certificate`* values in the _/etc/dkms/framework.conf_ or
+_/etc/dkms/framework.conf.d/\*.conf_ files.  They should be set to the
+pathnames of the existing signing key and certificate.
+
+> [!NOTE]
+> There may be two files for the certificate (in addition to the key
+> file) in different formats, a binary format (DER) and an ASCII-armored
+> format (PEM).  The *`mok_certificate`* value should be set to the
+> pathname of the binary format (DER) certificate.
+
+###### Using A New MOK On Arch Linux
+
+If a separate MOK is to be used for **DKMS**, you may allow the **dkms**
+to generate its own signing key and certificate when it builds a module
+package for the first time.  For **dkms** version 3.1 or later, these
+can be generated before building the first module package by using the
+command *`sudo dkms generate_mok`*.  If the signing key and certificate
+already exist, they will not be regenerated.
+
+Alternatively, **DKMS** can be configured to use a manually generated
+signing key and certificate (in DER format) by setting the
+*`mok_signing_key`* and *`mok_certificate`* variables in the
+_/etc/dkms/framework.conf_ or _/etc/dkms/framework.conf.d/\*.conf_ files
+to the pathnames of the signing key and certificate files.  If those
+variables are left unset, the signing key and certificate could be
+copied to the default locations _/var/lib/dkms/mok.key_ and
+_/var/lib/dkms/mok.pub_.
+
+The MOK certificate will need to be enrolled for use with **Secure
+Boot**, but that can be done later.  See section *[Enrolling The DKMS
+Signing Certificate][dkmsenroll]* for details.
+
+##### Setting Up Module Signing Support On Debian
+
+On **Debian**, the default locations of the **dkms** signing key and
+certificate are _/var/lib/dkms/mok.key_ and _/var/lib/dkms/mok.pub_.
+They can be overridden by setting the *`mok_signing_key`* and
+*`mok_certificate`* variables in the _/etc/dkms/framework.conf_ or
+_/etc/dkms/framework.conf.d/\*.conf_ files to the pathnames of the
+signing key and certificate files.  The **dkms** command will generate a
+signing key and certificate file automatically if they do not exist when
+building a module package.  For **dkms** version 3.1 or later, these can
+be generated before building the first module package by using the
+command *`sudo dkms generate_mok`*.  If the signing key and certificate
+already exist, they will not be regenerated.  Alternatively, a
+user-supplied signing key and certificate (in DER format) may be
+supplied.
+
+The MOK certificate will need to be enrolled for use with **Secure
+Boot**, but that can be done later.  See section *[Enrolling The DKMS
+Signing Certificate][dkmsenroll]* for details.
+
+##### Setting Up Module Signing Support On Linux Mint
+
+For **Linux Mint Debian Edition (LMDE)**, follow the instructions for
+**Debian** in section *[Setting Up Module Signing Support On
+Debian][dkmsmokdeb]*.
+
+For regular **Linux Mint** editions, if you opted for installation of
+multimedia drivers during system installation, the system may have
+already installed a MOK signing key and certificate in
+_/var/lib/shim-signed/mok/MOK.priv_ (signing key) and
+_/var/lib/shim-signed/mok/MOV.der_ (certificate).  It is possible to
+configure **dkms** to use those certificates by editing the
+_/etc/dkms/framework.conf_ or _/etc/dkms/framework.conf.d/\*.conf_ files
+to set the *`mok_signing_key`* and *`mok_certificate`* variables to the
+pathnames of the existing signing key and certificate.  Without those
+changes to the **DKMS** configuration files, **dkms** will ignore the
+existing signing key and generate a new signing key and certicate that
+will need to be enrolled separately.
+
+If **DKMS** has not been configured to use an existing signing key and
+certificate, follow the instructions for **Debian** in section *[Setting
+Up Module Signing Support On Debian][dkmsmokdeb]*.
+
+##### Setting Up Module Signing Support On openSUSE
+
+On **openSUSE**, the **dkms** command can generate a signing key and
+certificate when building a module package for the first time, but the
+certificate may not be suitable.  On **openSUSE 15.6**, the kernel
+requires external modules to be signed with a key that includes "Code
+Signing" external key usage, but the version of **dkms** from the
+package repository is too old to generate such a key automatically
+(which requires **dkms** version 1.1.7 or later).
+
+To create a signing key and certificate for **openSUSE** kernels that
+require a "Code Signing" certificate, run the following command to
+generate a certificate pair:
+
+```
+openssl req -new -x509 -nodes -days 36500 -subj "/CN=DKMS module signing key" \
+-newkey rsa:2048 -keyout mok.key -addext "extendedKeyUsage=codeSigning" \
+-outform DER -out mok.pub
+```
+
+Note that the above command requires **OpenSSL** version 1.1.1 or later
+to add the extended key usage to the signing key.  For older versions of
+**OpenSSL**, omit the **`-addext "extendedKeyUsage=codeSigning"`**
+option from the above command.  (Hopefully, the kernel will not require
+a "Code Signing" certificate on **openSUSE** releases that have older
+versions of the **openssl** package, otherwise the signing key and
+certificate would need to be generated in an environment with a more
+up-to-date version of **OpenSSL**.)
+
+After generating the signing key and certificate, they need to be copied
+to the */var/lib/dkms* directory:
+
+```
+sudo cp mok.key mok.pub /var/lib/dkms
+```
+
+> [!NOTE]
+> The location of the signing key and certificate files can be
+> overridden by the values of the *`mok_signing_key`* and
+> *`mok_certificate`* variables in _/etc/dkms/framework.conf_ and
+> _/etc/dkms/framework.conf.d/\*.conf_ files.
+
+The MOK certificate will need to be enrolled for use with **Secure
+Boot**, but that can be done later.  See section *[Enrolling The DKMS
+Signing Certificate][dkmsenroll]* for details.
+
+##### Setting Up Module Signing Support On Ubuntu
+
+On **Ubuntu**, the default locations of the **dkms** signing key and
+certificate are _/var/lib/shim-signed/mok/MOK.priv_ and
+_/var/lib/shim-signed/mok/MOK.der_.  They can be overridden by setting
+the *`mok_signing_key`* and *`mok_certificate`* variables in the
+_/etc/dkms/framework.conf_ or _/etc/dkms/framework.conf.d/\*.conf_ files
+to the pathnames of the signing key and certificate files.  The **dkms**
+command will generate a signing key and certificate file automatically
+if they do not exist when building a module package.  For **dkms**
+version 3.1 or later, these can be generated before building the first
+module package by using the command *`sudo dkms generate_mok`*.  If the
+signing key and certificate already exist, they will not be regenerated.
+Alternatively, a user-supplied signing key and certificate (in DER
+format) may be supplied.
+
+The MOK certificate will need to be enrolled for use with **Secure
+Boot**, but that can be done later.  See section *[Enrolling The DKMS
+Signing Certificate][dkmsenroll]* for details.
+
+#### Adding Comedi To DKMS
+
+After installing **DKMS**, and setting up module signing support (if not
+being done by **dkms** automatically), **Comedi** can be added to
+**DKMS** as a new module package.  **DKMS** allows multiple versions of
+a module package to be present in the system, so module packages are
+represented in **DKMS** as a *package-name/package-version* pair
+(although the **DKMS** manual refers to them as a
+*module/module-version* pair).  The package name and package version are
+specified by the *`PACKAGE_NAME`* and *`PACKAGE_VERSION`* variables in
+the package's *dkms.conf* file.
+
+Due to **DKMS** [bug #538](https://github.com/dell/dkms/issues/538) and
+other bugs, the recommended way to add **Comedi** to **DKMS** is to
+unpack the (unofficial) release tarball manually into the */usr/src*
+directory then add it to **DKMS** using a *package-name/package-version*
+speficifier, using the following commands:
+
+```
+sudo tar -C /usr/src -xaf comedi-${COMEDI_VERSION}.tar.gz
+sudo dkms add comedi/${COMEDI_VERSION}
+```
+
+For example:
+
+```
+sudo tar -C /usr/src -xaf comedi-0.7.76.1.373-58cbb.tar.gz
+sudo dkms add comedi/0.7.76.1.373-58cbb
+```
+
+The **dkms add** command also allows the package to be specified by
+supplying the actual tarball, which it will unpack and copy to
+*/usr/src/*, but due to bug \#538, the *.tarball-version* file will be
+omitted from the copy.  **Comedi**'s **configure** script uses that file
+to set the version string used by the main **comedi** module.  Also,
+some versions of **DKMS** before version 3.0.11 think the tarball is
+invalid due to another bug.
+
+Once **Comedi** has been added, The following command may be used to
+automatically build and install the modules (unless automatic
+installation has been disabled by the presence of a file
+*/etc/dkms/no-autoinstall*):
+
+```
+sudo dkms autoinstall
+```
+
+> [!NOTE]
+> If building on **Ubuntu** for the first time when **Secure Boot** is
+> enabled, and it generates a new signing key (MOK) and certificate,
+> **dkms** will open a dialog to enroll the new MOK.  The dialog will
+> ask for a password to be used when enrolling the MOK after a reboot.
+> See section *[Enrolling The DKMS Signing Certificate][dkmsenroll].*
+
+More control over adding, removing, building, unbuilding (since **dkms**
+version 2.8.2), installing, and uninstalling, for multiple kernel
+versions or individual kernel versions is possible using the various
+**dkms** subcommands.  See the **dkms** man page for details.
+
+Use the following command to check the status of each package managed by
+**DKMS** on each kernel:
+
+```
+sudo dkms status
+```
+
+A status of **`installed`** at the end of a line means that the
+indicated package name and version has been installed for the indicated
+kernel version and architecture.
+
+#### Enrolling The DKMS Signing Certificate
+
+If using **Secure Boot**, the Machine Owner Key (MOK) used by **DKMS**
+to sign the modules it builds needs to be enrolled into the UEFI BIOS.
+This can be done using the **mokutil** program.  (Use the distribution's
+package manager to install **mokutil**, if it is missing.)
+
+First, determine the pathname of the certificate used by **DKMS**.  By
+default, this will be _/var/lib/dkms/mok.pub_ except on **Ubuntu**
+installations, where it defaults to */var/lib/shim-signed/mok/MOK.der*.
+(Also, for **Gentoo** systems the default is set by the
+*`MODULES_SIGN_CERT`* variable in _/etc/portage/make.conf_.)  The
+default may be overridden by setting the *`mok_certificate`* variable in
+the _/etc/dkms/framework.conf_ or the
+_/etc/dkms/framework.conf.d/\*.conf_ files.
+
+The following command may be used to check if the certificate has
+already been enrolled:
+
+```
+sudo mokutil --test-key /path/to/dkms/certificate
+```
+
+where **`/path/to/dkms/certificate`** depends on the location of the
+certificate, for example:
+
+```
+sudo mokutil --test-key /var/lib/dkms/mok.pub
+```
+
+> [!NOTE]
+> On **Ubuntu** systems, if **dkms** generates a new key and
+> certificate, it will initiate the enrollment automatically.
+
+If the certificate needs to be enrolled manually, use the following
+command to do so:
+
+```
+sudo mokutil --import /path/to/dkms/certificate
+```
+
+where **`/path/to/dkms/certificate`** is the certificate to be enrolled.
+In addition to **sudo** possibly prompting for the user's password,
+**mokutil** will prompt to input a password to be used for MOK
+enrollment, and then prompt again to confirm it was entered correctly.
+
+> [!NOTE]
+> The MOK enrollment process involves the use of a temporary password
+> that needs to be repeated during the next system boot, and it may be
+> using a default US English keyboard layout at that time.  If you do
+> not know the positions of the characters on the US English keyboard
+> layout, use something fairly universal (such as a string of ASCII
+> digit characters 0 to 9) for the temporary password.
+
+After requesting enrollment of the MOK, reboot the system to
+complete the process:
+
+* On the next boot, **MOK Management** is launched and you have to
+  choose **`Enroll MOK`**.
+* Choose **`Continue`** to enroll the key or **`View key 0`** to show
+  the keys already enrolled.
+* Confirm enrollment by selecting **`Yes`**.
+* You will need to enter the MOK enrollment password that was supplied
+  to **mokutil** earlier.
+* The new key is enrolled, and the system asks you to reboot.
+
+After reboot, check if the certificate has been enrolled, using
+**mokutil**'s **`--test-key`** option as described earlier.
 
 
 
@@ -824,6 +1201,7 @@ TBA
 [modload]: #configure-modules-to-load-at-system-boot "Configure modules to load at system boot"
 [snap]: #downloading-a-snapshot-of-the-sources "Downloading a snapshot"
 [dkms]: https://github.com/dell/dkms "Dynamic Kernel Module System (DKMS)"
+[dkmsenroll]: #enrolling-the-dkms-signing-certificate "Enrolling the DKMS signing certificate"
 [epel]: https://docs.fedoraproject.org/en-US/epel/ "Extra Packages for Enterprise Linux (EPEL)"
 [fedpack]: https://packages.fedoraproject.org/ "Fedora Packages"
 [genrel]: #generating-unofficial-releases "Generating unofficial releases"
@@ -837,4 +1215,5 @@ TBA
 [readme.md]: README.md "READ ME"
 [rpmfusion]: https://rpmfusion.org/ "RPM Fusion"
 [rtai]: https://www.rtai.org/ "RTAI - Real Time Application Interface"
+[dkmsmokdeb]: #setting-up-module-signing-support-on-debian "Setting up module signing support on Debian"
 [systemd]: https://systemd.io/ "Systemd"
