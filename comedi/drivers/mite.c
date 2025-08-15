@@ -764,7 +764,6 @@ static void mite_decode(char **bit_str, unsigned int bits)
 }
 #endif
 
-#ifdef MODULE
 static int __init mite_init_module(void)
 {
 	mite_init();
@@ -813,4 +812,3 @@ EXPORT_SYMBOL(mite_decode);
 EXPORT_SYMBOL(mite_dump_regs);
 #endif
 
-#endif
