@@ -97,21 +97,21 @@ access, a tarball file containing a snapshot of the latest sources can
 be downloaded (using a system with network access) by visiting the link
 <https://github.com/Linux-Comedi/comedi/tarball/master>.  The downloaded
 file will have a weird name something like
-*Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6.tar.gz*, depending on the
+*Linux-Comedi-comedi-v0.7.76.1-395-g250ba89.tar.gz*, depending on the
 state of the **Comedi** **Git** repository at the time.  This can be
 unpacked using the **tar** command, and will create a sub-directory with
 a similar name (but without the *.tar.gz* extension) containing the
 snapshot of the sources.  For example:
 
 ```
-tar zxvf Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6.tar.gz
+tar zxvf Linux-Comedi-comedi-v0.7.76.1-395-g250ba89.tar.gz
 ```
 
 Change directory to that sub-directory for further operations on the
 sources.  For example:
 
 ```
-cd Linux-Comedi-comedi-v0.7.76.1-373-g58cbbf6
+cd Linux-Comedi-comedi-v0.7.76.1-395-g250ba89
 ```
 
 > [!NOTE]
@@ -458,7 +458,7 @@ make dist-gzip
 > fixed in the future.
 
 The tarball file will be generated in the build directory and will have
-a weird name something like *comedi-0.7.76.1.373-58cbb.tar.gz*.  The
+a weird name something like *comedi-0.7.76.1.395-250b.tar.gz*.  The
 files within the tarball will be in a sub-directory with the same name,
 but without the *.tar.gz* extension.
 
@@ -478,11 +478,11 @@ tarball, change to a suitable directory and unpack the tarball using the
 **tar** command, for example:
 
 ```
-tar zxvf /path/to/comedi-0.7.76.1.373-58cbb.tar.gz
+tar zxvf /path/to/comedi-0.7.76.1.395-250b.tar.gz
 ```
 
 The sources will be unpacked in the current directory, which will create
-a directory with a similar name, such as *comedi-0.7.76.1.373-58cbb*.
+a directory with a similar name, such as *comedi-0.7.76.1.395-250b*.
 Follow the instructions from section *[In-Tree And Out-Of-Tree
 Builds][builddir]* onwards, using the created directory as the
 **Comedi** top-level source directory.
@@ -676,10 +676,10 @@ system:
 >   directory.
 >
 > * **`${VER_TGZ}`** represents the **Comedi** version in the name
->   of the tarball, such as **`0.7.76.1.373-58cbb`**.
+>   of the tarball, such as **`0.7.76.1.395-250b`**.
 > * **`${VER_RPM}`** represents the **Comedi** version in the RPM files,
 >   which is the same as **`${VER_TGZ}`** with hyphens changed to
->   underscores, such as **`0.7.76.1.373_58cbb`**.
+>   underscores, such as **`0.7.76.1.395_250b`**.
 > * **`${DIST}`** represents the output from the **`rpm -E '%{?dist}'`**
 >   command, such as **.fc42** for Fedora 42.
 > * **`${PROV}`** represents the provider tag (if configured) from the
@@ -749,7 +749,7 @@ The following files need to installed on the target system:
 
 where:
 
-* *${VER_RPM}* is the RPM package version, such as *0.7.76.1.373_58cbb*
+* *${VER_RPM}* is the RPM package version, such as *0.7.76.1.395_250b*
 * *${DIST}* is the **Linux** distribution code, such as *.fc42* or
   *.el9*
 * *${PROV}* is an optional "provider" tag, such as *.mytag*
@@ -757,8 +757,8 @@ where:
 
 For example:
 
-* *comedi-common-0.7.76.1.373_58cbb-1.fc42.noarch.rpm*
-* *akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm*
+* *comedi-common-0.7.76.1.395_250b-1.fc42.noarch.rpm*
+* *akmod-comedi-0.7.76.1.395_250b-1.fc42.x86_64.rpm*
 
 > [!WARNING]
 > Before installing the **akmod-comedi** package, check for any
@@ -778,8 +778,8 @@ Example commands to install the **comedi-common** and **akmod-comedi**
 packages from RPM files in the current directory:
 
 ```
-sudo dnf install comedi-common-0.7.76.1.373_58cbb-1.fc42.noarch.rpm
-sudo dnf akmod-comedi-0.7.76.1.373_58cbb-1.fc42.x86_64.rpm
+sudo dnf install comedi-common-0.7.76.1.395_250b-1.fc42.noarch.rpm
+sudo dnf akmod-comedi-0.7.76.1.395_250b-1.fc42.x86_64.rpm
 ```
 
 (Adjust those commands to use the actual version being installed.)
@@ -1075,8 +1075,8 @@ sudo dkms add comedi/${COMEDI_VERSION}
 For example:
 
 ```
-sudo tar -C /usr/src -xaf comedi-0.7.76.1.373-58cbb.tar.gz
-sudo dkms add comedi/0.7.76.1.373-58cbb
+sudo tar -C /usr/src -xaf comedi-0.7.76.1.395-250b.tar.gz
+sudo dkms add comedi/0.7.76.1.395-250b
 ```
 
 The **dkms add** command also allows the package to be specified by
