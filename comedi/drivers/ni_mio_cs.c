@@ -628,8 +628,6 @@ static int ni_getboardtype(comedi_device * dev, struct pcmcia_device *link)
 	return 0;
 }
 
-#ifdef MODULE
-
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
 
@@ -678,7 +676,6 @@ static void __exit ni_mio_cs_exit_module(void)
 #endif
 	comedi_driver_unregister(&driver_ni_mio_cs);
 }
-#endif
 
 module_init(ni_mio_cs_init_module);
 module_exit(ni_mio_cs_exit_module);
