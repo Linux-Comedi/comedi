@@ -15,6 +15,9 @@ dnl or from git repository, or from .tarball-version-git file.
 dnl Note that the contents of the .tarball-version-git file are replaced
 dnl in archive files created by 'git archive'.
 VERSION_NUMBER=`cd $srcdir && scripts/git-version-gen .tarball-version`
+dnl If new version number is "UNKNOWN" keep the existing number
+AS_IF([test "${VERSION_NUMBER}" == "UNKNOWN"],
+      [VERSION_NUMBER=$PACKAGE_VERSION])
 gl_INIT_PACKAGE_VERSION([$VERSION_NUMBER])
 
 AC_CANONICAL_TARGET([])
