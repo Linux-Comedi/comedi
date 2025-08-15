@@ -1541,8 +1541,6 @@ static int daqp_cs_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-#ifdef MODULE
-
 static struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
@@ -1585,4 +1583,3 @@ module_init(daqp_init_module);
 module_exit(daqp_exit_module);
 COMEDI_MODULE_MACROS;
 
-#endif
