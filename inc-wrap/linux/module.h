@@ -17,6 +17,10 @@
 
 #include_next <linux/module.h>
 
+#ifndef MODULE_VERSION
+#define MODULE_VERSION(x)
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,48)
 static inline int try_module_get(struct module *module)
 {
