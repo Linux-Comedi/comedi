@@ -902,6 +902,17 @@ be tempting to configure **DKMS** to use the same certificate and
 signing key to sign the modules that it builds.  Alternatively, a
 separate signing key and certificate may be used for **DKMS**.
 
+> [!NOTE]
+> At the time of writing, **Arch Linux** kernels (up to at least kernel
+> version 6.15) are not configured with the *`CONFIG_IMA`* and
+> *`CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT`* enabled, which means there
+> is no point signing external kernel modules with a MOK because the
+> kernel will not trust the signature anyway.  Fortunately, that also
+> means the kernel will not enforce checks for valid module signatures.
+> Perhaps this will change in the future, but for now it does not matter
+> if the signing key and certificate that **DKMS** uses to sign the
+> modules it builds is enrolled for use with **Secure Boot** or not.
+
 ###### Using An Existing MOK On Arch Linux
 
 If a kernel installed by **Arch Linux** are already being signed by with
@@ -939,6 +950,16 @@ _/var/lib/dkms/mok.pub_.
 The MOK certificate will need to be enrolled for use with **Secure
 Boot**, but that can be done later.  See section *[Enrolling The DKMS
 Signing Certificate][dkmsenroll]* for details.
+
+> [!NOTE]
+> Actually, at the time of writing, for **Arch Linux** kernels up to at
+> least kernel version 6.15, the MOK certificate does not need to be
+> enrolled, because the kernel is not configured to trust the MOK
+> certificates, so will treat them as invalid.  That is OK as long as
+> the *`module.sig_enforce`* kernel command-line parameter is not
+> enabled.  The kernel will warn that the module has an invalid
+> signature, but will load it anyway.  This might change in a future
+> **Arch Linux** kernel.
 
 ##### Setting Up Module Signing Support On Debian
 
