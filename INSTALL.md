@@ -645,7 +645,8 @@ sudo dnf install buildsys-build-rpmfusion-kerneldevpkgs-current
 **akmods** was installed in a previous step, and **rpmdevtools** is one
 of its dependencies.)
 
-Now the *rpmbuild* need to be created in the builder's home directory.
+Now the *rpmbuild* directory need to be created in the builder's home
+directory.
 
 Run the **`rpmdev-setuptree`** command to set up the *rpmbuild*
 directories.  This will create the *~/rpmbuild* directory (where *~*
@@ -889,7 +890,7 @@ system, the automatically generated key might be suitable.  For example,
 **openSUSE Leap 15.6** requires the certificate to have "Code Signing"
 extended key usage, but its **dkms** package version is too old to
 generate a certificate with this usage.  So it may be necessary to
-generate the certicate and key manually.
+generate the certificate and key manually.
 
 ##### Setting Up Module Signing Support On Arch Linux
 
@@ -997,7 +998,7 @@ _/etc/dkms/framework.conf_ or _/etc/dkms/framework.conf.d/\*.conf_ files
 to set the *`mok_signing_key`* and *`mok_certificate`* variables to the
 pathnames of the existing signing key and certificate.  Without those
 changes to the **DKMS** configuration files, **dkms** will ignore the
-existing signing key and generate a new signing key and certicate that
+existing signing key and generate a new signing key and certificate that
 will need to be enrolled separately.
 
 If **DKMS** has not been configured to use an existing signing key and
