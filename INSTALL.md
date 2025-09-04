@@ -618,8 +618,8 @@ installed.  See the instructions at
 and **nonfree** repositories, but we only need to set up the **free**
 repository.
 
-For Fedora, use the following command to set up the **RPM Fusion free**
-repository:
+For **Fedora Linux**, use the following command to set up the **RPM Fusion
+free** repository:
 
 ```
 sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
