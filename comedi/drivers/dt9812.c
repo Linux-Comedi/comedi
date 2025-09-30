@@ -138,77 +138,137 @@ static void dt9812_delete(struct kref *kref)
 static int dt9812_read_info(usb_dt9812_t * dev,
 	int offset, void *buf, size_t buf_size)
 {
-	dt9812_usb_cmd_t cmd;
+	dt9812_usb_cmd_t *cmd;
+	size_t tbuf_size;
+	void *tbuf;
 	int count, retval;
 
-	cmd.cmd = cpu_to_le32(DT9812_R_FLASH_DATA);
-	cmd.u.flash_data_info.address =
-		cpu_to_le16(DT9812_DIAGS_BOARD_INFO_ADDR + offset);
-	cmd.u.flash_data_info.numbytes = cpu_to_le16(buf_size);
-
-	count = 32;
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
-	if (retval == 0) {
-		retval = usb_bulk_msg(dev->udev,
-			usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
-			buf, buf_size, &count, HZ * 1);
+	tbuf_size = max(sizeof(*cmd), buf_size);
+	tbuf = kzalloc(tbuf_size, GFP_KERNEL);
+	if (!tbuf) {
+		return -ENOMEM;
 	}
+
+	cmd = tbuf;
+
+	cmd->cmd = cpu_to_le32(DT9812_R_FLASH_DATA);
+	cmd->u.flash_data_info.address =
+		cpu_to_le16(DT9812_DIAGS_BOARD_INFO_ADDR + offset);
+	cmd->u.flash_data_info.numbytes = cpu_to_le16(buf_size);
+
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+		usb_sndbulkpipe(dev->udev, dev->command_write.addr),
+		cmd, sizeof(*cmd), &count, 1000);
+	if (retval) {
+		goto out;
+	}
+	retval = usb_bulk_msg(dev->udev,
+		usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
+		tbuf, buf_size, &count, 1000);
+	if (retval == 0) {
+		if (count == buf_size) {
+			memcpy(buf, tbuf, buf_size);
+		} else {
+			retval = -EREMOTEIO;
+		}
+	}
+
+out:
+	kfree(tbuf);
 	return retval;
 }
 
 static int dt9812_read_multiple_registers(usb_dt9812_t * dev,
 	int reg_count, u8 * address, u8 * value)
 {
-	dt9812_usb_cmd_t cmd;
+	dt9812_usb_cmd_t *cmd;
 	int i, count, retval;
+	size_t buf_size;
+	void *buf;
 
-	cmd.cmd = cpu_to_le32(DT9812_R_MULTI_BYTE_REG);
-	cmd.u.read_multi_info.count = reg_count;
+	buf_size = max_t(size_t, sizeof(*cmd), reg_count);
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf) {
+		return -ENOMEM;
+	}
+
+	cmd = buf;
+
+	cmd->cmd = cpu_to_le32(DT9812_R_MULTI_BYTE_REG);
+	cmd->u.read_multi_info.count = reg_count;
 	for (i = 0; i < reg_count; i++) {
-		cmd.u.read_multi_info.address[i] = address[i];
+		cmd->u.read_multi_info.address[i] = address[i];
 	}
-	count = 32;
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+		usb_sndbulkpipe(dev->udev, dev->command_write.addr),
+		cmd, sizeof(*cmd), &count, 1000);
+	if (retval) {
+		goto out;
+	}
+	retval = usb_bulk_msg(dev->udev,
+		usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
+		buf, reg_count, &count, 1000);
 	if (retval == 0) {
-		retval = usb_bulk_msg(dev->udev,
-			usb_rcvbulkpipe(dev->udev, dev->command_read.addr),
-			value, reg_count, &count, HZ * 1);
+		if (count == reg_count) {
+			memcpy(value, buf, reg_count);
+		} else {
+			retval = -EREMOTEIO;
+		}
 	}
+
+out:
+	kfree(buf);
 	return retval;
 }
 
 static int dt9812_write_multiple_registers(usb_dt9812_t * dev,
 	int reg_count, u8 * address, u8 * value)
 {
-	dt9812_usb_cmd_t cmd;
+	dt9812_usb_cmd_t *cmd;
 	int i, count, retval;
 
-	cmd.cmd = cpu_to_le32(DT9812_W_MULTI_BYTE_REG);
-	cmd.u.read_multi_info.count = reg_count;
-	for (i = 0; i < reg_count; i++) {
-		cmd.u.write_multi_info.write[i].address = address[i];
-		cmd.u.write_multi_info.write[i].value = value[i];
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		return -ENOMEM;
 	}
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
+
+	cmd->cmd = cpu_to_le32(DT9812_W_MULTI_BYTE_REG);
+	cmd->u.read_multi_info.count = reg_count;
+	for (i = 0; i < reg_count; i++) {
+		cmd->u.write_multi_info.write[i].address = address[i];
+		cmd->u.write_multi_info.write[i].value = value[i];
+	}
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+		usb_sndbulkpipe(dev->udev, dev->command_write.addr),
+		cmd, sizeof(*cmd), &count, 1000);
+	kfree(cmd);
 	return retval;
 }
 
 static int dt9812_rmw_multiple_registers(usb_dt9812_t * dev,
 	int reg_count, dt9812_rmw_byte_t rmw[])
 {
-	dt9812_usb_cmd_t cmd;
+	dt9812_usb_cmd_t *cmd;
 	int i, count, retval;
 
-	cmd.cmd = cpu_to_le32(DT9812_RMW_MULTI_BYTE_REG);
-	cmd.u.rmw_multi_info.count = reg_count;
-	for (i = 0; i < reg_count; i++) {
-		cmd.u.rmw_multi_info.rmw[i] = rmw[i];
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		return -ENOMEM;
 	}
-	retval = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->command_write.addr), &cmd, 32,	// DT9812 only responds to 32 byte writes!!
-		&count, HZ * 1);
+
+	cmd->cmd = cpu_to_le32(DT9812_RMW_MULTI_BYTE_REG);
+	cmd->u.rmw_multi_info.count = reg_count;
+	for (i = 0; i < reg_count; i++) {
+		cmd->u.rmw_multi_info.rmw[i] = rmw[i];
+	}
+	/* DT9812 only responds to 32 byte writes!! */
+	retval = usb_bulk_msg(dev->udev,
+		usb_sndbulkpipe(dev->udev, dev->command_write.addr),
+		cmd, sizeof(*cmd), &count, 1000);
+	kfree(cmd);
 	return retval;
 }
 
