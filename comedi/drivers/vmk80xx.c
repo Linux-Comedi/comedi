@@ -233,7 +233,7 @@ static int vmk80xx_check_data_link(struct vmk80xx_private *devpriv)
 	 * IC6 is working properly
 	 */
 	usb_bulk_msg(usb, tx_pipe, tx, 1, NULL, devpriv->ep_tx->bInterval);
-	usb_bulk_msg(usb, rx_pipe, rx, 2, NULL, HZ * 10);
+	usb_bulk_msg(usb, rx_pipe, rx, 2, NULL, 10000);
 
 	ret = (int)rx[1];
 
@@ -274,7 +274,7 @@ static void vmk80xx_read_eeprom(struct vmk80xx_private *devpriv, int flag)
 	 * IC6 from the internal EEPROM of the IC
 	 */
 	usb_bulk_msg(usb, tx_pipe, tx, 1, NULL, devpriv->ep_tx->bInterval);
-	usb_bulk_msg(usb, rx_pipe, rx, 64, &cnt, HZ * 10);
+	usb_bulk_msg(usb, rx_pipe, rx, 64, &cnt, 10000);
 
 	rx[cnt] = '\0';
 
@@ -311,7 +311,7 @@ static void vmk80xx_do_bulk_msg(struct vmk80xx_private *devpriv)
 
 	usb_bulk_msg(usb, tx_pipe, devpriv->usb_tx_buf,
 		     size, NULL, devpriv->ep_tx->bInterval);
-	usb_bulk_msg(usb, rx_pipe, devpriv->usb_rx_buf, size, NULL, HZ * 10);
+	usb_bulk_msg(usb, rx_pipe, devpriv->usb_rx_buf, size, NULL, 10000);
 }
 
 static int vmk80xx_read_packet(struct vmk80xx_private *devpriv)
@@ -335,7 +335,7 @@ static int vmk80xx_read_packet(struct vmk80xx_private *devpriv)
 	pipe = usb_rcvintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_rx_buf,
 				 le16_to_cpu(ep->wMaxPacketSize), NULL,
-				 HZ * 10);
+				 10000);
 }
 
 static int vmk80xx_write_packet(struct vmk80xx_private *devpriv, int cmd)
@@ -361,7 +361,7 @@ static int vmk80xx_write_packet(struct vmk80xx_private *devpriv, int cmd)
 	pipe = usb_sndintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_tx_buf,
 				 le16_to_cpu(ep->wMaxPacketSize), NULL,
-				 HZ * 10);
+				 10000);
 }
 
 static int vmk80xx_reset_device(struct vmk80xx_private *devpriv)
