@@ -78,7 +78,7 @@ cd comedi
 
 > [!NOTE]
 > The checked out sources in this sub-directory will need to be prepared
-> before Comedi can be configured to be built.  See the section
+> before **Comedi** can be configured to be built.  See the section
 > *[Preparing The Sources From Git][prep]*.
 
 When using the "master" branch, the sources can be brought up to date
@@ -164,7 +164,7 @@ source directory and its sub-directories are readable and writeable.
 If there is an "autoreconf: command not found" error from running the
 script, check that the **autoconf** package is installed.
 
-If there a an error from **autoreconf** about failing to run
+If there is an error from **autoreconf** about failing to run
 **aclocal**, check that the **automake** package is installed.
 
 If there are no errors running the **autogen.sh** script, then the sources
@@ -250,7 +250,10 @@ sudo make install
 > modules, but the unsigned modules should still be installed, and
 > should be loadable as long as the system is not enforcing the use of
 > signed modules.  It is possible to enroll and use your own signing
-> keys, but that is beyond the scope of this article.
+> keys, but that is beyond the scope of this section.  Some of the
+> details depend on the Linux distribution.  The automatic installation
+> methods described in section *[Automatic Installation][autoins]* have
+> the option to sign the kernel modules that they build.
 
 ## Post-Installation Steps
 
@@ -377,9 +380,9 @@ matter which is installed first.
 To use **Comedi**, the low-level hardware driver module and its
 dependencies, including the core **comedi** module need to be loaded
 into the kernel.  This is done automatically for some devices that are
-detected during system boot (mostly PCI and USB devices), but for legacy
-"Comedi" devices, this is done manually by using the **modprobe**
-command, similar to:
+detected during system boot (mostly PCI and USB devices), but for
+"legacy" device types (such as ISA cards), this is done manually by
+using the **modprobe** command, similar to:
 
 ```
 sudo modprobe your_driver
@@ -906,13 +909,14 @@ separate signing key and certificate may be used for **DKMS**.
 > [!NOTE]
 > At the time of writing, **Arch Linux** kernels (up to at least kernel
 > version 6.15) are not configured with the *`CONFIG_IMA`* and
-> *`CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT`* enabled, which means there
-> is no point signing external kernel modules with a MOK because the
-> kernel will not trust the signature anyway.  Fortunately, that also
-> means the kernel will not enforce checks for valid module signatures.
-> Perhaps this will change in the future, but for now it does not matter
-> if the signing key and certificate that **DKMS** uses to sign the
-> modules it builds is enrolled for use with **Secure Boot** or not.
+> *`CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT`* options enabled, which means
+> there is no point signing external kernel modules with a MOK because
+> the kernel will not trust the signature anyway.  Fortunately, that
+> also means the kernel will not enforce checks for valid module
+> signatures.  Perhaps this will change in the future, but for now it
+> does not matter if the signing key and certificate that **DKMS** uses
+> to sign the modules it builds is enrolled for use with **Secure Boot**
+> or not.
 
 ###### Using An Existing MOK On Arch Linux
 
