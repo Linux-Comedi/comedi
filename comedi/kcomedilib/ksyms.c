@@ -44,6 +44,7 @@
 
 /* functions specific to kcomedilib */
 
+EXPORT_SYMBOL(comedi_open_minor);
 EXPORT_SYMBOL(comedi_register_callback);
 EXPORT_SYMBOL(comedi_get_krange);
 EXPORT_SYMBOL(comedi_get_buf_head_pos);

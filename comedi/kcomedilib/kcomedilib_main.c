@@ -43,7 +43,7 @@ MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
 
-comedi_t *comedi_open_old(unsigned int minor)
+comedi_t *comedi_open_minor(unsigned int minor)
 {
 	comedi_device *dev;
 
@@ -73,7 +73,7 @@ comedi_t *comedi_open(const char *filename)
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	return comedi_open_old(minor);
+	return comedi_open_minor(minor);
 }
 
 int comedi_close(comedi_t * d)
