@@ -138,13 +138,8 @@ comedi_t *comedi_open_minor_from(unsigned int minor, int from)
 	if(dev == NULL || !dev->attached)
 		return NULL;
 
-	if (!try_module_get(dev->driver->module))
+	if (!kcomedilib_set_link_from_to(from, dev->minor))
 		return NULL;
-
-	if (!kcomedilib_set_link_from_to(from, dev->minor)) {
-		module_put(dev->driver->module);
-		return NULL;
-	}
 
 	return (comedi_t *) dev;
 }
@@ -179,7 +174,6 @@ int comedi_close_from(comedi_t * d, int from)
 	comedi_device *dev = (comedi_device *) d;
 
 	kcomedilib_clear_link_from_to(from, dev->minor);
-	module_put(dev->driver->module);
 
 	return 0;
 }
