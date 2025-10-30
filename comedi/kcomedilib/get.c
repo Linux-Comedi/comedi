@@ -110,26 +110,6 @@ lsampl_t comedi_get_maxdata(comedi_t * d, unsigned int subdevice,
 	return s->maxdata;
 }
 
-#ifdef KCOMEDILIB_DEPRECATED
-int comedi_get_rangetype(comedi_t * d, unsigned int subdevice,
-	unsigned int chan)
-{
-	comedi_device *dev = (comedi_device *) d;
-	comedi_subdevice *s = dev->subdevices + subdevice;
-	int ret;
-
-	if (s->range_table_list) {
-		ret = s->range_table_list[chan]->length;
-	} else {
-		ret = s->range_table->length;
-	}
-
-	ret = ret | (dev->minor << 28) | (subdevice << 24) | (chan << 16);
-
-	return ret;
-}
-#endif
-
 int comedi_get_n_ranges(comedi_t * d, unsigned int subdevice, unsigned int chan)
 {
 	comedi_device *dev = (comedi_device *) d;

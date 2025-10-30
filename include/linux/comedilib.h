@@ -34,8 +34,6 @@
 
 /* exported functions */
 
-#ifndef KCOMEDILIB_DEPRECATED
-
 typedef void comedi_t;
 
 /* these functions may not be called at real-time priority */
@@ -98,10 +96,6 @@ int comedi_get_n_ranges(comedi_t * dev, unsigned int subdevice, unsigned int
 int comedi_do_insn(comedi_t * dev, comedi_insn * insn);
 int comedi_poll(comedi_t * dev, unsigned int subdev);
 
-/* DEPRECATED functions */
-int comedi_get_rangetype(comedi_t * dev, unsigned int subdevice,
-	unsigned int chan);
-
 /* ALPHA functions */
 unsigned int comedi_get_subdevice_flags(comedi_t * dev, unsigned int subdevice);
 int comedi_get_len_chanlist(comedi_t * dev, unsigned int subdevice);
@@ -117,73 +111,5 @@ int comedi_mark_buffer_written(comedi_t * d, unsigned int subdevice,
 	unsigned int num_bytes);
 int comedi_get_buffer_contents(comedi_t * dev, unsigned int subdevice);
 int comedi_get_buffer_offset(comedi_t * dev, unsigned int subdevice);
-
-#else
-
-/* these functions may not be called at real-time priority */
-
-int comedi_open(unsigned int minor);
-void comedi_close(unsigned int minor);
-
-/* these functions may be called at any priority, but may fail at
-   real-time priority */
-
-int comedi_lock(unsigned int minor, unsigned int subdev);
-int comedi_unlock(unsigned int minor, unsigned int subdev);
-
-/* these functions may be called at any priority, but you must hold
-   the lock for the subdevice */
-
-int comedi_cancel(unsigned int minor, unsigned int subdev);
-int comedi_register_callback(unsigned int minor, unsigned int subdev,
-	unsigned int mask, int (*cb) (unsigned int, void *), void *arg);
-
-int comedi_command(unsigned int minor, comedi_cmd * cmd);
-int comedi_command_test(unsigned int minor, comedi_cmd * cmd);
-int comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig * it);
-int __comedi_trigger(unsigned int minor, unsigned int subdev, comedi_trig * it);
-int comedi_data_write(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t data);
-int comedi_data_read(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t * data);
-int comedi_dio_config(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int io);
-int comedi_dio_read(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int *val);
-int comedi_dio_write(unsigned int dev, unsigned int subdev, unsigned int chan,
-	unsigned int val);
-int comedi_dio_bitfield(unsigned int dev, unsigned int subdev,
-	unsigned int mask, unsigned int *bits);
-int comedi_get_n_subdevices(unsigned int dev);
-int comedi_get_version_code(unsigned int dev);
-char *comedi_get_driver_name(unsigned int dev);
-char *comedi_get_board_name(unsigned int minor);
-int comedi_get_subdevice_type(unsigned int minor, unsigned int subdevice);
-int comedi_find_subdevice_by_type(unsigned int minor, int type,
-	unsigned int subd);
-int comedi_get_n_channels(unsigned int minor, unsigned int subdevice);
-lsampl_t comedi_get_maxdata(unsigned int minor, unsigned int subdevice, unsigned
-	int chan);
-int comedi_get_n_ranges(unsigned int minor, unsigned int subdevice, unsigned int
-	chan);
-int comedi_do_insn(unsigned int minor, comedi_insn * insn);
-int comedi_poll(unsigned int minor, unsigned int subdev);
-
-/* DEPRECATED functions */
-int comedi_get_rangetype(unsigned int minor, unsigned int subdevice,
-	unsigned int chan);
-
-/* ALPHA functions */
-unsigned int comedi_get_subdevice_flags(unsigned int minor, unsigned int
-	subdevice);
-int comedi_get_len_chanlist(unsigned int minor, unsigned int subdevice);
-int comedi_get_krange(unsigned int minor, unsigned int subdevice, unsigned int
-	chan, unsigned int range, comedi_krange * krange);
-unsigned int comedi_get_buf_head_pos(unsigned int minor, unsigned int
-	subdevice);
-int comedi_set_user_int_count(unsigned int minor, unsigned int subdevice,
-	unsigned int buf_user_count);
-
-#endif
 
 #endif
