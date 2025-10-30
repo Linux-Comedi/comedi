@@ -638,7 +638,6 @@ static int timer_attach(comedi_device * dev, comedi_devconfig * it)
 	/* These should probably be devconfig options[] */
 	const int timer_priority = 4;
 	const int scan_priority = timer_priority + 1;
-	char path[20];
 
 	printk("comedi%d: timer: ", dev->minor);
 
@@ -649,8 +648,7 @@ static int timer_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_private(dev, sizeof(timer_private))) < 0)
 		return ret;
 
-	sprintf(path, "/dev/comedi%d", it->options[0]);
-	devpriv->device = comedi_open(path);
+	devpriv->device = comedi_open_minor_from(it->options[0], dev->minor);
 	devpriv->subd = it->options[1];
 
 	printk("emulating commands for minor %i, subdevice %d\n",
@@ -745,7 +743,7 @@ static int timer_detach(comedi_device * dev)
 		if (devpriv->timer_running)
 			stop_rt_timer();
 		if (devpriv->device)
-			comedi_close(devpriv->device);
+			comedi_close_from(devpriv->device, dev->minor);
 	}
 	return 0;
 }
