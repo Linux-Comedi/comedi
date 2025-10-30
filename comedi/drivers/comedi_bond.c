@@ -395,7 +395,6 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 	/* Loop through all comedi devices specified on the command-line,
 	   building our device list */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
-		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
 		comedi_t *d;
 		int sdev = -1, nchans, tmp;
@@ -414,10 +413,8 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			return 0;
 		}
 
-		snprintf(file, sizeof(file), "/dev/comedi%u", minor);
-		file[sizeof(file) - 1] = 0;
-
-		d = devs_opened[minor] = comedi_open(file);
+		d = devs_opened[minor] =
+			comedi_open_minor_from(minor, dev->minor);
 
 		if (!d) {
 			ERROR("Minor %u could not be opened\n", minor);
@@ -493,7 +490,7 @@ static void doDevUnconfig(comedi_device * dev)
 			if (!bdev)
 				continue;
 			if (!(devs_closed & (0x1 << bdev->minor))) {
-				comedi_close(bdev->dev);
+				comedi_close_from(bdev->dev, dev->minor);
 				devs_closed |= (0x1 << bdev->minor);
 			}
 			kfree(bdev);
