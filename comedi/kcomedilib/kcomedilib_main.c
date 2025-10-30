@@ -33,6 +33,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <asm/io.h>
+#include <linux/bitmap.h>
 
 #include <linux/comedidev.h>
 #include <linux/comedi.h>
@@ -43,7 +44,89 @@ MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
 
-comedi_t *comedi_open_minor(unsigned int minor)
+static DEFINE_MUTEX(kcomedilib_to_from_lock);
+
+/*
+ * Row index is the "to" node, column index is the "from" node, element value
+ * is the number of links from the "from" node to the "to" node.
+ */
+static unsigned char
+	kcomedilib_to_from[COMEDI_NUM_BOARD_MINORS][COMEDI_NUM_BOARD_MINORS];
+
+static bool kcomedilib_set_link_from_to(unsigned int from, unsigned int to)
+{
+	DECLARE_BITMAP(destinations[2], COMEDI_NUM_BOARD_MINORS);
+	unsigned int cur = 0;
+	bool okay = true;
+
+	/*
+	 * Allow "from" node to be out of range (no loop checking),
+	 * but require "to" node to be in range.
+	 */
+	if (to >= COMEDI_NUM_BOARD_MINORS)
+		return false;
+	if (from >= COMEDI_NUM_BOARD_MINORS)
+		return true;
+
+	/*
+	 * Check that kcomedilib_to_from[to][from] can be made non-zero
+	 * without creating a loop.
+	 *
+	 * Termination of the loop-testing code relies on the assumption that
+	 * kcomedilib_to_from[][] does not contain any loops.
+	 *
+	 * Start with a set destinations set containing "from" as the only
+	 * element and work backwards looking for loops.
+	 */
+	bitmap_zero(destinations[cur], COMEDI_NUM_BOARD_MINORS);
+	set_bit(from, destinations[cur]);
+	mutex_lock(&kcomedilib_to_from_lock);
+	do {
+		unsigned int next = 1 - cur;
+		unsigned int t = 0;
+
+		if (test_bit(to, destinations[cur])) {
+			/* Loop detected. */
+			okay = false;
+			break;
+		}
+		/* Create next set of destinations. */
+		bitmap_zero(destinations[next], COMEDI_NUM_BOARD_MINORS);
+		while ((t = find_next_bit(destinations[cur],
+					  COMEDI_NUM_BOARD_MINORS,
+					  t)) < COMEDI_NUM_BOARD_MINORS) {
+			unsigned int f;
+
+			for (f = 0; f < COMEDI_NUM_BOARD_MINORS; f++) {
+				if (kcomedilib_to_from[t][f])
+					set_bit(f, destinations[next]);
+			}
+			t++;
+		}
+		cur = next;
+	} while (!bitmap_empty(destinations[cur], COMEDI_NUM_BOARD_MINORS));
+	if (okay) {
+		/* Allow a maximum of 255 links from "from" to "to". */
+		if (kcomedilib_to_from[to][from] < 255)
+			kcomedilib_to_from[to][from]++;
+		else
+			okay = false;
+	}
+	mutex_unlock(&kcomedilib_to_from_lock);
+	return okay;
+}
+
+static void kcomedilib_clear_link_from_to(unsigned int from, unsigned int to)
+{
+	if (to < COMEDI_NUM_BOARD_MINORS && from < COMEDI_NUM_BOARD_MINORS) {
+		mutex_lock(&kcomedilib_to_from_lock);
+		if (kcomedilib_to_from[to][from])
+			kcomedilib_to_from[to][from]--;
+		mutex_unlock(&kcomedilib_to_from_lock);
+	}
+}
+
+comedi_t *comedi_open_minor_from(unsigned int minor, int from)
 {
 	comedi_device *dev;
 
@@ -58,10 +141,20 @@ comedi_t *comedi_open_minor(unsigned int minor)
 	if (!try_module_get(dev->driver->module))
 		return NULL;
 
+	if (!kcomedilib_set_link_from_to(from, dev->minor)) {
+		module_put(dev->driver->module);
+		return NULL;
+	}
+
 	return (comedi_t *) dev;
 }
 
-comedi_t *comedi_open(const char *filename)
+comedi_t *comedi_open_minor(unsigned int minor)
+{
+	return comedi_open_minor_from(minor, -1);
+}
+
+comedi_t *comedi_open_from(const char *filename, int from)
 {
 	unsigned int minor;
 
@@ -73,16 +166,27 @@ comedi_t *comedi_open(const char *filename)
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	return comedi_open_minor(minor);
+	return comedi_open_minor_from(minor, from);
+}
+
+comedi_t *comedi_open(const char *filename)
+{
+	return comedi_open_from(filename, -1);
+}
+
+int comedi_close_from(comedi_t * d, int from)
+{
+	comedi_device *dev = (comedi_device *) d;
+
+	kcomedilib_clear_link_from_to(from, dev->minor);
+	module_put(dev->driver->module);
+
+	return 0;
 }
 
 int comedi_close(comedi_t * d)
 {
-	comedi_device *dev = (comedi_device *) d;
-
-	module_put(dev->driver->module);
-
-	return 0;
+	return comedi_close_from(d, -1);
 }
 
 int comedi_loglevel(int newlevel)

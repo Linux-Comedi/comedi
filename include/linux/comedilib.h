@@ -39,8 +39,11 @@ typedef void comedi_t;
 /* these functions may not be called at real-time priority */
 
 comedi_t *comedi_open(const char *path);
+comedi_t *comedi_open_from(const char *path, int from);
 comedi_t *comedi_open_minor(unsigned int minor);
+comedi_t *comedi_open_minor_from(unsigned int minor, int from);
 int comedi_close(comedi_t * dev);
+int comedi_close_from(comedi_t * dev, int from);
 
 /* these functions may be called at any priority, but may fail at
    real-time priority */
