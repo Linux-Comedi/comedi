@@ -407,15 +407,15 @@ static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it)
 		printk(" 0x%04lx", iobase);
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
 			printk(" (I/O port conflict)");
-
+			ret = -EIO;
+			break;
+		}
+		ret = subdev_8255_init(dev, s, NULL, iobase);
+		if (ret) {
+			printk(" (error %d)", ret);
+			release_region(iobase, _8255_SIZE);
 			s->type = COMEDI_SUBD_UNUSED;
-		} else {
-			ret = subdev_8255_init(dev, s, NULL, iobase);
-			if (ret) {
-				release_region(iobase, _8255_SIZE);
-				s->type = COMEDI_SUBD_UNUSED;
-				break;
-			}
+			break;
 		}
 	}
 
