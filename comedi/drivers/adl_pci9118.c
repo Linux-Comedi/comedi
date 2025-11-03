@@ -1588,10 +1588,10 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 			gain = CR_RANGE(chanlist[0]);	// get gain number
 			scanquad |= ((gain & 0x03) << 8);
 			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-			DPRINTK("%02x ", scanquad | ssh);
+			DPRINTK(KERN_CONT "%02x ", scanquad | ssh);
 			ssh = devpriv->softsshhold;
 		}
-		DPRINTK("\n ");
+		DPRINTK(KERN_CONT "\n");
 	}
 
 	DPRINTK("SL: ", ssh);
@@ -1603,9 +1603,9 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 		gain = CR_RANGE(chanlist[i]);	// get gain number
 		scanquad |= ((gain & 0x03) << 8);
 		outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-		DPRINTK("%02x ", scanquad | ssh);
+		DPRINTK(KERN_CONT "%02x ", scanquad | ssh);
 	}
-	DPRINTK("\n ");
+	DPRINTK(KERN_CONT "\n");
 
 	if (backadd) {		// insert channels for fit onto 32bit DMA
 		DPRINTK("BA: %04x: ", ssh);
@@ -1614,9 +1614,9 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 			gain = CR_RANGE(chanlist[0]);	// get gain number
 			scanquad |= ((gain & 0x03) << 8);
 			outl(scanquad | ssh, dev->iobase + PCI9118_GAIN);
-			DPRINTK("%02x ", scanquad | ssh);
+			DPRINTK(KERN_CONT "%02x ", scanquad | ssh);
 		}
-		DPRINTK("\n ");
+		DPRINTK(KERN_CONT "\n");
 	}
 #ifdef PCI9118_PARANOIDCHECK
 	devpriv->chanlist[n_chan ^ usedma] = devpriv->chanlist[0 ^ usedma];	// for 32bit oerations
@@ -1633,9 +1633,9 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 #ifdef PCI9118_EXTDEBUG
 	DPRINTK("CHL: ");
 	for (i = 0; i <= (useeos * n_chan); i++) {
-		DPRINTK("%04x ", devpriv->chanlist[i]);
+		DPRINTK(KERN_CONT "%04x ", devpriv->chanlist[i]);
 	}
-	DPRINTK("\n ");
+	DPRINTK(KERN_CONT "\n");
 #endif
 #endif
 	outl(0, dev->iobase + PCI9118_SCANMOD);	// close scan queue
@@ -1858,7 +1858,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	if ((ret = alloc_private(dev, sizeof(pci9118_private))) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -1887,10 +1887,10 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -1906,7 +1906,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase_a = pci_resource_start(pcidev, 0);
 	iobase_9 = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus, pci_slot,
+	rt_printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus, pci_slot,
 		pci_func, iobase_9, iobase_a);
 
 	dev->iobase = iobase_9;
@@ -1922,14 +1922,14 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	if (irq > 0) {
 		if (comedi_request_irq(irq, interrupt_pci9118, IRQF_SHARED,
 				"ADLINK PCI-9118", dev)) {
-			rt_printk(", unable to allocate IRQ %d, DISABLING IT",
+			rt_printk(KERN_CONT ", unable to allocate IRQ %d, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
 		} else {
-			rt_printk(", irq=%u", irq);
+			rt_printk(KERN_CONT ", irq=%u", irq);
 		}
 	} else {
-		rt_printk(", IRQ disabled");
+		rt_printk(KERN_CONT ", IRQ disabled");
 	}
 
 	dev->irq = irq;
@@ -1939,7 +1939,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 				((1ULL << 32) - 1)) != 0 ||
 			pci_set_consistent_dma_mask(devpriv->pcidev,
 				((1ULL << 32) - 1)) != 0) {
-			rt_printk(", Can't set DMA mask, DMA disabled!");
+			rt_printk(KERN_CONT ", Can't set DMA mask, DMA disabled!");
 			master = 0;
 		}
 	}
@@ -1965,7 +1965,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 		}
 		if (!devpriv->dmabuf_virt[0]) {
-			rt_printk(", Can't allocate DMA buffer, DMA disabled!");
+			rt_printk(KERN_CONT ", Can't allocate DMA buffer, DMA disabled!");
 			master = 0;
 		}
 
@@ -1975,9 +1975,9 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	if ((devpriv->master = master)) {
-		rt_printk(", bus master");
+		rt_printk(KERN_CONT ", bus master");
 	} else {
-		rt_printk(", no bus master");
+		rt_printk(KERN_CONT ", no bus master");
 	}
 
 	devpriv->usemux = 0;
@@ -1989,7 +1989,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 			if (devpriv->usemux > 128) {
 				devpriv->usemux = 128;	// max 128 channels with softare S&H!
 			}
-		rt_printk(", ext. mux %d channels", devpriv->usemux);
+		rt_printk(KERN_CONT ", ext. mux %d channels", devpriv->usemux);
 	}
 
 	devpriv->softsshdelay = it->options[4];
@@ -2002,7 +2002,7 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->softsshhold = 0x80;
 	}
 
-	rt_printk(".\n");
+	rt_printk(KERN_CONT ".\n");
 
 	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);	// Enable parity check for parity error
