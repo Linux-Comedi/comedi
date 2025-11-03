@@ -71,11 +71,15 @@ static int mpc8260cpm_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(mpc8260cpm_private)) < 0)
+	if (alloc_private(dev, sizeof(mpc8260cpm_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (alloc_subdevices(dev, 4) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < 4; i++) {
 		s = dev->subdevices + i;
@@ -87,6 +91,8 @@ static int mpc8260cpm_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_config = mpc8260cpm_dio_config;
 		s->insn_bits = mpc8260cpm_dio_bits;
 	}
+
+	printk(KERN_CONT ".\n");
 
 	return 1;
 }
