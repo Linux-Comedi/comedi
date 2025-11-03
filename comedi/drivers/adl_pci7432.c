@@ -167,9 +167,6 @@ static int adl_pci7432_detach(comedi_device * dev)
 static int adl_pci7432_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	printk("comedi: pci7432_do_insn_bits called\n");
-	printk("comedi: data0: %8x data1: %8x\n", data[0], data[1]);
-
 	if (insn->n != 2)
 		return -EINVAL;
 
@@ -177,8 +174,6 @@ static int adl_pci7432_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 
-		printk("comedi: out: %8x on iobase %4lx\n", s->state,
-			dev->iobase + PCI7432_DO);
 		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
 	}
 	data[1] = s->state;
@@ -188,14 +183,10 @@ static int adl_pci7432_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int adl_pci7432_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	printk("comedi: pci7432_di_insn_bits called\n");
-	printk("comedi: data0: %8x data1: %8x\n", data[0], data[1]);
-
 	if (insn->n != 2)
 		return -EINVAL;
 
 	data[1] = inl(dev->iobase + PCI7432_DI) & 0xffffffff;
-	printk("comedi: data1 %8x\n", data[1]);
 
 	return 2;
 }
