@@ -161,7 +161,7 @@ static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
 	int retval;
 	unsigned long io_base;
 
-	printk("comedi%d: pci6208: ", dev->minor);
+	printk("comedi%d: pci6208\n", dev->minor);
 
 	retval = alloc_private(dev, sizeof(pci6208_private));
 	if (retval < 0)
@@ -215,7 +215,7 @@ static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
 	/* read back initial state of digital outputs */
 	s->state = inw(dev->iobase + 0x40) & 0xf;
 
-	printk("attached\n");
+	printk("comedi: attached\n");
 
 	return 1;
 }
