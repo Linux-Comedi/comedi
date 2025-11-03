@@ -242,8 +242,6 @@ static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_MSTS);
-	printk("comedi: pci8164 MSTS read -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -282,8 +280,6 @@ static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_SSTS);
-	printk("comedi: pci8164 SSTS read -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -322,8 +318,6 @@ static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_BUF0);
-	printk("comedi: pci8164 BUF0 read -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -362,8 +356,6 @@ static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_BUF1);
-	printk("comedi: pci8164 BUF1 read -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -402,8 +394,6 @@ static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_CMD);
-	printk("comedi: pci8164 CMD write -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -442,8 +432,6 @@ static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_OTP);
-	printk("comedi: pci8164 OTP write -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -482,8 +470,6 @@ static int adl_pci8164_insn_write_buf0(comedi_device * dev,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_BUF0);
-	printk("comedi: pci8164 BUF0 write -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
@@ -522,8 +508,6 @@ static int adl_pci8164_insn_write_buf1(comedi_device * dev,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_BUF1);
-	printk("comedi: pci8164 BUF1 write -> %04X on axis %s\n", data[0],
-		axisname);
 
 	return 1;
 }
