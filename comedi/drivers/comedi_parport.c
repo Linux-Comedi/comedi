@@ -307,28 +307,32 @@ static int parport_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: parport: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PARPORT_SIZE, "parport (comedi)")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	irq = it->options[1];
 	if (irq) {
-		printk(" irq=%u", irq);
+		printk(KERN_CONT " irq=%u", irq);
 		ret = comedi_request_irq(irq, parport_interrupt, 0,
 			"comedi_parport", dev);
 		if (ret < 0) {
-			printk(" irq not available\n");
+			printk(KERN_CONT " irq not available\n");
 			return -EINVAL;
 		}
 		dev->irq = irq;
 	}
 	dev->board_name = "parport";
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(parport_private))) < 0)
+	}
+	if ((ret = alloc_private(dev, sizeof(parport_private))) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;
@@ -376,7 +380,7 @@ static int parport_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 	return 1;
 }
 
