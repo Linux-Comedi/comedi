@@ -204,7 +204,7 @@ static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
 
         printk("comedi%d: adq12b: 0x%04lx ", dev->minor, iobase);
         if (!request_region(iobase, ADQ12B_SIZE, "adq12b")) {
-          printk("I/O port conflict\n");
+          printk(KERN_CONT "I/O port conflict\n");
           return -EIO;
         }
         dev->iobase = iobase;
@@ -219,8 +219,10 @@ static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-        if(alloc_private(dev, sizeof(adq12b_private)) < 0)
+        if(alloc_private(dev, sizeof(adq12b_private)) < 0) {
+	  printk(KERN_CONT "error allocating private data\n");
           return -ENOMEM;
+	}
 
 /* fill in devpriv structure */
         devpriv->unipolar = unipolar;
@@ -236,8 +238,10 @@ static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-        if(alloc_subdevices(dev, 3)<0)
+        if(alloc_subdevices(dev, 3)<0) {
+	   printk(KERN_CONT "error allocating subdevices\n");
            return -ENOMEM;
+	}
 
         s = dev->subdevices+0;
         /* analog input subdevice */
@@ -283,7 +287,7 @@ static int adq12b_attach(comedi_device *dev,comedi_devconfig *it)
         s->insn_bits = adq12b_do_insn_bits;
 
 
-        printk("attached\n");
+        printk(KERN_CONT "attached\n");
 
         return 0;
 }
