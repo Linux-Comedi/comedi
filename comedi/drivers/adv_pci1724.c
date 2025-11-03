@@ -260,7 +260,7 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 	opt_slot = it->options[1];
 
 	if ((ret = alloc_private(dev, sizeof(pci1724_private))) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -290,10 +290,10 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -306,7 +306,7 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 	board_id = inl(dev->iobase + PCI1724_BOARD_ID_REG) &
 		PCI1724_BOARD_ID_MASK;
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, board_id=%d",
+	rt_printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%4x, board_id=%d",
 		pci_bus, pci_slot, pci_func, iobase, board_id);
 
 	dev->iobase = iobase;
@@ -315,7 +315,7 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 
 	ret = alloc_subdevices(dev, 3);
 	if (ret) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return ret;
 	}
 
@@ -354,7 +354,7 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 	s->private	= &devpriv->spriv[2];
 	subpriv->mode	= PCI1724_DAC_CTRL_MODE_GAIN;
 
-	rt_printk(" - attached\n");
+	rt_printk(KERN_CONT " - attached\n");
 	return 0;
 }
 
