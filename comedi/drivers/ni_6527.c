@@ -368,13 +368,16 @@ static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni6527:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni6527_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(ni6527_private))) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 
 	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -384,10 +387,12 @@ static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->board_name = this_board->name;
 	printk(" %s", dev->board_name);
 
-	printk(" ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
+	printk(KERN_CONT " ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	if ((ret = alloc_subdevices(dev, 3)) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DI;
@@ -430,11 +435,11 @@ static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
 	ret = comedi_request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
 		IRQF_SHARED, "ni6527", dev);
 	if (ret < 0) {
-		printk(" irq not available");
+		printk(KERN_CONT " irq not available");
 	} else
 		dev->irq = mite_irq(devpriv->mite);
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
@@ -478,7 +483,7 @@ static int ni6527_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
