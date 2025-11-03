@@ -145,10 +145,10 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	// In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output)
 	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
 	if (!mite->daq_io_addr) {
-		printk("failed to remap daq io memory address\n");
+		printk(KERN_CONT "failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
-	printk("DAQ:0x%08llx mapped to %p\n",
+	printk(KERN_CONT "DAQ:0x%08llx mapped to %p\n",
 		(unsigned long long)mite->daq_phys_addr, mite->daq_io_addr);
 
 	if (use_iodwbsr_1) {
@@ -244,11 +244,11 @@ void mite_list_devices(void)
 	if (mite_devices)
 		for (mite = mite_devices; mite; mite = next) {
 			next = mite->next;
-			printk(" 0x%04x", mite_device_id(mite));
+			printk(KERN_CONT " 0x%04x", mite_device_id(mite));
 			if (mite->used)
-				printk("(used)");
+				printk(KERN_CONT "(used)");
 		}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 }
 
@@ -755,12 +755,13 @@ static void mite_decode(char **bit_str, unsigned int bits)
 {
 	int i;
 
+	printk(" ");
 	for (i = 31; i >= 0; i--) {
 		if (bits & (1 << i)) {
-			printk(" %s", bit_str[i]);
+			printk(KERN_CONT " %s", bit_str[i]);
 		}
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
