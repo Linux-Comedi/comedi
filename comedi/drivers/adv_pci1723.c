@@ -311,7 +311,7 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 	opt_slot = it->options[1];
 
 	if ((ret = alloc_private(dev, sizeof(pci1723_private))) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -341,10 +341,10 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -354,7 +354,7 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 	pci_func = PCI_FUNC(pcidev->devfn);
 	iobase = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x", pci_bus, pci_slot, pci_func,
+	rt_printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%4x", pci_bus, pci_slot, pci_func,
 		iobase);
 
 	dev->iobase = iobase;
@@ -370,7 +370,7 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 		n_subdevices++;
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return ret;
 	}
 
@@ -428,7 +428,7 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 
 	pci1723_reset(dev);
 
-	rt_printk(" - attached\n");
+	rt_printk(KERN_CONT " - attached\n");
 	return 0;
 }
 
