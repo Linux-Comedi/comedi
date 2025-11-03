@@ -726,13 +726,14 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned int aux_len;
 	int bus, slot;
 
-	printk("comedi%d: daqboard2000:", dev->minor);
+	printk("comedi%d: daqboard2000: ", dev->minor);
 
 	bus = it->options[0];
 	slot = it->options[1];
 
 	result = alloc_private(dev, sizeof(daqboard2000_private));
 	if (result < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
 	}
 	for (card = pci_get_device(0x1616, 0x0409, NULL);
@@ -749,10 +750,10 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	if (!card) {
 		if (bus || slot)
-			printk(" no daqboard2000 found at bus/slot: %d/%d\n",
+			printk(KERN_CONT "no daqboard2000 found at bus/slot: %d/%d\n",
 				bus, slot);
 		else
-			printk(" no daqboard2000 found\n");
+			printk(KERN_CONT "no daqboard2000 found\n");
 		return -EIO;
 	} else {
 		u32 id;
@@ -762,18 +763,18 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 			subsystem_vendor;
 		for (i = 0; i < n_boardtypes; i++) {
 			if (boardtypes[i].id == id) {
-				printk(" %s", boardtypes[i].name);
+				printk(KERN_CONT " %s", boardtypes[i].name);
 				dev->board_ptr = boardtypes + i;
 			}
 		}
 		if (!dev->board_ptr) {
-			printk(" unknown subsystem id %08x (pretend it is an ids2)", id);
+			printk(KERN_CONT "unknown subsystem id %08x (pretend it is an ids2) ", id);
 			dev->board_ptr = boardtypes;
 		}
 	}
 
 	if ((result = comedi_pci_enable(card, "daqboard2000")) < 0) {
-		printk(" failed to enable PCI device and request regions\n");
+		printk(KERN_CONT "failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	devpriv->got_regions = 1;
@@ -782,12 +783,15 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->daq =
 		ioremap(pci_resource_start(card, 2), DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq) {
+		printk(KERN_CONT "failed to remap registers\n");
 		return -ENOMEM;
 	}
 
 	result = alloc_subdevices(dev, 3);
-	if (result < 0)
+	if (result < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		goto out;
+	}
 
 	readl(devpriv->plx + 0x6c);
 
@@ -804,7 +808,7 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	if (aux_data && aux_len) {
 		result = initialize_daqboard2000(dev, aux_data, aux_len);
 	} else {
-		printk("no FPGA initialization code, aborting\n");
+		printk(KERN_CONT "no FPGA initialization code, aborting\n");
 		result = -EIO;
 	}
 	if (result < 0)
@@ -844,7 +848,7 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 		(unsigned long)(dev->iobase + 0x40));
 
-	printk("\n");
+	printk(KERN_CONT "\n");
       out:
 	return result;
 }
