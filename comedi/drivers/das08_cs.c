@@ -88,7 +88,7 @@ static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (thisboard->bustype == pcmcia) {
 		if (link == NULL) {
-			printk(" no pcmcia cards found\n");
+			printk(KERN_CONT " no pcmcia cards found\n");
 			return -EIO;
 		}
 #ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
@@ -97,11 +97,11 @@ static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it)
 		iobase = link->resource[0]->start;
 #endif
 	} else {
-		printk(" bug! board does not have PCMCIA bustype\n");
+		printk(KERN_CONT " bug! board does not have PCMCIA bustype\n");
 		return -EINVAL;
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return das08_common_attach(dev, iobase);
 }
@@ -534,7 +534,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u",
+		printk(KERN_CONT ", irq %u",
 #ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
@@ -543,18 +543,18 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 			);
 #ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(KERN_CONT ", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(KERN_CONT " & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2 + link->io.NumPorts2 - 1);
 #else
 	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
+		printk(KERN_CONT ", io %pR", link->resource[0]);
 	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
+		printk(KERN_CONT " & %pR", link->resource[1]);
 #endif
-	printk("\n");
+	printk(KERN_CONT "\n");
 #endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
