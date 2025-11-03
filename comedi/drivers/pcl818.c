@@ -1720,14 +1720,14 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->usefifo = 1;
 	}
 	if (!request_region(iobase, devpriv->io_range, "pcl818")) {
-		rt_printk("I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
 
 	if (pcl818_check(iobase)) {
-		rt_printk(", I can't detect board. FAIL!\n");
+		printk(KERN_CONT ", I can't detect board. FAIL!\n");
 		return -EIO;
 	}
 
@@ -1739,19 +1739,19 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
-				rt_printk
-					(", IRQ %u is out of allowed range, DISABLING IT",
+				printk
+					(KERN_CONT ", IRQ %u is out of allowed range, DISABLING IT",
 					irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl818, 0,
 						"pcl818", dev)) {
-					rt_printk
-						(", unable to allocate IRQ %u, DISABLING IT",
+					printk
+						(KERN_CONT ", unable to allocate IRQ %u, DISABLING IT",
 						irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					rt_printk(", irq=%u", irq);
+					printk(KERN_CONT ", irq=%u", irq);
 				}
 			}
 		}
@@ -1784,7 +1784,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 				"pcl818 DMA (RTC)", dev)) {
 			devpriv->dma_rtc = 1;
 			devpriv->rtc_irq = RTC_IRQ;
-			rt_printk(", dma_irq=%u", devpriv->rtc_irq);
+			printk(KERN_CONT ", dma_irq=%u", devpriv->rtc_irq);
 		} else {
 			RTC_lock--;
 			if (RTC_lock == 0) {
@@ -1809,20 +1809,20 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		if (dma < 1)
 			goto no_dma;	/* DMA disabled */
 		if (((1 << dma) & this_board->DMAbits) == 0) {
-			rt_printk(", DMA is out of allowed range, FAIL!\n");
+			printk(KERN_CONT ", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, "pcl818");
 		if (ret) {
-			rt_printk(", unable to allocate DMA %u, FAIL!\n", dma);
+			printk(KERN_CONT ", unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 		devpriv->dma = dma;
-		rt_printk(", dma=%u", dma);
+		printk(KERN_CONT ", dma=%u", dma);
 		pages = 2;	/* we need 16KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0]) {
-			rt_printk(", unable to allocate DMA buffer, FAIL!\n");
+			printk(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 			/* maybe experiment with try_to_free_pages() will help .... */
 			return -EBUSY;	/* no buffer :-( */
 		}
@@ -1830,12 +1830,12 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->hwdmaptr[0] =
 			isa_virt_to_bus((void *)devpriv->dmabuf[0]);
 		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
-		//rt_printk("%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE);
+		//printk(KERN_CONT "%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE);
 		if (devpriv->dma_rtc == 0) {	// we must do duble buff :-(
 			devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 			if (!devpriv->dmabuf[1]) {
-				rt_printk
-					(", unable to allocate DMA buffer, FAIL!\n");
+				printk
+					(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 				return -EBUSY;
 			}
 			devpriv->dmapages[1] = pages;
@@ -1847,8 +1847,10 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 
       no_dma:
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT ", allocation failure\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	if (!this_board->n_aichan_se) {
@@ -1860,11 +1862,11 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		if (check_single_ended(dev->iobase)) {
 			s->n_chan = this_board->n_aichan_se;
 			s->subdev_flags |= SDF_COMMON | SDF_GROUND;
-			printk(", %dchans S.E. DAC", s->n_chan);
+			printk(KERN_CONT ", %dchans S.E. DAC", s->n_chan);
 		} else {
 			s->n_chan = this_board->n_aichan_diff;
 			s->subdev_flags |= SDF_DIFF;
-			printk(", %dchans DIFF DAC", s->n_chan);
+			printk(KERN_CONT ", %dchans DIFF DAC", s->n_chan);
 		}
 		s->maxdata = this_board->ai_maxdata;
 		s->len_chanlist = s->n_chan;
@@ -1992,7 +1994,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 
 	pcl818_reset(dev);
 
-	rt_printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
