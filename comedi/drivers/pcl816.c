@@ -664,7 +664,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	if ((cmd->flags & TRIG_WAKE_EOS)) {	// don't we want wake up every scan?
-		printk("pl816: You wankt WAKE_EOS but I dont want handle it");
+		printk("pl816: You wankt WAKE_EOS but I dont want handle it\n");
 		//              devpriv->ai_eos=1;
 		//if (devpriv->ai_n_chan==1)
 		//      devpriv->dma=0; // DMA is useless for this situation
@@ -1056,19 +1056,21 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 		this_board->name, iobase);
 
 	if (!request_region(iobase, this_board->io_range, "pcl816")) {
-		rt_printk("I/O port conflict\n");
+		rt_printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
 
 	if (pcl816_check(iobase)) {
-		rt_printk(", I cann't detect board. FAIL!\n");
+		rt_printk(KERN_CONT ", I can't detect board. FAIL!\n");
 		return -EIO;
 	}
 
-	if ((ret = alloc_private(dev, sizeof(pcl816_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(pcl816_private))) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;	/* Can't alloc mem */
+	}
 
 	/* set up some name stuff */
 	dev->board_name = this_board->name;
@@ -1080,18 +1082,18 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
 				rt_printk
-					(", IRQ %u is out of allowed range, DISABLING IT",
+					(KERN_CONT ", IRQ %u is out of allowed range, DISABLING IT",
 					irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl816, 0,
 						"pcl816", dev)) {
 					rt_printk
-						(", unable to allocate IRQ %u, DISABLING IT",
+						(KERN_CONT ", unable to allocate IRQ %u, DISABLING IT",
 						irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					rt_printk(", irq=%u", irq);
+					rt_printk(KERN_CONT ", irq=%u", irq);
 				}
 			}
 		}
@@ -1125,7 +1127,7 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 				"pcl816 DMA (RTC)", dev)) {
 			devpriv->dma_rtc = 1;
 			devpriv->rtc_irq = RTC_IRQ;
-			rt_printk(", dma_irq=%u", devpriv->rtc_irq);
+			rt_printk(KERN_CONT ", dma_irq=%u", devpriv->rtc_irq);
 		} else {
 			RTC_lock--;
 			if (RTC_lock == 0) {
@@ -1137,7 +1139,7 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->rtc_iosize = 0;
 		}
 #else
-		printk("pcl816: RTC code missing");
+		printk(KERN_CONT ", RTC code missing");
 #endif
 
 	}
@@ -1156,22 +1158,22 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 			goto no_dma;	/* DMA disabled */
 
 		if (((1 << dma) & this_board->DMAbits) == 0) {
-			rt_printk(", DMA is out of allowed range, FAIL!\n");
+			rt_printk(KERN_CONT ", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, "pcl816");
 		if (ret) {
-			rt_printk(", unable to allocate DMA %u, FAIL!\n", dma);
+			rt_printk(KERN_CONT ", unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 
 		devpriv->dma = dma;
-		rt_printk(", dma=%u", dma);
+		rt_printk(KERN_CONT ", dma=%u", dma);
 		pages = 2;	/* we need 16KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 
 		if (!devpriv->dmabuf[0]) {
-			rt_printk(", unable to allocate DMA buffer, FAIL!\n");
+			rt_printk(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 			/* maybe experiment with try_to_free_pages() will help .... */
 			return -EBUSY;	/* no buffer :-( */
 		}
@@ -1185,7 +1187,7 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 			if (!devpriv->dmabuf[1]) {
 				rt_printk
-					(", unable to allocate DMA buffer, FAIL!\n");
+					(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 				return -EBUSY;
 			}
 			devpriv->dmapages[1] = pages;
@@ -1204,8 +1206,10 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
   if (this_board->n_dochan > 0)
     subdevs[3] = COMEDI_SUBD_DO;
 */
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+		printk(KERN_CONT ", allocation failure\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	if (this_board->n_aichan > 0) {
@@ -1215,7 +1219,7 @@ static int pcl816_attach(comedi_device * dev, comedi_devconfig * it)
 		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 		s->n_chan = this_board->n_aichan;
 		s->subdev_flags |= SDF_DIFF;
-		//printk (", %dchans DIFF DAC - %d", s->n_chan, i);
+		//printk (KERN_CONT ", %dchans DIFF DAC - %d", s->n_chan, i);
 		s->maxdata = this_board->ai_maxdata;
 		s->len_chanlist = this_board->ai_chanlist;
 		s->range_table = this_board->ai_range_type;
@@ -1256,7 +1260,7 @@ case COMEDI_SUBD_DO:
 
 	pcl816_reset(dev);
 
-	rt_printk("\n");
+	rt_printk(KERN_CONT "\n");
 
 	return 0;
 }
