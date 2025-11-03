@@ -1404,24 +1404,26 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 	if (it->options[3]) {
 		if (it->options[3] != 0 &&
 			it->options[3] != 1 && it->options[3] != 10) {
-			printk("\n Invalid option.  Master clock must be set to 1 or 10 (MHz)\n");
+			printk(KERN_CONT " Invalid option.  Master clock must be set to 1 or 10 (MHz)\n");
 			return -EINVAL;
 		}
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct das16_private_struct))) < 0)
+	if ((ret = alloc_private(dev, sizeof(struct das16_private_struct))) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
 
 	devpriv->dev = dev;
 
 	if (thisboard->size < 0x400) {
-		printk(" 0x%04lx-0x%04lx\n", iobase, iobase + thisboard->size);
+		printk(KERN_CONT " 0x%04lx-0x%04lx\n", iobase, iobase + thisboard->size);
 		if (!request_region(iobase, thisboard->size, "das16")) {
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
 	} else {
-		printk(" 0x%04lx-0x%04lx 0x%04lx-0x%04lx\n",
+		printk(KERN_CONT " 0x%04lx-0x%04lx 0x%04lx-0x%04lx\n",
 			iobase, iobase + 0x0f,
 			iobase + 0x400,
 			iobase + 0x400 + (thisboard->size & 0x3ff));
@@ -1485,7 +1487,7 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 				return -ENOMEM;
 		}
 		if (request_dma(dma_chan, "das16")) {
-			printk(" failed to allocate dma channel %i\n",
+			printk(KERN_CONT " failed to allocate dma channel %i\n",
 				dma_chan);
 			return -EINVAL;
 		}
@@ -1494,11 +1496,11 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 		disable_dma(devpriv->dma_chan);
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 		release_dma_lock(flags);
-		printk(" ( dma = %u)\n", dma_chan);
+		printk(KERN_CONT " ( dma = %u)\n", dma_chan);
 	} else if (dma_chan == 0) {
-		printk(" ( no dma )\n");
+		printk(KERN_CONT " ( no dma )\n");
 	} else {
-		printk(" invalid dma channel\n");
+		printk(KERN_CONT " invalid dma channel\n");
 		return -EINVAL;
 	}
 
