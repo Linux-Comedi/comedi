@@ -93,15 +93,17 @@ static int acl7225b_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: acl7225b: board=%s 0x%04x ", dev->minor,
 		this_board->name, iobase);
 	if (!request_region(iobase, iorange, "acl7225b")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->board_name = this_board->name;
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 3) < 0)
+	if (alloc_subdevices(dev, 3) < 0) {
+		printk(KERN_CONT "Error allocating subdevices\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* Relays outputs */
@@ -133,7 +135,7 @@ static int acl7225b_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &range_digital;
 	s->private = (void *)ACL7225_DI_LO;
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
