@@ -470,12 +470,12 @@ int labpc_common_attach(comedi_device * dev, unsigned long iobase,
 	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name,
 		iobase);
 	if (irq) {
-		printk(", irq %u", irq);
+		printk(KERN_CONT ", irq %u", irq);
 	}
 	if (dma_chan) {
-		printk(", dma %u", dma_chan);
+		printk(KERN_CONT ", dma %u", dma_chan);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	if (iobase == 0) {
 		printk("io base address is zero!\n");
@@ -634,9 +634,9 @@ int labpc_common_attach(comedi_device * dev, unsigned long iobase,
 #ifdef LABPC_DEBUG
 		printk(" eeprom:");
 		for (i = 0; i < EEPROM_SIZE; i++) {
-			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
+			printk(KERN_CONT " %i:0x%x ", i, devpriv->eeprom_data[i]);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 #endif
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
