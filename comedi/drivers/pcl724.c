@@ -139,7 +139,7 @@ static int pcl724_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
 		this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl724")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -154,18 +154,18 @@ static int pcl724_attach(comedi_device * dev, comedi_devconfig * it)
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
 				rt_printk
-					(", IRQ %u is out of allowed range, DISABLING IT",
+					(KERN_CONT ", IRQ %u is out of allowed range, DISABLING IT",
 					irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl724, 0,
 						"pcl724", dev)) {
 					rt_printk
-						(", unable to allocate IRQ %u, DISABLING IT",
+						(KERN_CONT ", unable to allocate IRQ %u, DISABLING IT",
 						irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					rt_printk(", irq=%u", irq);
+					rt_printk(KERN_CONT ", irq=%u", irq);
 				}
 			}
 		}
@@ -174,7 +174,7 @@ static int pcl724_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = irq;
 #endif
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	n_subdevices = this_board->numofports;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
