@@ -243,7 +243,7 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned int aichanstat;
 	//int i;
 
-	printk("comedi%d: cb_pcimdas: ", dev->minor);
+	printk("comedi%d: cb_pcimdas:\n", dev->minor);
 
 /*
  * Allocate the private structure area.
@@ -254,8 +254,6 @@ static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 /*
  * Probe the device to determine what device in the series it is.
  */
-	printk("\n");
-
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
