@@ -148,14 +148,16 @@ static int dt2817_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 	dev->board_name = "dt2817";
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 
@@ -170,7 +172,7 @@ static int dt2817_attach(comedi_device * dev, comedi_devconfig * it)
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
