@@ -973,10 +973,9 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 	if (thisboard->bustype == pci) {
 #ifdef COMEDI_CONFIG_PCI
 		if (it->options[0] || it->options[1]) {
-			printk("bus %i slot %i ",
+			printk(KERN_CONT "bus %i slot %i ",
 				it->options[0], it->options[1]);
 		}
-		printk("\n");
 		// find card
 		for (pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 			pdev != NULL;
@@ -995,7 +994,7 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 		}
 		if (!pdev) {
-			printk("No pci das08 cards found\n");
+			printk(KERN_CONT "No pci das08 cards found\n");
 			return -EIO;
 		}
 		devpriv->pdev = pdev;
@@ -1021,13 +1020,13 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
 #endif
 #else	/* COMEDI_CONFIG_PCI */
-		printk("this driver has not been built with PCI support.\n");
+		printk(KERN_CONT "this driver has not been built with PCI support.\n");
 		return -EINVAL;
 #endif	/* COMEDI_CONFIG_PCI */
 	} else {
 		iobase = it->options[0];
+		printk(KERN_CONT "\n");
 	}
-	printk("\n");
 
 	return das08_common_attach(dev, iobase);
 }
