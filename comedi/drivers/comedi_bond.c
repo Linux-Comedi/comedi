@@ -452,7 +452,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 				Realloc(devpriv->devs,
 				++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
-				ERROR("Could not allocate memory. Out of memory?");
+				ERROR("Could not allocate memory. Out of memory?\n");
 				return 0;
 			}
 
