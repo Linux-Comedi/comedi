@@ -172,4 +172,12 @@ static inline int comedi_strict_strtoll(const char *cp, unsigned int base,
 	({ type __x = (x); type __y = (y); __x > __y ? __x : __y; })
 #endif
 
+#ifndef KERN_CONT
+#define KERN_CONT	""
+#endif
+
+#ifndef KERN_DEFAULT
+#define KERN_DEFAULT	""
+#endif
+
 #endif // _KERNEL_COMPAT_H
