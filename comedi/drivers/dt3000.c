@@ -389,10 +389,10 @@ static void debug_intr_flags(unsigned int flags)
 	printk("dt3k: intr_flags:");
 	for (i = 0; i < 8; i++) {
 		if (flags & (1 << i)) {
-			printk(" %s", intr_flags[i]);
+			printk(KERN_CONT " %s", intr_flags[i]);
 		}
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
@@ -807,14 +807,16 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 	bus = it->options[0];
 	slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0) {
+		printk(KERN_CONT "allocation error\n");
 		return ret;
+	}
 
 	ret = dt_pci_probe(dev, bus, slot);
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
-		printk(" no DT board found\n");
+		printk(KERN_CONT " no DT board found\n");
 		return -ENODEV;
 	}
 
@@ -827,8 +829,10 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	dev->irq = devpriv->pci_dev->irq;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT "allocation error\n");
 		return ret;
+	}
 
 	s = dev->subdevices;
 	dev->read_subdev = s;
@@ -882,6 +886,8 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 	/* proc subsystem */
 	s->type = COMEDI_SUBD_PROC;
 #endif
+
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
@@ -943,16 +949,20 @@ static int setup_pci(comedi_device * dev)
 	int ret;
 
 	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_CONT " error %d enabing PCI device\n", ret);
 		return ret;
+	}
 
 	addr = pci_resource_start(devpriv->pci_dev, 0);
 	devpriv->phys_addr = addr;
 	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
-	if (!devpriv->io_addr)
+	if (!devpriv->io_addr) {
+		printk(KERN_CONT " error remapping registers\n");
 		return -ENOMEM;
+	}
 #if DEBUG
-	printk("0x%08llx mapped to %p, ",
+	printk(KERN_CONT " 0x%08llx mapped to %p, ",
 		(unsigned long long)devpriv->phys_addr, devpriv->io_addr);
 #endif
 
