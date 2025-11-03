@@ -274,8 +274,10 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 
@@ -306,7 +308,6 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 		default:
 			printk("DIO_INTERNAL not implemented yet!\n");
 			return -ENXIO;
-			break;
 		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -314,7 +315,7 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 
 	devpriv->attached_successfully = 1;
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
