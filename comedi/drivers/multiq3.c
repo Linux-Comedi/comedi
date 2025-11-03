@@ -243,7 +243,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 
 	iobase = it->options[0];
-	printk("comedi%d: multiq3: 0x%04lx ", dev->minor, iobase);
+	printk("comedi%d: multiq3: 0x%04lx\n", dev->minor, iobase);
 	if (!request_region(iobase, MULTIQ3_SIZE, "multiq3")) {
 		printk("comedi%d: I/O port conflict\n", dev->minor);
 		return -EIO;
