@@ -451,9 +451,9 @@ static int das800_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: das800: io 0x%lx", dev->minor, iobase);
 	if (irq) {
-		printk(", irq %u", irq);
+		printk(KERN_CONT ", irq %u", irq);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(das800_private)) < 0)
