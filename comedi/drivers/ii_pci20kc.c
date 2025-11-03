@@ -218,7 +218,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	/* Check PCI-20001 C-2A Carrier Board ID */
 	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
 		printk("comedi%d: ii_pci20kc", dev->minor);
-		printk(" PCI-20001 C-2A Carrier Board at base=0x%p not found !\n", devpriv->ioaddr);
+		printk(KERN_CONT " PCI-20001 C-2A Carrier Board at base=0x%p not found !\n", devpriv->ioaddr);
 		return -EINVAL;
 	}
 	printk("comedi%d:\n", dev->minor);
@@ -236,7 +236,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 			pci20006_init(dev, s, it->options[2 * i + 2],
 				it->options[2 * i + 3]);
 			printk("comedi%d: ii_pci20kc", dev->minor);
-			printk(" PCI-20006 module in slot %d \n", i + 1);
+			printk(KERN_CONT " PCI-20006 module in slot %d \n", i + 1);
 			break;
 		case PCI20341_ID:
 			sdp->pci20341.iobase =
@@ -244,7 +244,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 			pci20341_init(dev, s, it->options[2 * i + 2],
 				it->options[2 * i + 3]);
 			printk("comedi%d: ii_pci20kc", dev->minor);
-			printk(" PCI-20341 module in slot %d \n", i + 1);
+			printk(KERN_CONT " PCI-20341 module in slot %d \n", i + 1);
 			break;
 		default:
 			printk("ii_pci20kc: unknown module code 0x%02x in slot %d: module disabled\n", id, i);
