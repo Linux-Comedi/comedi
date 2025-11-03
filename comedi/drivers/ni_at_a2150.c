@@ -335,16 +335,16 @@ static int a2150_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name,
 		iobase);
 	if (irq) {
-		printk(", irq %u", irq);
+		printk(KERN_CONT ", irq %u", irq);
 	} else {
-		printk(", no irq");
+		printk(KERN_CONT ", no irq");
 	}
 	if (dma) {
-		printk(", dma %u", dma);
+		printk(KERN_CONT ", dma %u", dma);
 	} else {
-		printk(", no dma");
+		printk(KERN_CONT ", no dma");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(a2150_private)) < 0)
