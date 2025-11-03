@@ -268,13 +268,13 @@ static int pcm3724_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
 		this_board->name, iobase);
 	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
 	dev->board_name = this_board->name;
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	n_subdevices = this_board->numofports;
 
