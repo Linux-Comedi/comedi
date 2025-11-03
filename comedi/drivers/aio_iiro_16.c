@@ -99,17 +99,21 @@ static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 
 	if (!request_region(iobase, AIO_IIRO_16_SIZE, dev->board_name)) {
-		printk("I/O port conflict");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
 
-	if (alloc_private(dev, sizeof(aio_iiro_16_private)) < 0)
+	if (alloc_private(dev, sizeof(aio_iiro_16_private)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;
@@ -127,7 +131,7 @@ static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &range_digital;
 	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
