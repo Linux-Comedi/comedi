@@ -133,20 +133,22 @@ static int fl512_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi:%d fl512: 0x%04lx", dev->minor, iobase);
 	if (!request_region(iobase, FL512_SIZE, "fl512")) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 	dev->board_name = "fl512";
-	if (alloc_private(dev, sizeof(fl512_private)) < 0)
+	if (alloc_private(dev, sizeof(fl512_private)) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return -ENOMEM;
+	}
 
-#if DEBUG
-	printk("malloc ok\n");
-#endif
-
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return -ENOMEM;
+	}
+
+	printk(KERN_CONT "\n");
 
 	/*
 	 * this if the definitions of the supdevices, 2 have been defined
