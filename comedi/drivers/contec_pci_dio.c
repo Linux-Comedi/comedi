@@ -106,11 +106,15 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(contec_private)) < 0)
+	if (alloc_private(dev, sizeof(contec_private)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
@@ -128,11 +132,11 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 			devpriv->pci_dev = pcidev;
 			if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
-				printk("error enabling PCI device and request regions!\n");
+				printk(KERN_CONT "error enabling PCI device and request regions!\n");
 				return -EIO;
 			}
 			dev->iobase = pci_resource_start(pcidev, 0);
-			printk(" base addr %lx ", dev->iobase);
+			printk(KERN_CONT " base addr %lx ", dev->iobase);
 
 			dev->board_ptr = contec_boards + 0;
 
@@ -153,13 +157,13 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 			s->range_table = &range_digital;
 			s->insn_bits = contec_do_insn_bits;
 
-			printk("attached\n");
+			printk(KERN_CONT "attached\n");
 
 			return 1;
 		}
 	}
 
-	printk("card not present!\n");
+	printk(KERN_CONT "card not present!\n");
 
 	return -EIO;
 }
@@ -196,17 +200,12 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 
-	printk("contec_do_insn_bits called\n");
-	printk(" data: %d %d\n", data[0], data[1]);
-
 	if (insn->n != 2)
 		return -EINVAL;
 
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
-		rt_printk("  out: %d on %lx\n", s->state,
-			dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
 	data[1] = s->state;
@@ -216,9 +215,6 @@ static int contec_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-
-	rt_printk("contec_di_insn_bits called\n");
-	rt_printk(" data: %d %d\n", data[0], data[1]);
 
 	if (insn->n != 2)
 		return -EINVAL;
