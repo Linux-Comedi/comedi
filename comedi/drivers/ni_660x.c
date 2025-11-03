@@ -1026,14 +1026,17 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: ni_660x: ", dev->minor);
 
 	ret = ni_660x_allocate_private(dev);
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;
+	}
 	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
 	dev->board_name = board(dev)->name;
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup2(private(dev)->mite, 1);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -1048,8 +1051,10 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
 
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
+	if (alloc_subdevices(dev, dev->n_subdevices) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
@@ -1072,8 +1077,10 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 		&ni_gpct_write_register, &ni_gpct_read_register,
 		ni_gpct_variant_660x, ni_660x_num_counters(dev),
 		counters_per_chip);
-	if (private(dev)->counter_dev == NULL)
+	if (private(dev)->counter_dev == NULL) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
 		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
 		if (i < ni_660x_num_counters(dev)) {
@@ -1120,7 +1127,7 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = comedi_request_irq(mite_irq(private(dev)->mite),
 				&ni_660x_interrupt, IRQF_SHARED, "ni_660x",
 				dev)) < 0) {
-		printk(" irq not available\n");
+		printk(KERN_CONT " irq not available\n");
 		return ret;
 	}
 	dev->irq = mite_irq(private(dev)->mite);
@@ -1129,7 +1136,7 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 		GlobalInterruptConfigRegister);
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 	return 0;
 }
 
@@ -1214,7 +1221,7 @@ static int ni_660x_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
