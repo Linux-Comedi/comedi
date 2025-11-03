@@ -185,21 +185,23 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: cb_das16_cs: ", dev->minor);
 
 	link = cur_dev;		/* XXX hack */
-	if (!link)
+	if (!link) {
+		printk(KERN_CONT "no device\n");
 		return -EIO;
+	}
 
 #ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	dev->iobase = link->io.BasePort1;
 #else
 	dev->iobase = link->resource[0]->start;
 #endif
-	printk("I/O base=0x%04lx ", dev->iobase);
+	printk(KERN_CONT "I/O base=0x%04lx\n", dev->iobase);
 
-	printk("fingerprint:\n");
+	printk("fingerprint:");
 	for (i = 0; i < 48; i += 2) {
-		printk("%04x ", inw(dev->iobase + i));
+		printk(KERN_CONT " %04x", inw(dev->iobase + i));
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	ret = comedi_request_irq(
 #ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
@@ -217,7 +219,7 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 #else
 	dev->irq = link->irq;
 #endif
-	printk("irq=%u ", dev->irq);
+	printk("irq=%u\n", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
 	if (!dev->board_ptr)
@@ -1057,7 +1059,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u",
+		printk(KERN_CONT ", irq %u",
 #ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
@@ -1067,18 +1069,18 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 
 #ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(KERN_CONT ", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(KERN_CONT " & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2 + link->io.NumPorts2 - 1);
 #else
 	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
+		printk(KERN_CONT ", io %pR", link->resource[0]);
 	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
+		printk(KERN_CONT " & %pR", link->resource[1]);
 #endif
-	printk("\n");
+	printk(KERN_CONT "\n");
 #endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
