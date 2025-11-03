@@ -315,7 +315,7 @@ static int das6402_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: das6402: 0x%04lx", dev->minor, iobase);
 
 	if (!request_region(iobase, DAS6402_SIZE, "das6402")) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -323,19 +323,24 @@ static int das6402_attach(comedi_device * dev, comedi_devconfig * it)
 	/* should do a probe here */
 
 	irq = it->options[0];
-	printk(" ( irq = %u )", irq);
+	printk(KERN_CONT " ( irq = %u )", irq);
 	ret = comedi_request_irq(irq, intr_handler, 0, "das6402", dev);
 	if (ret < 0) {
-		printk("irq conflict\n");
+		printk(KERN_CONT "irq conflict\n");
 		return ret;
 	}
 	dev->irq = irq;
 
-	if ((ret = alloc_private(dev, sizeof(das6402_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(das6402_private))) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
+	printk(KERN_CONT "\n");
 
 	/* ai subdevice */
 	s = dev->subdevices + 0;
