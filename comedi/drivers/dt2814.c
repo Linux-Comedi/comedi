@@ -253,7 +253,7 @@ static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: dt2814: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2814_SIZE, "dt2814")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -262,7 +262,7 @@ static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 	outb(0, dev->iobase + DT2814_CSR);
 	comedi_udelay(100);
 	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
-		printk("reset error (fatal)\n");
+		printk(KERN_CONT "reset error (fatal)\n");
 		return -EIO;
 	}
 	i = inb(dev->iobase + DT2814_DATA);
@@ -282,7 +282,7 @@ static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
 		if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
-			printk("error probing irq (bad) \n");
+			printk(KERN_CONT "error probing irq (bad) \n");
 		}
 
 		i = inb(dev->iobase + DT2814_DATA);
@@ -292,18 +292,18 @@ static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = 0;
 	if (irq > 0) {
 		if (comedi_request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
-			printk("(irq %d unavailable)\n", irq);
+			printk(KERN_CONT "(irq %d unavailable)\n", irq);
 		} else {
-			printk("( irq = %d )\n", irq);
+			printk(KERN_CONT "( irq = %d )\n", irq);
 			dev->irq = irq;
 		}
 	} else if (irq == 0) {
-		printk("(no irq)\n");
+		printk(KERN_CONT "(no irq)\n");
 	} else {
 #if 0
-		printk("(probe returned multiple irqs--bad)\n");
+		printk(KERN_CONT "(probe returned multiple irqs--bad)\n");
 #else
-		printk("(irq probe not implemented)\n");
+		printk(KERN_CONT "(irq probe not implemented)\n");
 #endif
 	}
 
