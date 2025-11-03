@@ -192,7 +192,7 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 					devpriv->iobase + APCI2032_DIGITAL_OP);
 			}	// if(data[1]==1)
 			else {
-				printk("\nSpecified channel not supported\n");
+				printk("Specified channel not supported\n");
 			}	//else if(data[1]==1)
 		}		//elseif(data[1]==0)
 	}			//if(data[3]==0)
@@ -281,12 +281,12 @@ INT i_APCI2032_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 						APCI2032_DIGITAL_OP);
 				}	// if(data[1]==1)
 				else {
-					printk("\nSpecified channel not supported\n");
+					printk("Specified channel not supported\n");
 				}	//else if(data[1]==1)
 			}	//elseif(data[1]==0)
 		}		//if(data[3]==1);
 		else {
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		//if else data[3]==1)
 	}			//if else data[3]==0) 
@@ -354,7 +354,7 @@ INT i_APCI2032_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 			}	//switch(ui_NoOfChannels)    
 		}		//if  (ui_Temp==1)
 		else {
-			printk("\nSpecified channel not supported \n");
+			printk("Specified channel not supported \n");
 		}		//elseif  (ui_Temp==1)
 	}
 	return insn->n;
@@ -393,7 +393,7 @@ INT i_APCI2032_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
 			devpriv->iobase + APCI2032_DIGITAL_OP_WATCHDOG +
 			APCI2032_TCW_RELOAD_VALUE);
 	} else {
-		printk("\nThe input parameters are wrong\n");
+		printk("The input parameters are wrong\n");
 		return -EINVAL;
 	}
 
@@ -439,7 +439,7 @@ int i_APCI2032_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 			APCI2032_TCW_PROG);
 		break;
 	default:
-		printk("\nSpecified functionality does not exist\n");
+		printk("Specified functionality does not exist\n");
 		return -EINVAL;
 	}
 	return insn->n;
@@ -501,7 +501,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	//Check if VCC OR CC interrupt has occured.
 
 	if (ui_DO == 0) {
-		printk("\nInterrupt from unKnown source\n");
+		printk("Interrupt from unKnown source\n");
 	}			// if(ui_DO==0)
 	if (ui_DO) {
 		// Check for Digital Output interrupt Type - 1: Vcc interrupt 2: CC interrupt.

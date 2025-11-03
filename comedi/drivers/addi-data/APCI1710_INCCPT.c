@@ -82,8 +82,6 @@ INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
 	INT i_ReturnValue = 0;
 	ui_ConfigType = CR_CHAN(insn->chanspec);
 
-	printk("\nINC_CPT");
-
 	devpriv->tsk_Current = current;	// Save the current process task structure
 	switch (ui_ConfigType) {
 	case APCI1710_INCCPT_INITCOUNTER:
@@ -130,7 +128,7 @@ INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
 		break;
 
 	default:
-		printk("Insn Config : Config Parameter Wrong\n");
+		printk("INC_CPT Insn Config : Config Parameter Wrong\n");
 
 	}
 

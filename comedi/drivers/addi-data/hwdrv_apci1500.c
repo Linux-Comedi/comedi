@@ -163,7 +163,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 			i_MaxChannel = 6;
 		}		// if(data[0]==2)
 		else {
-			printk("\nThe specified port event  does not exist\n");
+			printk("The specified port event  does not exist\n");
 			return -EINVAL;
 		}		//else if(data[0]==2) 
 	}			//else  if (data[0] == 1)
@@ -178,7 +178,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 		data[1] = APCI1500_OR_PRIORITY;
 		break;
 	default:
-		printk("\nThe specified interrupt logic does not exist\n");
+		printk("The specified interrupt logic does not exist\n");
 		return -EINVAL;
 	}			//switch(data[1]);
 
@@ -222,7 +222,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 		case 5:
 			break;
 		default:
-			printk("\nThe option indicated in the event mask does not exist\n");
+			printk("The option indicated in the event mask does not exist\n");
 			return -EINVAL;
 		}		// switch(i_EventMask)   
 	}			//for (i_Count = i_MaxChannel; i_Count >0;i_Count --)
@@ -245,7 +245,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 			      /********************************************/
 				/* Transition error on an OR PRIORITY logic */
 			      /********************************************/
-				printk("\nTransition error on an OR PRIORITY logic\n");
+				printk("Transition error on an OR PRIORITY logic\n");
 				return -EINVAL;
 			}	// if (data[1]== APCI1500_OR_PRIORITY && i_PatternTransition != 0)            
 
@@ -267,7 +267,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 				  /****************************************/
 					/* Transition error on an AND logic     */
 				  /****************************************/
-					printk("\n Transition error on an AND logic\n");
+					printk(" Transition error on an AND logic\n");
 					return -EINVAL;
 				}	// if (i_PatternTransitionCount > 1)
 			}	// if (data[1]== APCI1500_AND)
@@ -361,7 +361,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 
 		}		// if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY)
 		else {
-			printk("\nThe choice for interrupt logic does not exist\n");
+			printk("The choice for interrupt logic does not exist\n");
 			return -EINVAL;
 		}		// else }// if(data[1]==APCI1500_AND||data[1]==APCI1500_OR||data[1]==APCI1500_OR_PRIORITY)
 	}			//   if (data[0]== 1)
@@ -489,7 +489,7 @@ INT i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
 				APCI1500_Z8536_CONTROL_REGISTER);
 		}		//  if (data[1] == APCI1500_OR)
 		else {
-			printk("\nThe choice for interrupt logic does not exist\n");
+			printk("The choice for interrupt logic does not exist\n");
 			return -EINVAL;
 		}		//elseif (data[1] == APCI1500_OR)
 	}			//if(data[0]==2) 
@@ -591,7 +591,7 @@ int i_APCI1500_StartStopInputEvent(comedi_device * dev, comedi_subdevice * s,
 
 				}	// if(i_Event1Status==1)
 				else {
-					printk("\nEvent 1 not initialised\n");
+					printk("Event 1 not initialised\n");
 					return -EINVAL;
 				}	//else if(i_Event1Status==1)
 			}	//if (data[1]==1)
@@ -642,13 +642,13 @@ int i_APCI1500_StartStopInputEvent(comedi_device * dev, comedi_subdevice * s,
 					i_Event2InterruptStatus = 1;
 				}	// if(i_Event2Status==1)
 				else {
-					printk("\nEvent 2 not initialised\n");
+					printk("Event 2 not initialised\n");
 					return -EINVAL;
 				}	//else if(i_Event2Status==1)
 			}	// if(data[1]==2)
 		}		// if (data[1] == 1 || data[0] == 2)
 		else {
-			printk("\nThe port parameter is in error\n");
+			printk("The port parameter is in error\n");
 			return -EINVAL;
 		}		//else if (data[1] == 1 || data[0] == 2)
 
@@ -703,7 +703,7 @@ int i_APCI1500_StartStopInputEvent(comedi_device * dev, comedi_subdevice * s,
 					i_Event1InterruptStatus = 0;
 				}	// if(i_Event1Status==1)
 				else {
-					printk("\nEvent 1 not initialised\n");
+					printk("Event 1 not initialised\n");
 					return -EINVAL;
 				}	//else if(i_Event1Status==1)
 			}	//if (data[1]==1)
@@ -746,19 +746,19 @@ int i_APCI1500_StartStopInputEvent(comedi_device * dev, comedi_subdevice * s,
 					i_Event2InterruptStatus = 0;
 				}	// if(i_Event2Status==1)
 				else {
-					printk("\nEvent 2 not initialised\n");
+					printk("Event 2 not initialised\n");
 					return -EINVAL;
 				}	//else if(i_Event2Status==1) 
 			}	//if(data[1]==2)  
 
 		}		// if (data[1] == 1 || data[1] == 2)
 		else {
-			printk("\nThe port parameter is in error\n");
+			printk("The port parameter is in error\n");
 			return -EINVAL;
 		}		//else if (data[1] == 1 || data[1] == 2)
 		break;
 	default:
-		printk("\nThe option of START/STOP logic does not exist\n");
+		printk("The option of START/STOP logic does not exist\n");
 		return -EINVAL;
 	}			//switch(data[0])               
 
@@ -975,7 +975,7 @@ INT i_APCI1500_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 			*data = (ui_TmpValue >> ui_Channel) & 0x1;
 		}		//if(ui_Channel >= 0 && ui_Channel <=15)
 		else {
-			printk("\nThe channel specification are in error\n");
+			printk("The channel specification are in error\n");
 			return -EINVAL;	// "sorry channel spec wrong "
 		}		//else if(ui_Channel >= 0 && ui_Channel <=15)
 		break;
@@ -1000,13 +1000,13 @@ INT i_APCI1500_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 			break;
 
 		default:
-			printk("\nSpecified channel cannot be read \n");
+			printk("Specified channel cannot be read \n");
 			return -EINVAL;	// "sorry channel spec wrong "  
 			break;
 		}		//switch(ui_Channel)
 		break;
 	default:
-		printk("\nThe specified functionality does not exist\n");
+		printk("The specified functionality does not exist\n");
 		return -EINVAL;
 	}			//switch(data[0])
 	return insn->n;
@@ -1122,7 +1122,7 @@ INT i_APCI1500_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 					APCI1500_DIGITAL_OP);
 			}	// if(data[1]==1)
 			else {
-				printk("\nSpecified channel not supported\n");
+				printk("Specified channel not supported\n");
 			}	//else if(data[1]==1)
 		}		//elseif(data[1]==0)
 	}			//if(data[3]==0)
@@ -1199,12 +1199,12 @@ INT i_APCI1500_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 						APCI1500_DIGITAL_OP);
 				}	// if(data[1]==1)
 				else {
-					printk("\nSpecified channel not supported\n");
+					printk("Specified channel not supported\n");
 				}	//else if(data[1]==1)
 			}	//elseif(data[1]==0)
 		}		//if(data[3]==1);
 		else {
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		//if else data[3]==1)
 	}			//if else data[3]==0) 
@@ -1274,7 +1274,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 	}			// if(data[0]==0||data[0]==1||data[0]==2)
 	else {
 		if (data[0] != 3) {
-			printk("\nThe option for input clock selection does not exist\n");
+			printk("The option for input clock selection does not exist\n");
 			return -EINVAL;
 		}		// if(data[0]!=3)
 	}			//elseif(data[0]==0||data[0]==1||data[0]==2)
@@ -1290,7 +1290,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[2] = APCI1500_TIMER;
 			break;
 		default:
-			printk("\nThis choice is not a timer nor a counter\n");
+			printk("This choice is not a timer nor a counter\n");
 			return -EINVAL;
 		}		// switch(data[2])
 
@@ -1303,7 +1303,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[4] = APCI1500_SINGLE;
 			break;
 		default:
-			printk("\nThis option for single/continuous mode does not exist\n");
+			printk("This option for single/continuous mode does not exist\n");
 			return -EINVAL;
 		}		// switch(data[4]) 
 
@@ -1430,12 +1430,12 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 			else {
-				printk("\nError in selection of interrupt enable or disable\n");
+				printk("Error in selection of interrupt enable or disable\n");
 				return -EINVAL;
 			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 		}		// if ((data[3]>= 0) && (data[3] <= 65535))       
 		else {
-			printk("\nError in selection of reload value\n");
+			printk("Error in selection of reload value\n");
 			return -EINVAL;
 		}		//else if ((data[3]>= 0) && (data[3] <= 65535)) 
 		i_TimerCounterWatchdogInterrupt = data[7];
@@ -1451,7 +1451,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[2] = APCI1500_TIMER;
 			break;
 		default:
-			printk("\nThis choice is not a timer nor a counter\n");
+			printk("This choice is not a timer nor a counter\n");
 			return -EINVAL;
 		}		// switch(data[2])
 
@@ -1464,7 +1464,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[4] = APCI1500_SINGLE;
 			break;
 		default:
-			printk("\nThis option for single/continuous mode does not exist\n");
+			printk("This option for single/continuous mode does not exist\n");
 			return -EINVAL;
 		}		// switch(data[4]) 
 
@@ -1477,7 +1477,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[5] = APCI1500_HARDWARE_TRIGGER;
 			break;
 		default:
-			printk("\nThis choice for software or hardware trigger does not exist\n");
+			printk("This choice for software or hardware trigger does not exist\n");
 			return -EINVAL;
 		}		// switch(data[5]) 
 
@@ -1490,7 +1490,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[6] = APCI1500_HARDWARE_GATE;
 			break;
 		default:
-			printk("\nThis choice for software or hardware gate does not exist\n");
+			printk("This choice for software or hardware gate does not exist\n");
 			return -EINVAL;
 		}		// switch(data[6])  
 
@@ -1618,12 +1618,12 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 			else {
-				printk("\nError in selection of interrupt enable or disable\n");
+				printk("Error in selection of interrupt enable or disable\n");
 				return -EINVAL;
 			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 		}		// if ((data[3]>= 0) && (data[3] <= 65535))       
 		else {
-			printk("\nError in selection of reload value\n");
+			printk("Error in selection of reload value\n");
 			return -EINVAL;
 		}		//else if ((data[3]>= 0) && (data[3] <= 65535)) 
 		i_TimerCounterWatchdogInterrupt = data[7];
@@ -1639,7 +1639,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[2] = APCI1500_WATCHDOG;
 			break;
 		default:
-			printk("\nThis choice is not a watchdog nor a counter\n");
+			printk("This choice is not a watchdog nor a counter\n");
 			return -EINVAL;
 		}		// switch(data[2])
 
@@ -1652,7 +1652,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[4] = APCI1500_SINGLE;
 			break;
 		default:
-			printk("\nThis option for single/continuous mode does not exist\n");
+			printk("This option for single/continuous mode does not exist\n");
 			return -EINVAL;
 		}		// switch(data[4]) 
 
@@ -1665,7 +1665,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 			data[6] = APCI1500_HARDWARE_GATE;
 			break;
 		default:
-			printk("\nThis choice for software or hardware gate does not exist\n");
+			printk("This choice for software or hardware gate does not exist\n");
 			return -EINVAL;
 		}		// switch(data[6])  
 
@@ -1813,12 +1813,12 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 
 			}	//if(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 			else {
-				printk("\nError in selection of interrupt enable or disable\n");
+				printk("Error in selection of interrupt enable or disable\n");
 				return -EINVAL;
 			}	//elseif(data[7]== APCI1500_ENABLE ||data[7]== APCI1500_DISABLE)
 		}		// if ((data[3]>= 0) && (data[3] <= 65535))       
 		else {
-			printk("\nError in selection of reload value\n");
+			printk("Error in selection of reload value\n");
 			return -EINVAL;
 		}		//else if ((data[3]>= 0) && (data[3] <= 65535)) 
 		i_TimerCounterWatchdogInterrupt = data[7];
@@ -1826,7 +1826,7 @@ int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
 		break;
 
 	default:
-		printk("\nThe specified counter\timer option does not exist\n");
+		printk("The specified counter\timer option does not exist\n");
 	}			//switch(data[1])
 	i_CounterLogic = data[2];
 	return insn->n;
@@ -1891,7 +1891,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if( i_TimerCounter1Init==1) 
 			else {
-				printk("\nCounter/Timer1 not configured\n");
+				printk("Counter/Timer1 not configured\n");
 				return -EINVAL;
 			}
 			break;
@@ -1942,13 +1942,13 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if( i_TimerCounter1Init==1) 
 			else {
-				printk("\nCounter/Timer1 not configured\n");
+				printk("Counter/Timer1 not configured\n");
 				return -EINVAL;
 			}
 			break;
 
 		default:
-			printk("\nThe specified option for start/stop/trigger does not exist\n");
+			printk("The specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
 		}		//switch(data[1])  
 		break;
@@ -1978,7 +1978,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if( i_TimerCounter2Init==1) 
 			else {
-				printk("\nCounter/Timer2 not configured\n");
+				printk("Counter/Timer2 not configured\n");
 				return -EINVAL;
 			}
 			break;
@@ -2028,12 +2028,12 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 					APCI1500_Z8536_CONTROL_REGISTER);
 			}	//if( i_TimerCounter2Init==1) 
 			else {
-				printk("\nCounter/Timer2 not configured\n");
+				printk("Counter/Timer2 not configured\n");
 				return -EINVAL;
 			}
 			break;
 		default:
-			printk("\nThe specified option for start/stop/trigger does not exist\n");
+			printk("The specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
 		}		//switch(data[1])    
 		break;
@@ -2064,7 +2064,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 
 			}	// if( i_WatchdogCounter3init==1)
 			else {
-				printk("\nWatchdog/Counter3 not configured\n");
+				printk("Watchdog/Counter3 not configured\n");
 				return -EINVAL;
 			}
 			break;
@@ -2117,7 +2117,7 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 						APCI1500_Z8536_CONTROL_REGISTER);
 				}	//if( i_WatchdogCounter3Init==1) 
 				else {
-					printk("\nCounter3 not configured\n");
+					printk("Counter3 not configured\n");
 					return -EINVAL;
 				}
 				break;
@@ -2136,22 +2136,22 @@ int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
 						APCI1500_Z8536_CONTROL_REGISTER);
 				}	//if( i_WatchdogCounter3Init==1) 
 				else {
-					printk("\nWatchdog 3 not configured\n");
+					printk("Watchdog 3 not configured\n");
 					return -EINVAL;
 				}
 				break;
 			default:
-				printk("\nWrong choice of watchdog/counter3\n");
+				printk("Wrong choice of watchdog/counter3\n");
 				return -EINVAL;
 			}	//switch(data[2]) 
 			break;
 		default:
-			printk("\nThe specified option for start/stop/trigger does not exist\n");
+			printk("The specified option for start/stop/trigger does not exist\n");
 			return -EINVAL;
 		}		//switch(data[1]) 
 		break;
 	default:
-		printk("\nThe specified choice for counter/watchdog/timer does not exist\n");
+		printk("The specified choice for counter/watchdog/timer does not exist\n");
 		return -EINVAL;
 	}			//switch(data[0])
 	return insn->n;
@@ -2234,7 +2234,7 @@ int i_APCI1500_ReadCounterTimerWatchdog(comedi_device * dev,
 				APCI1500_Z8536_CONTROL_REGISTER);
 		}		//if( i_TimerCounter1Init==1) 
 		else {
-			printk("\nTimer/Counter1 not configured\n");
+			printk("Timer/Counter1 not configured\n");
 			return -EINVAL;
 		}		//elseif( i_TimerCounter1Init==1)
 		break;
@@ -2285,7 +2285,7 @@ int i_APCI1500_ReadCounterTimerWatchdog(comedi_device * dev,
 				APCI1500_Z8536_CONTROL_REGISTER);
 		}		//if( i_TimerCounter2Init==1) 
 		else {
-			printk("\nTimer/Counter2 not configured\n");
+			printk("Timer/Counter2 not configured\n");
 			return -EINVAL;
 		}		//elseif( i_TimerCounter2Init==1)
 		break;
@@ -2336,12 +2336,12 @@ int i_APCI1500_ReadCounterTimerWatchdog(comedi_device * dev,
 				APCI1500_Z8536_CONTROL_REGISTER);
 		}		//if( i_WatchdogCounter3Init==1) 
 		else {
-			printk("\nWatchdogCounter3 not configured\n");
+			printk("WatchdogCounter3 not configured\n");
 			return -EINVAL;
 		}		//elseif( i_WatchdogCounter3Init==1)
 		break;
 	default:
-		printk("\nThe choice of timer/counter/watchdog does not exist\n");
+		printk("The choice of timer/counter/watchdog does not exist\n");
 		return -EINVAL;
 	}			//switch(data[0])
 
@@ -2417,7 +2417,7 @@ int i_APCI1500_ConfigureInterrupt(comedi_device * dev, comedi_subdevice * s,
 			i_Constant = 0x00;
 		}		//if{data[0]==0)
 		else {
-			printk("\nThe parameter passed to driver is in error for enabling the voltage interrupt\n");
+			printk("The parameter passed to driver is in error for enabling the voltage interrupt\n");
 			return -EINVAL;
 		}		//else if(data[0]==0)     
 	}			//elseif(data[0]==1)   
@@ -2674,7 +2674,6 @@ static VOID v_APCI1500_Interrupt(int irq, void *d)
 			outb(i_RegValue,
 				devpriv->iobase +
 				APCI1500_Z8536_CONTROL_REGISTER);
-			printk("\n\n\n");
 	     /****************/
 			/* Reads port B */
 	     /****************/
@@ -2801,7 +2800,7 @@ static VOID v_APCI1500_Interrupt(int irq, void *d)
 		outb(0xD0, devpriv->iobase + APCI1500_Z8536_CONTROL_REGISTER);
 	}			//  if ((ui_InterruptStatus & 0x800000) == 0x800000)
 	else {
-		printk("\nInterrupt from unknown source\n");
+		printk("Interrupt from unknown source\n");
 
 	}			//else if ((ui_InterruptStatus & 0x800000) == 0x800000) 
 	return;

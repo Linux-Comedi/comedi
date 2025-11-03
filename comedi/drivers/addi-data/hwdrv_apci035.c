@@ -169,7 +169,7 @@ INT i_APCI035_ConfigTimerWatchdog(comedi_device * dev, comedi_subdevice * s,
 			ui_Command = ui_Command & 0xFFF819E2UL;
 
 		} else {
-			printk("\n The parameter for Timer/watchdog selection is in error\n");
+			printk(" The parameter for Timer/watchdog selection is in error\n");
 			return -EINVAL;
 		}
 	}

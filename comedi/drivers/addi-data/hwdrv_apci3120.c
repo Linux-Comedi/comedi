@@ -1334,10 +1334,10 @@ int i_APCI3120_SetupChannelList(comedi_device * dev, comedi_subdevice * s,
 		us_TmpValue |= i << 8;	//To select the RAM LOCATION....              
 		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
 
-		printk("\n Gain = %i",
+		printk(" Gain = %i\n",
 			(((unsigned char)CR_RANGE(chanlist[i]) & 0x03) << 2));
-		printk("\n Channel = %i", CR_CHAN(chanlist[i]));
-		printk("\n Polarity = %i", us_TmpValue & APCI3120_UNIPOLAR);
+		printk(" Channel = %i\n", CR_CHAN(chanlist[i]));
+		printk(" Polarity = %i\n", us_TmpValue & APCI3120_UNIPOLAR);
 	}
 	return 1;		// we can serve this with scan logic
 }
@@ -2523,7 +2523,7 @@ int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
 		data[0] = data[0];
 		break;
 	default:
-		printk("\nThe parameter passed is in error \n");
+		printk("The parameter passed is in error\n");
 		return -EINVAL;
 	}			// switch(data[1])
 	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
@@ -2598,7 +2598,7 @@ int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
 		data[0] = data[0] & devpriv->b_DigitalOutputRegister;
 		break;
 	default:
-		printk("\nThe parameter passed is in error \n");
+		printk("The parameter passed is in error\n");
 		return -EINVAL;
 	}			// switch(data[1])
 	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
@@ -2665,7 +2665,7 @@ int i_APCI3120_InsnWriteAnalogOutput(comedi_device * dev, comedi_subdevice
 	}
 
 	//out put n values at the given channel.
-	// rt_printk("\nwaiting for DA_READY BIT");
+	// rt_printk("waiting for DA_READY BIT\n");
 	do			//Waiting of DA_READY BIT 
 	{
 		us_TmpValue =

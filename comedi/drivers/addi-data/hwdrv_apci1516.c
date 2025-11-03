@@ -138,7 +138,7 @@ INT i_APCI1516_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
 		break;
 
 	default:
-		printk("\nWrong parameters\n");
+		printk("Wrong parameters\n");
 		return -EINVAL;	// "sorry channel spec wrong "  
 		break;
 	}			//switch(ui_NoOfChannels)
@@ -256,7 +256,7 @@ INT i_APCI1516_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 					devpriv->iobase + APCI1516_DIGITAL_OP);
 			}	// if(data[1]==1)
 			else {
-				printk("\nSpecified channel not supported\n");
+				printk("Specified channel not supported\n");
 			}	//else if(data[1]==1)
 		}		//elseif(data[1]==0)
 	}			//if(data[3]==0)
@@ -326,12 +326,12 @@ INT i_APCI1516_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 						APCI1516_DIGITAL_OP);
 				}	// if(data[1]==1)
 				else {
-					printk("\nSpecified channel not supported\n");
+					printk("Specified channel not supported\n");
 				}	//else if(data[1]==1)
 			}	//elseif(data[1]==0)
 		}		//if(data[3]==1);
 		else {
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		//if else data[3]==1)
 	}			//if else data[3]==0) 
@@ -392,7 +392,7 @@ INT i_APCI1516_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 			}	//switch(ui_NoOfChannels)    
 		}		//if(ui_Temp==1)
 		else {
-			printk("\nSpecified channel not supported \n");
+			printk("Specified channel not supported \n");
 		}		//elseif(ui_Temp==1)
 	}			//elseif(ui_Temp==0)
 	return insn->n;
@@ -437,7 +437,7 @@ int i_APCI1516_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
 			APCI1516_WATCHDOG_RELOAD_VALUE + 2);
 	}			//if(data[0]==0)
 	else {
-		printk("\nThe input parameters are wrong\n");
+		printk("The input parameters are wrong\n");
 		return -EINVAL;
 	}			//elseif(data[0]==0)
 
@@ -483,7 +483,7 @@ int i_APCI1516_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 			APCI1516_WATCHDOG_ENABLEDISABLE);
 		break;
 	default:
-		printk("\nSpecified functionality does not exist\n");
+		printk("Specified functionality does not exist\n");
 		return -EINVAL;
 	}			// switch(data[0])        
 	return insn->n;

@@ -168,7 +168,7 @@ int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 					devpriv->iobase + APCI2016_DIGITAL_OP);
 			}	// if  (data[1]==1)
 			else {
-				printk("\nSpecified channel not supported\n");
+				printk("Specified channel not supported\n");
 			}	// else if  (data[1]==1)
 		}		// else if (data[1]==0)
 	}			// if (data[3]==0)
@@ -235,12 +235,12 @@ int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 						APCI2016_DIGITAL_OP);
 				}	// if(data[1]==1)
 				else {
-					printk("\nSpecified channel not supported\n");
+					printk("Specified channel not supported\n");
 				}	//else if(data[1]==1)
 			}	//elseif(data[1]==0)
 		}		//if(data[3]==1);
 		else {
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		//if else data[3]==1)
 	}			//if else data[3]==0) 
@@ -311,7 +311,7 @@ int i_APCI2016_BitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 			}	//switch(ui_NoOfChannel)    
 		}		// if  (ui_Temp==1)
 		else {
-			printk("\nSpecified channel not supported \n");
+			printk("Specified channel not supported\n");
 		}		// else if  (ui_Temp==1)
 	}			// if  (ui_Temp==0)
 	return insn->n;
@@ -355,7 +355,7 @@ int i_APCI2016_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
 			devpriv->i_IobaseAddon +
 			APCI2016_WATCHDOG_RELOAD_VALUE + 2);
 	} else {
-		printk("\nThe input parameters are wrong\n");
+		printk("The input parameters are wrong\n");
 	}
 	return insn->n;
 }
@@ -399,7 +399,7 @@ int i_APCI2016_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
 			APCI2016_WATCHDOG_ENABLEDISABLE);
 		break;
 	default:
-		printk("\nSpecified functionality does not exist\n");
+		printk("Specified functionality does not exist\n");
 		return -EINVAL;
 	}			// switch(data[0])  
 

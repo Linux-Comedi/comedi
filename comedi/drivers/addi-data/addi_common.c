@@ -2583,7 +2583,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	//1 for displaying the list..
 		pci_list_builded = 1;
 	}
-	//rt_printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s",dev->minor,this_board->pc_DriverName);
+	//rt_printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s\n",dev->minor,this_board->pc_DriverName);
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
@@ -2608,7 +2608,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	iobase_main = io_addr[1];
 	iobase_addon = io_addr[2];
 	iobase_reserved = io_addr[3];
-	printk("\nBus %d: Slot %d: Funct%d\nBase0: 0x%8llx\nBase1: 0x%8llx\nBase2: 0x%8llx\nBase3: 0x%8llx\n", pci_bus, pci_slot, pci_func, (unsigned long long)io_addr[0], (unsigned long long)io_addr[1], (unsigned long long)io_addr[2], (unsigned long long)io_addr[3]);
+	printk("Bus %d: Slot %d: Funct%d\nBase0: 0x%8llx\nBase1: 0x%8llx\nBase2: 0x%8llx\nBase3: 0x%8llx\n", pci_bus, pci_slot, pci_func, (unsigned long long)io_addr[0], (unsigned long long)io_addr[1], (unsigned long long)io_addr[2], (unsigned long long)io_addr[3]);
 
 	if ((this_board->pc_EepromChip == NULL)
 		|| (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
@@ -2634,11 +2634,11 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->amcc = card;
 		devpriv->iobase = (INT) io_addr[2];
 		devpriv->i_IobaseReserved = (INT) io_addr[3];
-		printk("\nioremap begin");
+		printk("ioremap begin\n");
 		devpriv->dw_AiBase =
 			(ULONG_PTR) ioremap(io_addr[3],
 			this_board->i_IorangeBase3);
-		printk("\nioremap end");
+		printk("ioremap end\n");
 	}
 
 	/* Initialize parameters that can be overridden in EEPROM */
@@ -2661,24 +2661,24 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	if (irq > 0) {
 		if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
 				ADDIDATA_DRIVER_NAME, dev) < 0) {
-			printk(", unable to allocate IRQ %u, DISABLING IT",
+			printk(", unable to allocate IRQ %u, DISABLING IT\n",
 				irq);
 			irq = 0;	/* Can't use IRQ */
 		} else {
 			rt_printk("\nirq=%u", irq);
 		}
 	} else {
-		rt_printk(", IRQ disabled");
+		rt_printk(", IRQ disabled\n");
 	}
 
-	printk("\nOption %d %d %d\n", it->options[0], it->options[1],
+	printk("Option %d %d %d\n", it->options[0], it->options[1],
 		it->options[2]);
 	dev->irq = irq;
 
 	// Read eepeom and fill boardtype Structure
 
 	if (this_board->i_PCIEeprom) {
-		printk("\nPCI Eeprom used");
+		printk("PCI Eeprom used\n");
 		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
 			// Set 3 wait stait
 			if (!(strcmp(this_board->pc_DriverName, "apci035"))) {
@@ -2689,13 +2689,13 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 			// Enable the interrupt for the controler
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-			printk("\nEnable the interrupt for the controler");
+			printk("Enable the interrupt for the controler\n");
 		}
-		printk("\nRead Eeprom");
+		printk("Read Eeprom\n");
 		i_EepromReadMainHeader(io_addr[0], this_board->pc_EepromChip,
 			dev);
 	} else {
-		printk("\nPCI Eeprom unused");
+		printk("PCI Eeprom unused\n");
 	}
 
 	if (it->options[2] > 0) {
@@ -2705,7 +2705,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	if (devpriv->s_EeParameters.i_Dma) {
-		printk("\nDMA used");
+		printk("DMA used\n");
 		pci_set_master(devpriv->amcc->pcidev);
 		if (pci_set_dma_mask(devpriv->amcc->pcidev,
 				((1ULL << 32) - 1)) != 0 ||
@@ -2713,7 +2713,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 				((1ULL << 32) - 1)) != 0) {
 			if (devpriv->us_UseDma == ADDI_ENABLE) {
 				rt_printk
-					(", Can't set DMA mask, DMA disabled!");
+					(", Can't set DMA mask, DMA disabled!\n");
 			}
 			devpriv->us_UseDma = ADDI_DISABLE;
 		}
@@ -2747,7 +2747,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 			}
 			if (!devpriv->ul_DmaBufferVirtual[0]) {
 				rt_printk
-					(", Can't allocate DMA buffer, DMA disabled!");
+					(", Can't allocate DMA buffer, DMA disabled!\n");
 				devpriv->us_UseDma = ADDI_DISABLE;
 			}
 
@@ -2757,9 +2757,9 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		}
 
 		if ((devpriv->us_UseDma == ADDI_ENABLE)) {
-			rt_printk("\nDMA ENABLED\n");
+			rt_printk("DMA ENABLED\n");
 		} else {
-			printk("\nDMA DISABLED\n");
+			printk("DMA DISABLED\n");
 		}
 	}
 
@@ -2929,7 +2929,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	}
 
-	printk("\ni_ADDI_Attach end\n");
+	printk("i_ADDI_Attach end\n");
 	i_ADDI_Reset(dev);
 	devpriv->b_ValidDriver = 1;
 	return 0;

@@ -319,7 +319,6 @@ INT i_APCI1710_InsnConfigInitTTLIO(comedi_device * dev, comedi_subdevice * s,
 				}
 				break;
 
-				DPRINTK("\n");
 			default:
 				printk("Bad Config Type\n");
 			}	// switch end

@@ -370,7 +370,7 @@ INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 					APCI1564_DIGITAL_OP_RW);
 			}	// if  (data[1]==1)
 			else {
-				printk("\nSpecified channel not supported\n");
+				printk("Specified channel not supported\n");
 			}	// else if  (data[1]==1)
 		}		// else if (data[1]==0)
 	}			//if(data[3]==0)
@@ -455,12 +455,12 @@ INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 						APCI1564_DIGITAL_OP_RW);
 				}	// if  (data[1]==1)
 				else {
-					printk("\nSpecified channel not supported\n");
+					printk("Specified channel not supported\n");
 				}	// else if  (data[1]==1)
 			}	// else if  (data[1]==0)
 		}		// if  (data[3]==1);
 		else {
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		// else if (data[3]==1)
 	}			// else if (data[3]==0) 
@@ -528,7 +528,7 @@ INT i_APCI1564_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
 			}	// switch(ui_NoOfChannels)    
 		}		// if  (ui_Temp==1)
 		else {
-			printk("\nSpecified channel not supported \n");
+			printk("Specified channel not supported \n");
 		}		// else if (ui_Temp==1)
 	}			// else if  (ui_Temp==0)
 	return insn->n;
@@ -686,7 +686,7 @@ INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device * dev,
 			APCI1564_TCW_PROG);
 	}			// else if  (data[0]==ADDIDATA_COUNTER)
 	else {
-		printk(" Invalid subdevice.");
+		printk(" Invalid subdevice.\n");
 	}			// else if  (data[0]==ADDIDATA_WATCHDOG) 
 
 	return insn->n;
@@ -740,7 +740,7 @@ INT i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device * dev,
 				APCI1564_TCW_PROG);
 			break;
 		default:
-			printk("\nSpecified functionality does not exist\n");
+			printk("Specified functionality does not exist\n");
 			return -EINVAL;
 		}		// switch (data[1])        
 	}			// if  (devpriv->b_TimerSelectMode==ADDIDATA_WATCHDOG)   
@@ -870,7 +870,7 @@ INT i_APCI1564_ReadTimerCounterWatchdog(comedi_device * dev,
 	else if ((devpriv->b_TimerSelectMode != ADDIDATA_TIMER)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_WATCHDOG)
 		&& (devpriv->b_TimerSelectMode != ADDIDATA_COUNTER)) {
-		printk("\n Invalid Subdevice !!!\n");
+		printk("Invalid Subdevice !!!\n");
 	}			// else if ((devpriv->b_TimerSelectMode!=ADDIDATA_TIMER) && (devpriv->b_TimerSelectMode!=ADDIDATA_WATCHDOG)&& (devpriv->b_TimerSelectMode!=ADDIDATA_COUNTER))
 	return insn->n;
 }
@@ -940,7 +940,7 @@ static VOID v_APCI1564_Interrupt(int irq, void *d)
 		APCI1564_TCW_IRQ) & 0x1;
 	if (ui_DI == 0 && ui_DO == 0 && ui_Timer == 0 && ui_C1 == 0
 		&& ui_C2 == 0 && ui_C3 == 0 && ui_C4 == 0) {
-		printk("\nInterrupt from unknown source\n");
+		printk("Interrupt from unknown source\n");
 	}			// if(ui_DI==0 && ui_DO==0 && ui_Timer==0 && ui_C1==0 && ui_C2==0 && ui_C3==0 && ui_C4==0)
 
 	if (ui_DI == 1) {

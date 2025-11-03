@@ -263,7 +263,7 @@ VOID v_APCI1710_Interrupt(int irq, void *d)
 
 	str_ModuleInfo *ps_ModuleInfo;
 
-	printk("APCI1710 Interrupt\n");
+	//printk("APCI1710 Interrupt\n");
 	for (b_ModuleCpt = 0; b_ModuleCpt < 4; b_ModuleCpt++, ps_ModuleInfo++) {
 
 		 /**************************/

@@ -859,7 +859,6 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
 							/* Interrupt parameter is wrong */
 		       /********************************/
 
-							DPRINTK("\n");
 							i_ReturnValue = -6;
 						}
 						break;
@@ -1193,8 +1192,6 @@ INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
 	INT i_ReturnValue = 0;
 	b_BitsType = data[0];
 
-	printk("\n82X54");
-
 	switch (b_BitsType) {
 	case APCI1710_TIMER_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
@@ -1222,7 +1219,7 @@ INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
 		break;
 
 	default:
-		printk("Bits Config Parameter Wrong\n");
+		printk("82X54 Bits Config Parameter Wrong\n");
 		i_ReturnValue = -1;
 	}
 
@@ -1551,7 +1548,7 @@ INT i_APCI1710_GetTimerProgressStatus(comedi_device * dev,
 					*pb_TimerStatus =
 						(BYTE) ((dw_TimerStatus) >> 8) &
 						1;
-					printk("ProgressStatus : %d",
+					printk("ProgressStatus : %d\n",
 						*pb_TimerStatus);
 				} else {
 		    /**************************************/
