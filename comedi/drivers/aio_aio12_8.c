@@ -168,7 +168,7 @@ static int aio_aio12_8_attach(comedi_device * dev, comedi_devconfig * it)
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
-		printk("I/O port conflict");
+		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
