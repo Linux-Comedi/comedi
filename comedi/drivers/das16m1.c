@@ -647,22 +647,24 @@ static int das16m1_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: das16m1:", dev->minor);
 
 	if ((ret = alloc_private(dev,
-				sizeof(struct das16m1_private_struct))) < 0)
+				sizeof(struct das16m1_private_struct))) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
 
 	dev->board_name = thisboard->name;
 
-	printk(" io 0x%lx-0x%lx 0x%lx-0x%lx",
+	printk(KERN_CONT " io 0x%lx-0x%lx 0x%lx-0x%lx",
 		iobase, iobase + DAS16M1_SIZE,
 		iobase + DAS16M1_82C55, iobase + DAS16M1_82C55 + DAS16M1_SIZE2);
 	if (!request_region(iobase, DAS16M1_SIZE, driver_das16m1.driver_name)) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 	if (!request_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2,
 			driver_das16m1.driver_name)) {
 		release_region(iobase, DAS16M1_SIZE);
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -674,21 +676,23 @@ static int das16m1_attach(comedi_device * dev, comedi_devconfig * it)
 		ret = comedi_request_irq(irq, das16m1_interrupt, 0,
 			driver_das16m1.driver_name, dev);
 		if (ret < 0) {
-			printk(", irq unavailable\n");
+			printk(KERN_CONT ", irq unavailable\n");
 			return ret;
 		}
 		dev->irq = irq;
-		printk(", irq %u\n", irq);
+		printk(KERN_CONT ", irq %u\n", irq);
 	} else if (irq == 0) {
-		printk(", no irq\n");
+		printk(KERN_CONT ", no irq\n");
 	} else {
-		printk(", invalid irq\n"
+		printk(KERN_CONT ", invalid irq\n"
 			" valid irqs are 2, 3, 5, 7, 10, 11, 12, or 15\n");
 		return -EINVAL;
 	}
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk("Allocation error\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
