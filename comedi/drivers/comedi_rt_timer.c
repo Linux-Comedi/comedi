@@ -643,15 +643,19 @@ static int timer_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = "timer";
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(timer_private))) < 0)
+	}
+	if ((ret = alloc_private(dev, sizeof(timer_private))) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
+	}
 
 	devpriv->device = comedi_open_minor_from(it->options[0], dev->minor);
 	devpriv->subd = it->options[1];
 
-	printk("emulating commands for minor %i, subdevice %d\n",
+	printk(KERN_CONT "emulating commands for minor %i, subdevice %d\n",
 		it->options[0], devpriv->subd);
 
 	emul_dev = devpriv->device;
