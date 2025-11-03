@@ -1083,7 +1083,7 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
 
 	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
-		rt_printk(", Error: Cann't allocate private memory!\n");
+		rt_printk(KERN_CONT ", Error: Cann't allocate private memory!\n");
 		return -ENOMEM;
 	}
 
@@ -1116,17 +1116,17 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!dev->board_ptr) {
 		rt_printk
-			(", Error: Requested type of the card was not found!\n");
+			(KERN_CONT ", Error: Requested type of the card was not found!\n");
 		return -EIO;
 	}
 
 	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
 		rt_printk
-			(", Error: Can't enable PCI device and request regions!\n");
+			(KERN_CONT ", Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",
+	rt_printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%4lx",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
 		PCI_FUNC(pcidev->devfn), iobase);
 
@@ -1153,11 +1153,11 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
-		rt_printk(", Error: Cann't allocate subdevice memory!\n");
+		rt_printk(KERN_CONT ", Error: Cann't allocate subdevice memory!\n");
 		return ret;
 	}
 
-	rt_printk(".\n");
+	rt_printk(KERN_CONT ".\n");
 
 	subdev = 0;
 
