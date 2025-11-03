@@ -723,7 +723,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: atmio16d: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -731,10 +731,14 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* board name */
 	dev->board_name = boardtype->name;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(atmio16d_private))) < 0)
+	}
+	if ((ret = alloc_private(dev, sizeof(atmio16d_private))) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;
+	}
 
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
@@ -744,14 +748,16 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	if (irq) {
 		if ((ret = comedi_request_irq(irq, atmio16d_interrupt,
 					0, "atmio16d", dev)) < 0) {
-			printk("failed to allocate irq %u\n", irq);
+			printk(KERN_CONT "failed to allocate irq %u\n", irq);
 			return ret;
 		}
 		dev->irq = irq;
-		printk("( irq = %u )\n", irq);
+		printk(KERN_CONT "( irq = %u )\n", irq);
 	} else {
-		printk("( no irq )");
+		printk(KERN_CONT "( no irq )");
 	}
+
+	printk(KERN_CONT "\n");
 
 	/* set device options */
 	devpriv->adc_mux = it->options[5];
@@ -841,7 +847,6 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 0;
 	s->maxdata = 0
 #endif
-		printk("\n");
 
 	return 0;
 }
