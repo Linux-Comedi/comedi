@@ -203,8 +203,10 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(waveform_private)) < 0)
+	if (alloc_private(dev, sizeof(waveform_private)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
 	devpriv->dev = dev;
 
@@ -217,11 +219,13 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->uvolt_amplitude = amplitude;
 	devpriv->usec_period = period;
 
-	printk("%i microvolt, %li microsecond waveform ",
+	printk(KERN_CONT "%i microvolt, %li microsecond waveform ",
 		devpriv->uvolt_amplitude, devpriv->usec_period);
 	dev->n_subdevices = 2;
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
+	if (alloc_subdevices(dev, dev->n_subdevices) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
@@ -260,7 +264,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 
 	timer_setup(&devpriv->timer, waveform_ai_interrupt, 0);
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
