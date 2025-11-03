@@ -392,34 +392,36 @@ static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it)
 			break;
 	}
 	if (i == 0) {
-		printk(" no devices specified\n");
+		printk(KERN_CONT " no devices specified\n");
 		return -EINVAL;
 	}
 
-	if ((ret = alloc_subdevices(dev, i)) < 0)
+	if ((ret = alloc_subdevices(dev, i)) < 0) {
+		printk(KERN_CONT " (error allocating subdevices)\n");
 		return ret;
+	}
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		comedi_subdevice *s = &dev->subdevices[i];
 
 		iobase = it->options[i];
 
-		printk(" 0x%04lx", iobase);
+		printk(KERN_CONT " 0x%04lx", iobase);
 		if (!request_region(iobase, _8255_SIZE, "8255")) {
-			printk(" (I/O port conflict)");
+			printk(KERN_CONT " (I/O port conflict)");
 			ret = -EIO;
 			break;
 		}
 		ret = subdev_8255_init(dev, s, NULL, iobase);
 		if (ret) {
-			printk(" (error %d)", ret);
+			printk(KERN_CONT " (error %d)", ret);
 			release_region(iobase, _8255_SIZE);
 			s->type = COMEDI_SUBD_UNUSED;
 			break;
 		}
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return ret;
 }
