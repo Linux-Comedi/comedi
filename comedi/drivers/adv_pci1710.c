@@ -736,7 +736,7 @@ static void interrupt_pci1710_every_sample(void *d)
 
 	maxdata = this_board->ai_maxdata;
 
-	DPRINTK("FOR ");
+	DPRINTK("FOR\n");
 	for (; !(inw(dev->iobase + PCI171x_STATUS) & Status_FE);) {
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
 #ifdef PCI171x_PARANOIDCHECK
@@ -744,6 +744,7 @@ static void interrupt_pci1710_every_sample(void *d)
 		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((sampl & 0xf000) !=
 				devpriv->act_chanlist[s->async->cur_chan]) {
+				DPRINTK(KERN_CONT "\n");
 				rt_printk
 					("comedi: A/D data dropout: received data from channel %d, expected %d!\n",
 					(sampl & 0xf000) >> 12,
@@ -757,7 +758,7 @@ static void interrupt_pci1710_every_sample(void *d)
 				return;
 			}
 		}
-		DPRINTK("%8d %2d %8d~", s->async->buf_int_ptr,
+		DPRINTK(KERN_CONT "%8d %2d %8d~", s->async->buf_int_ptr,
 			s->async->cur_chan, s->async->buf_int_count);
 #endif
 		comedi_buf_put(s->async, sampl & maxdata);
@@ -769,15 +770,17 @@ static void interrupt_pci1710_every_sample(void *d)
 
 		if (s->async->cur_chan == 0) {	// one scan done
 			devpriv->ai_act_scan++;
-			DPRINTK("adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n", s->async->buf_int_count, s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-			DPRINTK("adv_pci1710 EDBG: EOS2\n");
+			DPRINTK(KERN_CONT "adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n", s->async->buf_int_count, s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
+			DPRINTK("adv_pci1710 EDBG: EOS2");
 			if ((!devpriv->neverending_ai) && (devpriv->ai_act_scan >= devpriv->ai_scans)) {	// all data sampled
+				DPRINTK(KERN_CONT "\n");
 				pci171x_ai_cancel(dev, s);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
 				return;
 			}
 		}
+		DPRINTK(KERN_CONT "\n");
 	}
 
 	outb(0, dev->iobase + PCI171x_CLRINT);	// clear our INT request
@@ -1470,7 +1473,7 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 	opt_slot = it->options[1];
 
 	if ((ret = alloc_private(dev, sizeof(pci1710_private))) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -1518,10 +1521,10 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -1532,7 +1535,7 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 	irq = pcidev->irq;
 	iobase = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx", pci_bus, pci_slot, pci_func,
+	rt_printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%4lx", pci_bus, pci_slot, pci_func,
 		iobase);
 
 	dev->iobase = iobase;
@@ -1553,7 +1556,7 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 		n_subdevices++;
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
-		rt_printk(" - Allocation failed!\n");
+		rt_printk(KERN_CONT " - Allocation failed!\n");
 		return ret;
 	}
 
@@ -1565,14 +1568,14 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 					IRQF_SHARED, "Advantech PCI-1710",
 					dev)) {
 				rt_printk
-					(", unable to allocate IRQ %d, DISABLING IT",
+					(KERN_CONT ", unable to allocate IRQ %d, DISABLING IT",
 					irq);
 				irq = 0;	/* Can't use IRQ */
 			} else {
-				rt_printk(", irq=%u", irq);
+				rt_printk(KERN_CONT ", irq=%u", irq);
 			}
 		} else {
-			rt_printk(", IRQ disabled");
+			rt_printk(KERN_CONT ", IRQ disabled");
 		}
 	} else {
 		irq = 0;
@@ -1580,7 +1583,7 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->irq = irq;
 
-	printk(".\n");
+	rt_printk(KERN_CONT ".\n");
 
 	subdev = 0;
 
