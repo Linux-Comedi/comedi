@@ -521,7 +521,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCL711_SIZE, "pcl711")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -534,16 +534,18 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	/* grab our IRQ */
 	irq = it->options[1];
 	if (irq > this_board->maxirq) {
-		printk("irq out of range\n");
+		printk(KERN_CONT "irq out of range\n");
 		return -EINVAL;
 	}
 	if (irq) {
 		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
-			printk("unable to allocate irq %u\n", irq);
+			printk(KERN_CONT "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {
-			printk("( irq = %u )\n", irq);
+			printk(KERN_CONT "( irq = %u )\n", irq);
 		}
+	} else {
+		printk(KERN_CONT "( no irq )\n");
 	}
 	dev->irq = irq;
 
@@ -613,8 +615,6 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	outb(0, dev->iobase + PCL711_DA0_HI);
 	outb(0, dev->iobase + PCL711_DA1_LO);
 	outb(0, dev->iobase + PCL711_DA1_HI);
-
-	printk("\n");
 
 	return 0;
 }
