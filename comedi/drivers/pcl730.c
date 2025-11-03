@@ -100,15 +100,17 @@ static int pcl730_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: pcl730: board=%s 0x%04lx ", dev->minor,
 		this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl730")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->board_name = this_board->name;
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (alloc_subdevices(dev, 4) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* Isolated do */
@@ -150,7 +152,7 @@ static int pcl730_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_DIO_LO;
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
