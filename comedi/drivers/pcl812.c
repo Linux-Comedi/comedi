@@ -1281,12 +1281,13 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		this_board->name, iobase);
 
 	if (!request_region(iobase, this_board->io_range, "pcl812")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	if ((ret = alloc_private(dev, sizeof(pcl812_private))) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;	/* Can't alloc mem */
 	}
 
@@ -1297,15 +1298,15 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
-				printk(", IRQ %u is out of allowed range, DISABLING IT", irq);
+				printk(KERN_CONT ", IRQ %u is out of allowed range, DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl812, 0,
 						"pcl812", dev)) {
-					printk(", unable to allocate IRQ %u, DISABLING IT", irq);
+					printk(KERN_CONT ", unable to allocate IRQ %u, DISABLING IT", irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					printk(", irq=%u", irq);
+					printk(KERN_CONT ", irq=%u", irq);
 				}
 			}
 		}
@@ -1320,20 +1321,20 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	if (this_board->DMAbits != 0) {	/* board support DMA */
 		dma = it->options[2];
 		if (((1 << dma) & this_board->DMAbits) == 0) {
-			printk(", DMA is out of allowed range, FAIL!\n");
+			printk(KERN_CONT ", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, "pcl812");
 		if (ret) {
-			printk(", unable to allocate DMA %u, FAIL!\n", dma);
+			printk(KERN_CONT ", unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 		devpriv->dma = dma;
-		printk(", dma=%u", dma);
+		printk(KERN_CONT ", dma=%u", dma);
 		pages = 1;	/* we want 8KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0]) {
-			printk(", unable to allocate DMA buffer, FAIL!\n");
+			printk(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 			/* maybe experiment with try_to_free_pages() will help .... */
 			return -EBUSY;	/* no buffer :-( */
 		}
@@ -1343,7 +1344,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->hwdmasize[0] = PAGE_SIZE * (1 << pages);
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
-			printk(", unable to allocate DMA buffer, FAIL!\n");
+			printk(KERN_CONT ", unable to allocate DMA buffer, FAIL!\n");
 			return -EBUSY;
 		}
 		devpriv->dmapages[1] = pages;
@@ -1364,6 +1365,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		n_subdevices++;
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;
 	}
 
@@ -1445,11 +1447,9 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				break;
 			default:
 				s->range_table = &range_bipolar10;
-				break;
-				printk(", incorrect range number %d, changing to 0 (+/-10V)", it->options[4]);
+				printk(KERN_CONT ", incorrect range number %d, changing to 0 (+/-10V)", it->options[4]);
 				break;
 			}
-			break;
 			break;
 		case boardPCL813B:
 			if (it->options[1] == 1)
@@ -1473,8 +1473,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				break;
 			default:
 				s->range_table = &range_iso813_1_ai;
-				break;
-				printk(", incorrect range number %d, changing to 0 ", it->options[1]);
+				printk(KERN_CONT ", incorrect range number %d, changing to 0 (+/- 5V)", it->options[1]);
 				break;
 			}
 			break;
@@ -1497,7 +1496,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 			default:
 				s->range_table = &range_acl8113_1_ai;
 				break;
-				printk(", incorrect range number %d, changing to 0 ", it->options[1]);
+				printk(", incorrect range number %d, changing to 0 (+/- 5V)", it->options[1]);
 				break;
 			}
 			break;
@@ -1585,7 +1584,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		break;
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 	devpriv->valid = 1;
 
 	pcl812_reset(dev);
