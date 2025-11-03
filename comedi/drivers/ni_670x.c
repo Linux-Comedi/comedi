@@ -142,13 +142,16 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni_670x: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni_670x_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(ni_670x_private))) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return ret;
+	}
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -157,8 +160,10 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->board_name = thisboard->name;
 	printk(" %s", dev->board_name);
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
@@ -171,8 +176,10 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 
 		range_table_list = kmalloc(sizeof(comedi_lrange *) * 32,
 			GFP_KERNEL);
-		if (!range_table_list)
+		if (!range_table_list) {
+			printk(KERN_CONT "allocation failure\n");
 			return -ENOMEM;
+		}
 		s->range_table_list = range_table_list;
 		for (i = 0; i < 16; i++) {
 			range_table_list[i] = &range_bipolar10;
@@ -197,7 +204,7 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 	writel(0x10, devpriv->mite->daq_io_addr + MISC_CONTROL_OFFSET);	/* Config of misc registers */
 	writel(0x00, devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);	/* Config of ao registers */
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
@@ -325,7 +332,7 @@ static int ni_670x_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
