@@ -187,17 +187,21 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
 	dev->board_name = "dt2815";
 
-	if (alloc_subdevices(dev, 1) < 0)
+	if (alloc_subdevices(dev, 1) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
-	if (alloc_private(dev, sizeof(dt2815_private)) < 0)
+	}
+	if (alloc_private(dev, sizeof(dt2815_private)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices;
 	/* ao subdevice */
@@ -217,6 +221,8 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->range_type_list[i] = (it->options[5 + i])
 			? current_range_type : voltage_range_type;
 	}
+
+	printk(KERN_CONT "\n");
 
 	/* Init the 2815 */
 	outb(0x00, dev->iobase + DT2815_STATUS);
@@ -240,8 +246,6 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 		}
 	}
-
-	printk("\n");
 
 	return 0;
 }
