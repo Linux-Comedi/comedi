@@ -166,7 +166,7 @@ static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	rt_printk("comedi%d: mpc624 [0x%04lx, ", dev->minor, iobase);
 	if (request_region(iobase, MPC624_SIZE, "mpc624") == NULL) {
-		rt_printk("I/O port(s) in use\n");
+		rt_printk(KERN_CONT "I/O port(s) in use\n");
 		return -EIO;
 	}
 
@@ -174,59 +174,63 @@ static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->board_name = "mpc624";
 
 	// Private structure initialization
-	if (alloc_private(dev, sizeof(skel_private)) < 0)
+	if (alloc_private(dev, sizeof(skel_private)) < 0) {
+		rt_printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	switch (it->options[1]) {
 	case 0:
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
-		rt_printk("3.52 kHz, ");
+		rt_printk(KERN_CONT "3.52 kHz, ");
 		break;
 	case 1:
 		devpriv->ulConvertionRate = MPC624_SPEED_1_76_kHz;
-		rt_printk("1.76 kHz, ");
+		rt_printk(KERN_CONT "1.76 kHz, ");
 		break;
 	case 2:
 		devpriv->ulConvertionRate = MPC624_SPEED_880_Hz;
-		rt_printk("880 Hz, ");
+		rt_printk(KERN_CONT "880 Hz, ");
 		break;
 	case 3:
 		devpriv->ulConvertionRate = MPC624_SPEED_440_Hz;
-		rt_printk("440 Hz, ");
+		rt_printk(KERN_CONT "440 Hz, ");
 		break;
 	case 4:
 		devpriv->ulConvertionRate = MPC624_SPEED_220_Hz;
-		rt_printk("220 Hz, ");
+		rt_printk(KERN_CONT "220 Hz, ");
 		break;
 	case 5:
 		devpriv->ulConvertionRate = MPC624_SPEED_110_Hz;
-		rt_printk("110 Hz, ");
+		rt_printk(KERN_CONT "110 Hz, ");
 		break;
 	case 6:
 		devpriv->ulConvertionRate = MPC624_SPEED_55_Hz;
-		rt_printk("55 Hz, ");
+		rt_printk(KERN_CONT "55 Hz, ");
 		break;
 	case 7:
 		devpriv->ulConvertionRate = MPC624_SPEED_27_5_Hz;
-		rt_printk("27.5 Hz, ");
+		rt_printk(KERN_CONT "27.5 Hz, ");
 		break;
 	case 8:
 		devpriv->ulConvertionRate = MPC624_SPEED_13_75_Hz;
-		rt_printk("13.75 Hz, ");
+		rt_printk(KERN_CONT "13.75 Hz, ");
 		break;
 	case 9:
 		devpriv->ulConvertionRate = MPC624_SPEED_6_875_Hz;
-		rt_printk("6.875 Hz, ");
+		rt_printk(KERN_CONT "6.875 Hz, ");
 		break;
 	default:
 		rt_printk
-			("illegal convertion rate setting! Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
+			(KERN_CONT "illegal convertion rate setting! Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
 
 	// Subdevices structures
-	if (alloc_subdevices(dev, 1) < 0)
+	if (alloc_subdevices(dev, 1) < 0) {
+		rt_printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;
@@ -235,22 +239,22 @@ static int mpc624_attach(comedi_device * dev, comedi_devconfig * it)
 	switch (it->options[1]) {
 	default:
 		s->maxdata = 0x3FFFFFFF;
-		rt_printk("30 bit, ");
+		rt_printk(KERN_CONT "30 bit, ");
 	}
 
 	switch (it->options[1]) {
 	case 0:
 		s->range_table = &range_mpc624_bipolar1;
-		rt_printk("1.01V]: ");
+		rt_printk(KERN_CONT "1.01V]: ");
 		break;
 	default:
 		s->range_table = &range_mpc624_bipolar10;
-		rt_printk("10.1V]: ");
+		rt_printk(KERN_CONT "10.1V]: ");
 	}
 	s->len_chanlist = 1;
 	s->insn_read = mpc624_ai_rinsn;
 
-	rt_printk("attached\n");
+	rt_printk(KERN_CONT "attached\n");
 
 	return 1;
 }
@@ -355,10 +359,10 @@ static int mpc624_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		//   00: sub-LSB
 
 		if (data_in & MPC624_EOC_BIT)
-			rt_printk("MPC624: EOC bit is set (data_in=%lu)!",
+			rt_printk("MPC624: EOC bit is set (data_in=%lu)!\n",
 				data_in);
 		if (data_in & MPC624_DMY_BIT)
-			rt_printk("MPC624: DMY bit is set (data_in=%lu)!",
+			rt_printk("MPC624: DMY bit is set (data_in=%lu)!\n",
 				data_in);
 		if (data_in & MPC624_SGN_BIT)	// check the sign bit
 		{		// The voltage is positive
