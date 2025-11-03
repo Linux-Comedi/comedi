@@ -221,7 +221,7 @@ static int atao_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: ni_at_ao: 0x%04lx", dev->minor, iobase);
 
 	if (!request_region(iobase, ATAO_SIZE, "ni_at_ao")) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -230,11 +230,15 @@ static int atao_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(atao_private)) < 0)
+	if (alloc_private(dev, sizeof(atao_private)) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return -ENOMEM;
+	}
 
-	if (alloc_subdevices(dev, 4) < 0)
+	if (alloc_subdevices(dev, 4) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
@@ -275,7 +279,7 @@ static int atao_attach(comedi_device * dev, comedi_devconfig * it)
 
 	atao_reset(dev);
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
