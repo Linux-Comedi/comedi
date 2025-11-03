@@ -67,15 +67,17 @@ static int pcl725_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: pcl725: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCL725_SIZE, "pcl725")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->board_name = "pcl725";
 	dev->iobase = iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_subdevices(dev, 2) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* do */
@@ -95,7 +97,7 @@ static int pcl725_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_bits = pcl725_di_insn;
 	s->range_table = &range_digital;
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
