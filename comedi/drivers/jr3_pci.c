@@ -596,24 +596,24 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 					min_full_scale =
 						get_min_full_scales(channel);
 					printk("Obtained Min. Full Scales:\n");
-					printk("%i   ", (min_full_scale).fx);
-					printk("%i   ", (min_full_scale).fy);
-					printk("%i   ", (min_full_scale).fz);
-					printk("%i   ", (min_full_scale).mx);
-					printk("%i   ", (min_full_scale).my);
-					printk("%i   ", (min_full_scale).mz);
-					printk("\n");
+					printk("%i   %i   %i   %i   %i   %i\n",
+						(min_full_scale).fx,
+						(min_full_scale).fy,
+						(min_full_scale).fz,
+						(min_full_scale).mx,
+						(min_full_scale).my,
+						(min_full_scale).mz);
 
 					max_full_scale =
 						get_max_full_scales(channel);
 					printk("Obtained Max. Full Scales:\n");
-					printk("%i   ", (max_full_scale).fx);
-					printk("%i   ", (max_full_scale).fy);
-					printk("%i   ", (max_full_scale).fz);
-					printk("%i   ", (max_full_scale).mx);
-					printk("%i   ", (max_full_scale).my);
-					printk("%i   ", (max_full_scale).mz);
-					printk("\n");
+					printk("%i   %i   %i   %i   %i   %i\n",
+						(max_full_scale).fx,
+						(max_full_scale).fy,
+						(max_full_scale).fz,
+						(max_full_scale).mx,
+						(max_full_scale).my,
+						(max_full_scale).mz);
 
 					set_full_scales(channel,
 						max_full_scale);
@@ -907,11 +907,13 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	// It takes a few milliseconds for software to settle
 	// as much as we can read firmware version
 	msleep_interruptible(25);
+	printk(" ");
 	for (i = 0; i < 0x18; i++) {
-		printk("%c",
+		printk(KERN_CONT "%c",
 			get_u16(&devpriv->iobase->channel[0].data.
 				copyright[i]) >> 8);
 	}
+	printk(KERN_CONT "\n");
 
 	// Start card timer
 	for (i = 0; i < devpriv->n_channels; i++) {
