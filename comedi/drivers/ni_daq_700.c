@@ -402,11 +402,11 @@ static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 		thisboard->name, iobase);
 #ifdef incomplete
 	if (irq) {
-		printk(", irq %u", irq);
+		printk(KERN_CONT ", irq %u", irq);
 	}
 #endif
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	if (iobase == 0) {
 		printk("io base address is zero!\n");
