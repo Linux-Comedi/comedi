@@ -545,19 +545,19 @@ static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
 	int index;
 	int i;
 
-	printk("comedi%d: cb_pcidas: ", dev->minor);
+	printk("comedi%d: cb_pcidas:\n", dev->minor);
 
 /*
  * Allocate the private structure area.
  */
-	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0)
+	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0) {
+		printk("Allocation failure\n");
 		return -ENOMEM;
+	}
 
 /*
  * Probe the device to determine what device in the series it is.
  */
-	printk("\n");
-
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
