@@ -1876,14 +1876,16 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: ni_pcimio:", dev->minor);
 
 	ret = ni_alloc_private(dev);
-	if (ret < 0)
+	if (ret < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 
 	ret = pcimio_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
-	printk(" %s", boardtype.name);
+	printk(KERN_CONT " %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	if (boardtype.reg_type & ni_reg_m_series_mask) {
@@ -1898,6 +1900,7 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->stc_readl = &win_in2;
 	}
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk(" error setting up mite\n");
@@ -1975,7 +1978,7 @@ static int pcimio_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }

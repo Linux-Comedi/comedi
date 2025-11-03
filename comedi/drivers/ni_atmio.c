@@ -445,7 +445,7 @@ static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni_atmio: 0x%04lx", dev->minor, iobase);
 	if (!request_region(iobase, NI_SIZE, "ni_atmio")) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -456,9 +456,9 @@ static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
 	{
 		int i;
 
-		printk(" board fingerprint:");
+		printk(KERN_CONT " board fingerprint:");
 		for (i = 0; i < 16; i += 2) {
-			printk(" %04x %02x", inw(dev->iobase + i),
+			printk(KERN_CONT " %04x %02x", inw(dev->iobase + i),
 				inb(dev->iobase + i + 1));
 		}
 	}
@@ -472,20 +472,20 @@ static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_ptr = ni_boards + board;
 
-	printk(" %s", boardtype.name);
+	printk(KERN_CONT " %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	/* irq stuff */
 
 	if (irq != 0) {
 		if (irq > 15 || ni_irqpin[irq] == -1) {
-			printk(" invalid irq %u\n", irq);
+			printk(KERN_CONT " invalid irq %u\n", irq);
 			return -EINVAL;
 		}
-		printk(" ( irq = %u )", irq);
+		printk(KERN_CONT " ( irq = %u )", irq);
 		if ((ret = comedi_request_irq(irq, ni_E_interrupt,
 					NI_E_IRQ_FLAGS, "ni_atmio", dev)) < 0) {
-			printk(" irq not available\n");
+			printk(KERN_CONT " irq not available\n");
 			return -EINVAL;
 		}
 		dev->irq = irq;
@@ -511,11 +511,11 @@ static int ni_getboardtype(comedi_device * dev)
 		}
 	}
 	if (device_id == 255) {
-		printk(" can't find board\n");
+		printk(KERN_CONT " can't find board\n");
 	} else if (device_id == 0) {
-		printk(" EEPROM read error (?) or device not found\n");
+		printk(KERN_CONT " EEPROM read error (?) or device not found\n");
 	} else {
-		printk(" unknown device ID %d -- contact author\n", device_id);
+		printk(KERN_CONT " unknown device ID %d -- contact author\n", device_id);
 	}
 	return -1;
 }

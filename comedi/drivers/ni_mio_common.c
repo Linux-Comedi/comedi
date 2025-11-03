@@ -4367,12 +4367,14 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 	enum ni_gpct_variant counter_variant;
 
 	if (boardtype.n_aochan > MAX_N_AO_CHAN) {
-		printk("bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
+		printk(KERN_CONT "bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
 		return -EINVAL;
 	}
 
-	if (alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
+	if (alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0) {
+		printk(KERN_CONT "allocation failure\n");
 		return -ENOMEM;
+	}
 
 	/* analog input subdevice */
 
@@ -4671,7 +4673,7 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 		ni_writeb(0x0, M_Offset_AO_Calibration);
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 	return 0;
 }
 
