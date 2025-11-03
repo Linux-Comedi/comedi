@@ -1276,7 +1276,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: dt282x: 0x%04lx", dev->minor, iobase);
 	if (!request_region(iobase, DT2821_SIZE, "dt282x")) {
-		printk(" I/O port conflict\n");
+		printk(KERN_CONT " I/O port conflict\n");
 		return -EBUSY;
 	}
 	dev->iobase = iobase;
@@ -1284,7 +1284,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
 	i = inw(dev->iobase + DT2821_ADCSR);
 #ifdef DEBUG
-	printk(" fingerprint=%x,%x,%x,%x,%x",
+	printk(KERN_CONT " fingerprint=%x,%x,%x,%x,%x",
 		inw(dev->iobase + DT2821_ADCSR),
 		inw(dev->iobase + DT2821_CHANCSR),
 		inw(dev->iobase + DT2821_DACSR),
@@ -1302,7 +1302,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 			!= DT2821_SUPCSR_VAL) ||
 		((inw(dev->iobase + DT2821_TMRCTR) & DT2821_TMRCTR_MASK)
 			!= DT2821_TMRCTR_VAL)) {
-		printk(" board not found");
+		printk(KERN_CONT " board not found\n");
 		return -EIO;
 	}
 	/* should do board test */
@@ -1324,39 +1324,43 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
 		if (0 /* error */ ) {
-			printk(" error probing irq (bad)");
+			printk(KERN_CONT " error probing irq (bad)");
 		}
 	}
 #endif
 	if (irq > 0) {
-		printk(" ( irq = %d )", irq);
+		printk(KERN_CONT " ( irq = %d )", irq);
 		ret = comedi_request_irq(irq, dt282x_interrupt, 0, "dt282x",
 			dev);
 		if (ret < 0) {
-			printk(" failed to get irq\n");
+			printk(KERN_CONT " failed to get irq\n");
 			return -EIO;
 		}
 		dev->irq = irq;
 	} else if (irq == 0) {
-		printk(" (no irq)");
+		printk(KERN_CONT " (no irq)");
 	} else {
 #if 0
-		printk(" (probe returned multiple irqs--bad)");
+		printk(KERN_CONT " (probe returned multiple irqs--bad)");
 #else
-		printk(" (irq probe not implemented)");
+		printk(KERN_CONT " (irq probe not implemented)");
 #endif
 	}
 
-	if ((ret = alloc_private(dev, sizeof(dt282x_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(dt282x_private))) < 0) {
+		printk(KERN_CONT " Allocation error\n");
 		return ret;
+	}
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
 		it->options[opt_dma2]);
 	if (ret < 0)
 		return ret;
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	if ((ret = alloc_subdevices(dev, 3)) < 0) {
+		printk(KERN_CONT " Allocation error\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 
@@ -1416,7 +1420,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
@@ -1456,12 +1460,14 @@ static int dt282x_grab_dma(comedi_device * dev, int dma1, int dma2)
 	devpriv->usedma = 0;
 
 	if (!dma1 && !dma2) {
-		printk(" (no dma)");
+		printk(KERN_CONT " (no dma)");
 		return 0;
 	}
 
-	if (dma1 == dma2 || dma1 < 5 || dma2 < 5 || dma1 > 7 || dma2 > 7)
+	if (dma1 == dma2 || dma1 < 5 || dma2 < 5 || dma1 > 7 || dma2 > 7) {
+		printk(KERN_CONT " invalid dma channels\n");
 		return -EINVAL;
+	}
 
 	if (dma2 < dma1) {
 		int i;
@@ -1471,24 +1477,28 @@ static int dt282x_grab_dma(comedi_device * dev, int dma1, int dma2)
 	}
 
 	ret = request_dma(dma1, "dt282x A");
-	if (ret)
+	if (ret) {
+		printk(KERN_CONT " DMA channel A busy\n");
 		return -EBUSY;
+	}
 	devpriv->dma[0].chan = dma1;
 
 	ret = request_dma(dma2, "dt282x B");
-	if (ret)
+	if (ret) {
+		printk(KERN_CONT " DMA channel B busy\n");
 		return -EBUSY;
+	}
 	devpriv->dma[1].chan = dma2;
 
 	devpriv->dma_maxsize = PAGE_SIZE;
 	devpriv->dma[0].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	devpriv->dma[1].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf) {
-		printk(" can't get DMA memory");
+		printk(KERN_CONT " can't get DMA memory\n");
 		return -ENOMEM;
 	}
 
-	printk(" (dma=%d,%d)", dma1, dma2);
+	printk(KERN_CONT " (dma=%d,%d)", dma1, dma2);
 
 	devpriv->usedma = 1;
 
