@@ -679,10 +679,10 @@ static void ni_pcidio_print_flags(unsigned int flags)
 	printk("group_1_flags:");
 	for (i = 7; i >= 0; i--) {
 		if (flags & (1 << i)) {
-			printk(" %s", flags_strings[i]);
+			printk(KERN_CONT " %s", flags_strings[i]);
 		}
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 static char *status_strings[] = {
 	"DataLeft1", "Reserved1", "Req1", "StopTrig1",
@@ -695,10 +695,10 @@ static void ni_pcidio_print_status(unsigned int flags)
 	printk("group_status:");
 	for (i = 7; i >= 0; i--) {
 		if (flags & (1 << i)) {
-			printk(" %s", status_strings[i]);
+			printk(KERN_CONT " %s", status_strings[i]);
 		}
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
@@ -1203,14 +1203,17 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: nidio:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(nidio96_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(nidio96_private))) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 	spin_lock_init(&devpriv->mite_channel_lock);
 
 	ret = nidio_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -1223,7 +1226,7 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = this_board->name;
 	irq = mite_irq(devpriv->mite);
-	printk(" %s", dev->board_name);
+	printk(" %s\n", dev->board_name);
 	if (this_board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev, it->options);
 		if (ret < 0)
@@ -1281,12 +1284,12 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 		ret = comedi_request_irq(irq, nidio_interrupt, IRQF_SHARED,
 			"ni_pcidio", dev);
 		if (ret < 0) {
-			printk(" irq not available");
+			printk(KERN_CONT " irq not available");
 		}
 		dev->irq = irq;
-	}
 
-	printk("\n");
+		printk(KERN_CONT "\n");
+	}
 
 	return 0;
 }
@@ -1337,7 +1340,7 @@ static int nidio_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
