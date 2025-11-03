@@ -271,7 +271,7 @@ static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
 	struct pci_dev *pcidev;
 	int index;
 
-	printk("comedi%d: cb_pcidda: ", dev->minor);
+	printk("comedi%d: cb_pcidda:\n", dev->minor);
 
 /*
  * Allocate the private structure area.
@@ -282,8 +282,6 @@ static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
 /*
  * Probe the device to determine what device in the series it is.
  */
-	printk("\n");
-
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
@@ -366,9 +364,9 @@ static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(" eeprom:");
 	for (index = 0; index < EEPROM_SIZE; index++) {
 		devpriv->eeprom_data[index] = cb_pcidda_read_eeprom(dev, index);
-		printk(" %i:0x%x ", index, devpriv->eeprom_data[index]);
+		printk(KERN_CONT " %i:0x%x ", index, devpriv->eeprom_data[index]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	// set calibrations dacs
 	for (index = 0; index < thisboard->ao_chans; index++)
