@@ -908,24 +908,24 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
 				&irq)) < 0) {
-		printk(" - Can't get configuration data!\n");
+		printk(KERN_CONT " - Can't get configuration data!\n");
 		return -EIO;
 	}
 
 	iobase = io_addr[2];
 	devpriv->phys_iobase = iobase;
 
-	printk(", b:s:f=%d:%d:%d, io=0x%8llx \n", pci_bus, pci_slot, pci_func,
+	printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%8llx ", pci_bus, pci_slot, pci_func,
 		(unsigned long long)iobase);
 
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
 
 	if (devpriv->io_addr == NULL) {
-		printk("ioremap failed.\n");
+		printk(KERN_CONT "ioremap failed.\n");
 		return -ENOMEM;
 	}
 #ifdef ICP_MULTI_EXTDEBUG
-	printk("0x%08llx mapped to %p, ", (unsigned long long)iobase,
+	printk(KERN_CONT "0x%08llx mapped to %p ", (unsigned long long)iobase,
 		devpriv->io_addr);
 #endif
 
@@ -944,6 +944,7 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 		n_subdevices++;
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
 		return ret;
 	}
 
@@ -953,18 +954,18 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 		if (irq) {
 			if (comedi_request_irq(irq, interrupt_service_icp_multi,
 					IRQF_SHARED, "Inova Icp Multi", dev)) {
-				printk(", unable to allocate IRQ %u, DISABLING IT", irq);
+				printk(KERN_CONT ", unable to allocate IRQ %u, DISABLING IT", irq);
 				irq = 0;	/* Can't use IRQ */
 			} else
-				printk(", irq=%u", irq);
+				printk(KERN_CONT ", irq=%u", irq);
 		} else
-			printk(", IRQ disabled");
+			printk(KERN_CONT ", IRQ disabled");
 	} else
 		irq = 0;
 
 	dev->irq = irq;
 
-	printk(".\n");
+	printk(KERN_CONT ".\n");
 
 	subdev = 0;
 

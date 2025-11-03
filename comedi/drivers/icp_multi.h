@@ -167,14 +167,14 @@ static int pci_card_alloc(struct pcilst_struct *inova)
 	int i;
 
 	if (!inova) {
-		rt_printk(" - BUG!! inova is NULL!\n");
+		rt_printk(KERN_CONT " - BUG!! inova is NULL!\n");
 		return -1;
 	}
 
 	if (inova->used)
 		return 1;
 	if (comedi_pci_enable(inova->pcidev, "icp_multi")) {
-		rt_printk(" - Can't enable PCI device and request regions!\n");
+		rt_printk(KERN_CONT " - Can't enable PCI device and request regions!\n");
 		return -1;
 	}
 	/* Resources will be accurate now. */
@@ -246,7 +246,7 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 	if ((pci_bus < 1) & (pci_slot < 1)) {	// use autodetection
 		if ((card = find_free_pci_card_by_device(vendor_id,
 					device_id)) == NULL) {
-			rt_printk(" - Unused card not found in system!\n");
+			rt_printk(KERN_CONT " - Unused card not found in system!\n");
 			return NULL;
 		}
 	} else {
@@ -254,12 +254,12 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 				pci_bus, pci_slot, &card)) {
 		case 1:
 			rt_printk
-				(" - Card not found on requested position b:s %d:%d!\n",
+				(KERN_CONT " - Card not found on requested position b:s %d:%d!\n",
 				pci_bus, pci_slot);
 			return NULL;
 		case 2:
 			rt_printk
-				(" - Card on requested position is used b:s %d:%d!\n",
+				(KERN_CONT " - Card on requested position is used b:s %d:%d!\n",
 				pci_bus, pci_slot);
 			return NULL;
 		}
@@ -267,7 +267,7 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 
 	if ((err = pci_card_alloc(card)) != 0) {
 		if (err > 0)
-			rt_printk(" - Can't allocate card!\n");
+			rt_printk(KERN_CONT " - Can't allocate card!\n");
 		/* else: error already printed. */
 		return NULL;
 	}
