@@ -1483,14 +1483,14 @@ static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
-	printk("(pci %s) ", pci_name(pci_dev));
+	printk(KERN_CONT "(pci %s) ", pci_name(pci_dev));
 	if (irq) {
-		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
+		printk(KERN_CONT "(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
 	} else {
-		printk("(no irq) ");
+		printk(KERN_CONT "(no irq) ");
 	}
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
