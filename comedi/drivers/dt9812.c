@@ -997,15 +997,25 @@ static int __init usb_dt9812_init(void)
 	if (result) {
 		printk(KERN_ERR KBUILD_MODNAME
 			": usb_register failed. Error number %d\n", result);
+		goto out_destroy_mutexes;
 	}
 	// register with comedi
 	result = comedi_driver_register(&dt9812_comedi_driver);
 	if (result) {
-		usb_deregister(&dt9812_usb_driver);
 		printk(KERN_ERR KBUILD_MODNAME
 			": comedi_driver_register failed. Error number %d\n", result);
+		goto out_deregister_usb;
 	}
 
+	return 0;
+
+out_deregister_usb:
+	usb_deregister(&dt9812_usb_driver);
+out_destroy_mutexes:
+	/* destroy mutexes (for mutex debugging) */
+	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
+		mutex_destroy(&dt9812[i].mutex);
+	}
 	return result;
 }
 
