@@ -658,13 +658,16 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni_65xx:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni_65xx_private))) < 0)
+	if ((ret = alloc_private(dev, sizeof(ni_65xx_private))) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 
 	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
 	if (ret < 0)
 		return ret;
 
+	printk(KERN_CONT "\n");
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -675,11 +678,13 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = mite_irq(private(dev)->mite);
 	printk(" %s", dev->board_name);
 
-	printk(" ID=0x%02x",
+	printk(KERN_CONT " ID=0x%02x",
 		readb(private(dev)->mite->daq_io_addr + ID_Register));
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT " allocation failure\n");
 		return ret;
+	}
 
 	s = dev->subdevices + 0;
 	if (board(dev)->num_di_ports) {
@@ -692,8 +697,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
 		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
+		if (s->private == NULL) {
+			printk(KERN_CONT " allocation failure\n");
 			return -ENOMEM;
+		}
 		sprivate(s)->base_port = 0;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -709,8 +716,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
 		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
+		if (s->private == NULL) {
+			printk(KERN_CONT " allocation failure\n");
 			return -ENOMEM;
+		}
 		sprivate(s)->base_port = board(dev)->num_di_ports;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -727,8 +736,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_config = ni_65xx_dio_insn_config;
 		s->insn_bits = ni_65xx_dio_insn_bits;
 		s->private = ni_65xx_alloc_subdevice_private();
-		if (s->private == NULL)
+		if (s->private == NULL) {
+			printk(KERN_CONT " allocation failure\n");
 			return -ENOMEM;
+		}
 		sprivate(s)->base_port = 0;
 		for (i = 0; i < board(dev)->num_dio_ports; ++i) {
 			// configure all ports for input
@@ -783,10 +794,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		"ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
-		printk(" irq not available");
+		printk(KERN_CONT " irq not available");
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
@@ -840,7 +851,7 @@ static int ni_65xx_find_device(comedi_device * dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_CONT "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
