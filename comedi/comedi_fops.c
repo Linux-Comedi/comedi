@@ -2901,7 +2901,7 @@ static int __init comedi_init(void)
 	}
 	comedi_class = class_create("comedi");
 	if (IS_ERR(comedi_class)) {
-		printk("comedi: failed to create class");
+		printk("comedi: failed to create class\n");
 		cdev_del(&comedi_cdev);
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 			COMEDI_NUM_MINORS);

@@ -97,7 +97,7 @@ static int aref_invalid(comedi_subdevice * s, unsigned int chanspec)
 	default:
 		break;
 	}
-	DPRINTK("subdevice does not support aref %i", aref);
+	DPRINTK("subdevice does not support aref %i\n", aref);
 	return 1;
 }
 
