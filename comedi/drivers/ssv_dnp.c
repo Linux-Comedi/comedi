@@ -131,14 +131,18 @@ static int dnp_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* Allocate the private structure area. alloc_private() is a convenient    */
 	/* macro defined in comedidev.h.                                           */
-	if (alloc_private(dev, sizeof(dnp_private_data)) < 0)
+	if (alloc_private(dev, sizeof(dnp_private_data)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	/* Allocate the subdevice structures. alloc_subdevice() is a convenient    */
 	/* macro defined in comedidev.h.                                           */
 
-	if (alloc_subdevices(dev, 1) < 0)
+	if (alloc_subdevices(dev, 1) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* digital i/o subdevice                                                   */
@@ -150,7 +154,7 @@ static int dnp_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_bits = dnp_dio_insn_bits;
 	s->insn_config = dnp_dio_insn_config;
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	/* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
 	 * allocated for the primary 8259, so we don't need to allocate them
