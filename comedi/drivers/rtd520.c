@@ -837,13 +837,14 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	/* Show board configuration */
-	printk("%s:", dev->board_name);
+	printk("%s: ", dev->board_name);
 
 	/*
 	 * Allocate the subdevice structures.  alloc_subdevice() is a
 	 * convenient macro defined in comedidev.h.
 	 */
 	if (alloc_subdevices(dev, 4) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
 	}
 
@@ -920,23 +921,23 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	/* check if our interrupt is available and get it */
 	if ((ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
 				IRQF_SHARED, DRV_NAME, dev)) < 0) {
-		printk("Could not get interrupt! (%u)\n",
+		printk(KERN_CONT "Could not get interrupt! (%u)\n",
 			devpriv->pci_dev->irq);
 		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
-	printk("( irq=%u )", dev->irq);
+	printk(KERN_CONT "(irq=%u) ", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
 	if(ret < 0) {
 		return ret;
 	}
 	devpriv->fifoLen = ret;
-	printk("( fifoLen=%d )", devpriv->fifoLen);
+	printk(KERN_CONT "(fifoLen=%d) ", devpriv->fifoLen);
 
 #ifdef USE_DMA
 	if (dev->irq > 0) {
-		printk("( DMA buff=%d )\n", DMA_CHAIN_COUNT);
+		printk(KERN_CONT "(DMA buff=%d)\n", DMA_CHAIN_COUNT);
 		/* The PLX9080 has 2 DMA controllers, but there could be 4 sources:
 		   ADC, digital, DAC1, and DAC2.  Since only the ADC supports cmd mode
 		   right now, this isn't an issue (yet) */
@@ -991,15 +992,17 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 		RtdDma0Mode(dev, DMA_MODE_BITS);
 		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);	/* set DMA trigger source */
 	} else {
-		printk("( no IRQ->no DMA )");
+		printk(KERN_CONT "(no IRQ -> no DMA)\n");
 	}
+#else
+	printk(KERN_CONT "\n");
 #endif /* USE_DMA */
 
 	if (dev->irq) {		/* enable plx9080 interrupts */
 		RtdPlxInterruptWrite(dev, ICS_PIE | ICS_PLIE);
 	}
 
-	printk("\ncomedi%d: rtd520 driver attached.\n", dev->minor);
+	printk("comedi%d: rtd520 driver attached.\n", dev->minor);
 
 	return 1;
 
@@ -1230,13 +1233,13 @@ static int rtd520_probe_fifo_depth(comedi_device *dev)
 	}
 	if(i == limit)
 	{
-		rt_printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
+		printk(KERN_CONT "\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
 	if(fifo_size != 0x400 || fifo_size != 0x2000)
 	{
-		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
+		printk(KERN_CONT "\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
 			DRV_NAME, fifo_size);
 		return -EIO;
 	}
