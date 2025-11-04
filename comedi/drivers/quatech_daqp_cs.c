@@ -229,15 +229,15 @@ static void hex_dump(char *str, void *ptr, int len)
 	unsigned char *cptr = ptr;
 	int i;
 
-	printk(str);
+	printk("%s", str);
 
 	for (i = 0; i < len; i++) {
 		if (i % 16 == 0) {
-			printk("\n0x%08x:", (unsigned int)cptr);
+			printk(KERN_CONT "\n0x%08x:", (unsigned int)cptr);
 		}
-		printk(" %02x", *(cptr++));
+		printk(KERN_CONT " %02x", *(cptr++));
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 #endif
@@ -1469,7 +1469,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 #endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u",
+		printk(KERN_CONT ", irq %u",
 #ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 			link->irq.AssignedIRQ
 #else
@@ -1478,18 +1478,18 @@ static void daqp_cs_config(struct pcmcia_device *link)
 			);
 #ifdef COMEDI_COMPAT_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(KERN_CONT ", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(KERN_CONT " & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2 + link->io.NumPorts2 - 1);
 #else
 	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
+		printk(KERN_CONT ", io %pR", link->resource[0]);
 	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
+		printk(KERN_CONT " & %pR", link->resource[1]);
 #endif
-	printk("\n");
+	printk(KERN_CONT "\n");
 #endif	/* COMEDI_COMPAT_HAVE_CS_H */
 
 	return;
