@@ -287,22 +287,20 @@ static int s526_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 static int s526_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 	int i, n;
 //      sampl_t value;
 //      int subdev_channel = 0;
 	union cmReg cmReg;
 
-	printk("comedi%d: s526: ", dev->minor);
-
 	iobase = it->options[0];
+	printk("comedi%d: s526: iobase=0x%lx ", dev->minor, iobase);
+
 	if (!iobase || !request_region(iobase, S526_IOSIZE, thisboard->name)) {
-		comedi_error(dev, "I/O port conflict");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
-
-	printk("iobase=0x%lx\n", dev->iobase);
 
 	/*** make it a little quieter, exw, 8/29/06
 	for (i = 0; i < S526_NUM_PORTS; i++) {
@@ -322,16 +320,20 @@ static int s526_attach(comedi_device * dev, comedi_devconfig * it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(s526_private)) < 0)
+	if (alloc_private(dev, sizeof(s526_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
 	dev->n_subdevices = 4;
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
+	if (alloc_subdevices(dev, dev->n_subdevices) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
@@ -391,7 +393,7 @@ static int s526_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 
