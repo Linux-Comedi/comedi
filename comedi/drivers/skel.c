@@ -224,15 +224,19 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev, sizeof(skel_private)) < 0)
+	if (alloc_private(dev, sizeof(skel_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_subdevices(dev, 3) < 0)
+	if (alloc_subdevices(dev, 3) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	//dev->read_subdev=s;
@@ -274,7 +278,7 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 0;
 }
