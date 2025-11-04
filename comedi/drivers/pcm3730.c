@@ -71,7 +71,7 @@ static int pcm3730_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCM3730_SIZE, "pcm3730")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -79,8 +79,10 @@ static int pcm3730_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 6) < 0)
+	if (alloc_subdevices(dev, 6) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
+	}
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DO;
@@ -136,7 +138,7 @@ static int pcm3730_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DIC;
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
