@@ -228,9 +228,9 @@ static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 	printk("comedi%d: usbduxfast: dux_commands: ",
 		this_usbduxfastsub->comedidev->minor);
 	for (i = 0; i < SIZEOFDUXBUFFER; i++) {
-		printk(" %02x", this_usbduxfastsub->dux_commands[i]);
+		printk(KERN_CONT " %02x", this_usbduxfastsub->dux_commands[i]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 #endif
 	result = USB_BULK_MSG(this_usbduxfastsub->usbdev,
 		usb_sndbulkpipe(this_usbduxfastsub->usbdev,
@@ -440,7 +440,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	urb->dev = this_usbduxfastsub->usbdev;
 	urb->status = 0;
 	if ((err = USB_SUBMIT_URB(urb)) < 0) {
-		printk("comedi%d: usbduxfast: urb resubm failed: %d",
+		printk("comedi%d: usbduxfast: urb resubm failed: %d\n",
 			this_usbduxfastsub->comedidev->minor, err);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
@@ -596,8 +596,8 @@ static int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 	errFlag = USB_SUBMIT_URB(usbduxfastsub->urbIn);
 	if (errFlag) {
 		printk("comedi_: usbduxfast: ai: ");
-		printk("USB_SUBMIT_URB");
-		printk(" error %d\n", errFlag);
+		printk(KERN_CONT "USB_SUBMIT_URB");
+		printk(KERN_CONT " error %d\n", errFlag);
 		return errFlag;
 	}
 	return 0;
@@ -1367,7 +1367,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 			continue;
 
 		if (buf[0] != ':') {
-			printk("comedi_: usbduxfast: upload: not an ihex record: %s", buf);
+			printk("comedi_: usbduxfast: upload: not an ihex record: %s\n", buf);
 			return -EFAULT;
 		}
 
@@ -1382,10 +1382,10 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 		}
 
 		if (maxAddr >= FIRMWARE_MAX_LEN) {
-			printk("comedi_: usbduxfast: firmware upload goes beyond FX2 RAM boundaries.");
+			printk("comedi_: usbduxfast: firmware upload goes beyond FX2 RAM boundaries.\n");
 			return -EFAULT;
 		}
-		//printk("comedi_: usbduxfast: off=%x, len=%x:",off,len);
+		//printk("comedi_: usbduxfast: off=%x, len=%x:\n",off,len);
 
 		/* Read the record type */
 		type = hex2unsigned(buf + 7);
