@@ -1126,8 +1126,8 @@ static int send_dux_commands(struct usbduxsub *this_usbduxsub, int cmd_type)
 	printk(KERN_DEBUG "comedi%d: usbdux: dux_commands: ",
 	       this_usbduxsub->comedidev->minor);
 	for (result = 0; result < SIZEOFDUXBUFFER; result++)
-		printk(" %02x", this_usbduxsub->dux_commands[result]);
-	printk("\n");
+		printk(KERN_CONT " %02x", this_usbduxsub->dux_commands[result]);
+	printk(KERN_CONT "\n");
 #endif
 	result = usb_bulk_msg(this_usbduxsub->usbdev,
 			      usb_sndbulkpipe(this_usbduxsub->usbdev,
