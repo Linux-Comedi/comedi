@@ -158,7 +158,7 @@ static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it)
 		iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
 	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -174,7 +174,7 @@ static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it)
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(pcmda12_private)) < 0) {
-		printk("cannot allocate private data structure\n");
+		printk(KERN_CONT "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -188,7 +188,7 @@ static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it)
 	 * 96-channel version of the board.
 	 */
 	if (alloc_subdevices(dev, 1) < 0) {
-		printk("cannot allocate subdevice data structures\n");
+		printk(KERN_CONT "cannot allocate subdevice data structures\n");
 		return -ENOMEM;
 	}
 
@@ -204,7 +204,7 @@ static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it)
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
