@@ -317,13 +317,13 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: rti800: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, RTI800_SIZE, "rti800")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 #ifdef DEBUG
-	printk("fingerprint=%x,%x,%x,%x,%x ",
+	printk(KERN_CONT "fingerprint=%x,%x,%x,%x,%x ",
 		inb(dev->iobase + 0),
 		inb(dev->iobase + 1),
 		inb(dev->iobase + 2),
@@ -336,23 +336,27 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 
 	irq = it->options[1];
 	if (irq) {
-		printk("( irq = %u )", irq);
+		printk(KERN_CONT "(irq = %u) ", irq);
 		if ((ret = comedi_request_irq(irq, rti800_interrupt, 0,
 					"rti800", dev)) < 0) {
-			printk(" Failed to allocate IRQ\n");
+			printk(KERN_CONT "Failed to allocate IRQ\n");
 			return ret;
 		}
 		dev->irq = irq;
 	} else {
-		printk("( no irq )");
+		printk(KERN_CONT "(no irq) ");
 	}
 
 	dev->board_name = this_board->name;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0) {
+		printk(KERN_CONT "Failed to allocate subdevices\n");
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(rti800_private))) < 0)
+	}
+	if ((ret = alloc_private(dev, sizeof(rti800_private))) < 0) {
+		printk(KERN_CONT "Failed to allocate private data\n");
 		return ret;
+	}
 
 	devpriv->adc_mux = it->options[2];
 	devpriv->adc_range = it->options[3];
@@ -437,7 +441,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_TIMER;
 #endif
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
