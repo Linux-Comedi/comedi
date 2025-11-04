@@ -337,7 +337,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!iobase || !request_region(iobase,
 			thisboard->total_iosize, driver.driver_name)) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -352,7 +352,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(pcmmio_private)) < 0) {
-		printk("cannot allocate private data structure\n");
+		printk(KERN_CONT "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -372,7 +372,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->sprivs =
 		kcalloc(n_subdevs, sizeof(pcmmio_subdev_private), GFP_KERNEL);
 	if (!devpriv->sprivs) {
-		printk("cannot allocate subdevice private data structures\n");
+		printk(KERN_CONT "cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
 	}
 	/*
@@ -382,7 +382,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 	 * Allocate 1 AI + 1 AO + 2 DIO subdevs (24 lines per DIO)
 	 */
 	if (alloc_subdevices(dev, n_subdevs) < 0) {
-		printk("cannot allocate subdevice data structures\n");
+		printk(KERN_CONT "cannot allocate subdevice data structures\n");
 		return -ENOMEM;
 	}
 
@@ -508,16 +508,16 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 				   irqs.. */
 
 	if (irq[0]) {
-		printk("irq: %u ", irq[0]);
+		printk(KERN_CONT "irq: %u ", irq[0]);
 #if MAX_ASICS > 1
 		if (thisboard->dio_num_asics == 2 && irq[1])
-			printk("second ASIC irq: %u ", irq[1]);
+			printk(KERN_CONT "second ASIC irq: %u ", irq[1]);
 #endif
 	} else {
-		printk("(IRQ mode disabled) ");
+		printk(KERN_CONT "(IRQ mode disabled) ");
 	}
 
-	printk("attached\n");
+	printk(KERN_CONT "attached\n");
 
 	return 1;
 }
@@ -608,7 +608,7 @@ static int pcmmio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 		}
 #ifdef DAMMIT_ITS_BROKEN
 		/* DEBUG */
-		printk("data_out_byte %02x\n", (unsigned)byte);
+		printk(KERN_CONT "data_out_byte %02x\n", (unsigned)byte);
 #endif
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
