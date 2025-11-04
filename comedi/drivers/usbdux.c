@@ -529,9 +529,9 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 	if (unlikely(err < 0)) {
 		printk("comedi_: usbdux_: urb resubmit failed in int-context! err=%d ", err);
 		if (err == -EL2NSYNC) {
-			printk("--> buggy USB host controller or bug in IRQ handler!\n");
+			printk(KERN_CONT "--> buggy USB host controller or bug in IRQ handler!\n");
 		} else {
-			printk("\n");
+			printk(KERN_CONT "\n");
 		}
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
@@ -796,11 +796,11 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 		urb->iso_frame_desc[0].status = 0;
 		if ((ret = USB_SUBMIT_URB(urb)) < 0) {
 			printk("comedi_: usbdux_: ao urb resubm failed in int-cont.");
-			printk("ret=%d", ret);
+			printk(KERN_CONT"ret=%d", ret);
 			if (ret == EL2NSYNC) {
-				printk("--> buggy USB host controller or bug in IRQ handling!\n");
+				printk(KERN_CONT "--> buggy USB host controller or bug in IRQ handling!\n");
 			} else {
-				printk("\n");
+				printk(KERN_CONT "\n");
 			}
 			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
@@ -956,8 +956,8 @@ static int usbduxsub_submit_InURBs(usbduxsub_t * usbduxsub)
 		errFlag = USB_SUBMIT_URB(usbduxsub->urbIn[i]);
 		if (errFlag) {
 			printk("comedi_: usbdux: ai: ");
-			printk("USB_SUBMIT_URB(%d)", i);
-			printk(" error %d\n", errFlag);
+			printk(KERN_CONT "USB_SUBMIT_URB(%d)", i);
+			printk(KERN_CONT " error %d\n", errFlag);
 			return errFlag;
 		}
 	}
@@ -983,8 +983,8 @@ static int usbduxsub_submit_OutURBs(usbduxsub_t * usbduxsub)
 		errFlag = USB_SUBMIT_URB(usbduxsub->urbOut[i]);
 		if (errFlag) {
 			printk("comedi_: usbdux: ao: ");
-			printk("USB_SUBMIT_URB(%d)", i);
-			printk(" error %d\n", errFlag);
+			printk(KERN_CONT "USB_SUBMIT_URB(%d)", i);
+			printk(KERN_CONT " error %d\n", errFlag);
 			return errFlag;
 		}
 	}
@@ -1156,9 +1156,9 @@ static int send_dux_commands(usbduxsub_t * this_usbduxsub, int cmd_type)
 	printk("comedi%d: usbdux: dux_commands: ",
 		this_usbduxsub->comedidev->minor);
 	for (result = 0; result < SIZEOFDUXBUFFER; result++) {
-		printk(" %02x", this_usbduxsub->dux_commands[result]);
+		printk(KERN_CONT " %02x", this_usbduxsub->dux_commands[result]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 #endif
 	result = USB_BULK_MSG(this_usbduxsub->usbdev,
 		usb_sndbulkpipe(this_usbduxsub->usbdev,
@@ -1278,7 +1278,7 @@ static int usbdux_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 #ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi %d: sending commands to the usb device: ", dev->minor);
-	printk("size=%u\n", NUMCHANNELS);
+	printk(KERN_CONT "size=%u\n", NUMCHANNELS);
 #endif
 	if ((result = send_dux_commands(this_usbduxsub, SENDADCOMMANDS)) < 0) {
 		mutex_unlock(&this_usbduxsub->mutex);
@@ -2041,11 +2041,11 @@ static void usbduxsub_pwm_irq(struct urb *urb, struct pt_regs *regs)
 	if (this_usbduxsub->pwm_cmd_running) {
 		if ((ret = USB_SUBMIT_URB(urb)) < 0) {
 			printk("comedi_: usbdux_: pwm urb resubm failed in int-cont.");
-			printk("ret=%d", ret);
+			printk(KERN_CONT "ret=%d", ret);
 			if (ret == EL2NSYNC) {
-				printk("--> buggy USB host controller or bug in IRQ handling!\n");
+				printk(KERN_CONT "--> buggy USB host controller or bug in IRQ handling!\n");
 			} else {
-				printk("\n");
+				printk(KERN_CONT "\n");
 			}
 			// don't do an unlink here
 			usbdux_pwm_stop(this_usbduxsub, 0);
@@ -2074,8 +2074,8 @@ static int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
 	errFlag = USB_SUBMIT_URB(usbduxsub->urbPwm);
 	if (errFlag) {
 		printk("comedi_: usbdux: pwm: ");
-		printk("USB_SUBMIT_URB");
-		printk(" error %d\n", errFlag);
+		printk(KERN_CONT "USB_SUBMIT_URB");
+		printk(KERN_CONT " error %d\n", errFlag);
 		return errFlag;
 	}
 	return 0;
@@ -2433,7 +2433,7 @@ static int read_firmware(usbduxsub_t * usbduxsub, const void *firmwarePtr, long 
 			continue;
 
 		if (buf[0] != ':') {
-			printk("comedi_: usbdux: upload: not an ihex record: %s", buf);
+			printk("comedi_: usbdux: upload: not an ihex record: %s\n", buf);
 			return -EFAULT;
 		}
 
@@ -2448,7 +2448,7 @@ static int read_firmware(usbduxsub_t * usbduxsub, const void *firmwarePtr, long 
 		}
 
 		if (maxAddr >= FIRMWARE_MAX_LEN) {
-			printk("comedi_: usbdux: firmware upload goes beyond FX2 RAM boundaries.");
+			printk("comedi_: usbdux: firmware upload goes beyond FX2 RAM boundaries.\n");
 			return -EFAULT;
 		}
 		//printk("comedi_: usbdux: off=%x, len=%x:",off,len);
