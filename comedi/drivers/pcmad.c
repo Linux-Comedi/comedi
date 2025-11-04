@@ -135,15 +135,19 @@ static int pcmad_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCMAD_SIZE, "pcmad")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct pcmad_priv_struct))) < 0)
+	}
+	if ((ret = alloc_private(dev, sizeof(struct pcmad_priv_struct))) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return ret;
+	}
 
 	dev->board_name = this_board->name;
 
@@ -155,6 +159,8 @@ static int pcmad_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_read = pcmad_ai_insn_read;
 	s->maxdata = (1 << this_board->n_ai_bits) - 1;
 	s->range_table = &range_unknown;
+
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
