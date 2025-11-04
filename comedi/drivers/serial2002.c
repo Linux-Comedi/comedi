@@ -813,13 +813,14 @@ static int serial2002_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: serial2002: ", dev->minor);
 	dev->board_name = thisboard->name;
 	if (alloc_private(dev, sizeof(serial2002_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
 	}
 	dev->open = serial_2002_open;
 	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];
-	printk("/dev/ttyS%d @ %d\n", devpriv->port, devpriv->speed);
+	printk(KERN_CONT "/dev/ttyS%d @ %d\n", devpriv->port, devpriv->speed);
 
 	if (alloc_subdevices(dev, 5) < 0)
 		return -ENOMEM;
