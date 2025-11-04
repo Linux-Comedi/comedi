@@ -105,7 +105,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	iobase = it->options[0];
 	printk("comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
-		printk("I/O port conflict\n");
+		printk(KERN_CONT "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -114,6 +114,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (alloc_subdevices(dev, 1) < 0
 		|| alloc_private(dev, sizeof(rti802_private))) {
+		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
 	}
 
@@ -135,7 +136,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 			? &range_unipolar10 : &range_bipolar10;
 	}
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	return 0;
 }
