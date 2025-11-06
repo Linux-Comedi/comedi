@@ -53,8 +53,6 @@ static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 static void *comedi_recognize(comedi_driver * driv, const char *name);
 static void comedi_report_boards(comedi_driver * driv);
 static int poll_invalid(comedi_device * dev, comedi_subdevice * s);
-int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
-	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
 
@@ -293,7 +291,7 @@ static int postconfig(comedi_device * dev)
 }
 
 // generic recognize function for drivers that register their supported board names
-void *comedi_recognize(comedi_driver * driv, const char *name)
+static void *comedi_recognize(comedi_driver * driv, const char *name)
 {
 	unsigned i;
 	const char *const *name_ptr = driv->board_name;
@@ -308,7 +306,7 @@ void *comedi_recognize(comedi_driver * driv, const char *name)
 	return NULL;
 }
 
-void comedi_report_boards(comedi_driver * driv)
+static void comedi_report_boards(comedi_driver * driv)
 {
 	unsigned int i;
 	const char *const *name_ptr;
