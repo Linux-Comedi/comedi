@@ -314,8 +314,6 @@ void comedi_error(const comedi_device * dev, const char *s);
 
 comedi_device* comedi_get_device_by_minor(unsigned minor);
 
-void comedi_device_detach(comedi_device * dev);
-int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
 int comedi_driver_register(comedi_driver *);
 int comedi_driver_unregister(comedi_driver *);
 
@@ -323,21 +321,6 @@ void init_polling(void);
 void cleanup_polling(void);
 void start_polling(comedi_device *);
 void stop_polling(comedi_device *);
-
-int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s, unsigned long
-	new_size);
-
-#ifdef CONFIG_PROC_FS
-void comedi_proc_init(void);
-void comedi_proc_cleanup(void);
-#else
-static inline void comedi_proc_init(void)
-{
-}
-static inline void comedi_proc_cleanup(void)
-{
-}
-#endif
 
 /* subdevice runflags */
 enum subdevice_runflags {
@@ -352,13 +335,10 @@ enum subdevice_runflags {
    various internal comedi functions
  */
 
-int do_rangeinfo_i(comedi_device * dev, comedi_rangeinfo * ri);
 int check_chanlist(comedi_subdevice * s, int n, unsigned int *chanlist);
 void comedi_set_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 	unsigned bits);
 unsigned comedi_get_subdevice_runflags(comedi_subdevice * s);
-int insn_inval(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
 
 /* range stuff */
 
@@ -447,8 +427,6 @@ int comedi_buf_getl(comedi_async * async, lsampl_t * x);
 
 unsigned int comedi_buf_write_n_available(comedi_async * async);
 unsigned int comedi_buf_write_alloc(comedi_async * async, unsigned int nbytes);
-unsigned int comedi_buf_write_alloc_strict(comedi_async * async,
-	unsigned int nbytes);
 unsigned comedi_buf_write_free(comedi_async * async, unsigned int nbytes);
 unsigned comedi_buf_read_alloc(comedi_async * async, unsigned nbytes);
 unsigned comedi_buf_read_free(comedi_async * async, unsigned int nbytes);

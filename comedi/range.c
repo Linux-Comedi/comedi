@@ -21,8 +21,8 @@
 
 */
 
-#include <linux/comedidev.h>
 #include <linux/uaccess.h>
+#include "comedi_internal.h"
 
 const comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
 const comedi_lrange range_bipolar5 = { 1, {BIP_RANGE(5)} };
