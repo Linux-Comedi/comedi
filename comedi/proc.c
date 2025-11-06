@@ -29,10 +29,8 @@
 */
 
 #define __NO_VERSION__
-#include <linux/comedidev.h>
 #include <linux/proc_fs.h>
-
-extern comedi_driver *comedi_drivers;
+#include "comedi_internal.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 /* Old version */
