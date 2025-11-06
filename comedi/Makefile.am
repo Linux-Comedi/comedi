@@ -63,7 +63,7 @@ endif
 EXTRA_DIST = \
  Kbuild \
  rt_pend_tq.h \
- comedi_fops.h \
+ comedi_internal.h \
  comedi_compat32.h
 
 if COMEDI_CONFIG_RT

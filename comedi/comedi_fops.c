@@ -45,7 +45,7 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 
-#include "comedi_fops.h"
+#include "comedi_internal.h"
 #include "comedi_compat32.h"
 
 //#include "kvmem.h"

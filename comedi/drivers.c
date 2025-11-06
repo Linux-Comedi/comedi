@@ -45,7 +45,7 @@
 #include <asm/io.h>
 #include <asm/barrier.h>
 
-#include "comedi_fops.h"
+#include "comedi_internal.h"
 
 static int postconfig(comedi_device * dev);
 static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
