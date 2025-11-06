@@ -35,7 +35,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 /* Old version */
 
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
+static int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int *eof, void *data)
 {
 	int i;
