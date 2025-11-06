@@ -74,7 +74,7 @@ module_param(comedi_debug, int, 0644);
 COMEDI_MODULE_PARAM_BOOL_T comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
-int comedi_num_legacy_minors = 0;
+static int comedi_num_legacy_minors = 0;
 module_param(comedi_num_legacy_minors, int, 0444);
 
 static DEFINE_SPINLOCK(comedi_board_minor_table_lock);
@@ -108,7 +108,7 @@ static int do_poll_ioctl(comedi_device * dev, unsigned int subd, void *file);
 static int do_setrsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
 static int do_setwsubd_ioctl(comedi_device *dev, unsigned long subd, struct file *file);
 
-void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s);
+static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s);
 static int do_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static int comedi_fasync(int fd, struct file *file, int on);
@@ -2667,7 +2667,7 @@ done:
 /*
    This function restores a subdevice to an idle state.
  */
-void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
+static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 
@@ -2836,7 +2836,7 @@ static int comedi_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
-const struct file_operations comedi_fops = {
+static const struct file_operations comedi_fops = {
       owner:THIS_MODULE,
 #ifdef HAVE_UNLOCKED_IOCTL
       unlocked_ioctl:comedi_unlocked_ioctl,
@@ -2855,7 +2855,7 @@ const struct file_operations comedi_fops = {
       fasync:comedi_fasync,
 };
 
-struct class *comedi_class = NULL;
+static struct class *comedi_class = NULL;
 static struct cdev comedi_cdev;
 
 static void comedi_cleanup_legacy_minors(void)
