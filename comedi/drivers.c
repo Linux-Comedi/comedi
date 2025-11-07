@@ -794,7 +794,7 @@ void comedi_reset_async_buf(comedi_async * async)
 	async->events = 0;
 }
 
-int comedi_auto_config(struct device *hardware_device, const char *board_name, const int *options, unsigned num_options)
+static int comedi_auto_config(struct device *hardware_device, const char *board_name, const int *options, unsigned num_options)
 {
 	comedi_devconfig it;
 	int minor;
@@ -839,7 +839,7 @@ cleanup:
 	return retval;
 }
 
-void comedi_auto_unconfig(struct device *hardware_device)
+static void comedi_auto_unconfig(struct device *hardware_device)
 {
 	unsigned *minor = (unsigned *)dev_get_drvdata(hardware_device);
 	if(minor == NULL) return;
