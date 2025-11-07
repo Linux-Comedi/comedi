@@ -9,6 +9,11 @@
 extern COMEDI_MODULE_PARAM_BOOL_T comedi_autoconfig;
 extern comedi_driver *comedi_drivers;
 
+int comedi_alloc_board_minor(struct device *hardware_device);
+void comedi_free_board_minor(unsigned minor);
+int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s);
+void comedi_free_subdevice_minor(comedi_subdevice *s);
+
 void comedi_device_detach(comedi_device * dev);
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
 int insn_inval(comedi_device * dev, comedi_subdevice * s,

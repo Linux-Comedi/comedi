@@ -466,10 +466,6 @@ static inline void *comedi_aux_data(int options[], int n)
 	return (void *)address;
 }
 
-int comedi_alloc_board_minor(struct device *hardware_device);
-void comedi_free_board_minor(unsigned minor);
-int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s);
-void comedi_free_subdevice_minor(comedi_subdevice *s);
 int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 struct usb_device;	// forward declaration
