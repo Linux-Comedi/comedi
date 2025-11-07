@@ -317,11 +317,6 @@ comedi_device* comedi_get_device_by_minor(unsigned minor);
 int comedi_driver_register(comedi_driver *);
 int comedi_driver_unregister(comedi_driver *);
 
-void init_polling(void);
-void cleanup_polling(void);
-void start_polling(comedi_device *);
-void stop_polling(comedi_device *);
-
 /* subdevice runflags */
 enum subdevice_runflags {
 	SRF_USER = 0x00000001,
