@@ -662,6 +662,65 @@ AC_DEFUN([AS_LINUX_VERSION],
         AC_MSG_RESULT($LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR.$LINUX_VERSION_MICRO)
 ])
 
+dnl Check the Linux kernel version against $1.
+dnl Do $2 if kernel version below $1.
+dnl Do $3 if kernel version matches $1.
+dnl Do $4 if kernel version above $1.
+dnl Uses ${LINUX_VERSION_MAJOR}, ${LINUX_VERSION_MINOR}, ${LINUX_VERSION_MICRO}
+dnl set by AS_LINUX_VERSION() earlier.
+
+AC_DEFUN([AC_CHECK_KERNEL_VERSION],
+[
+  AC_MSG_CHECKING([Linux kernel version against $1])
+  a=`expr "$1" : '\(@<:@@<:@:digit:@:>@@:>@\+\)'`
+  b=`expr "$1" : '@<:@@<:@:digit:@:>@@:>@\+\.\(@<:@@<:@:digit:@:>@@:>@\+\)'`
+  c=`expr "$1" : '@<:@@<:@:digit:@:>@@:>@\+\.@<:@@<:@:digit:@:>@@:>@\+\.\(@<:@@<:@:digit:@:>@@:>@\+\)'`
+  if test "$a"; then
+    if test $LINUX_VERSION_MAJOR -gt $a; then
+      result=above
+    elif test $LINUX_VERSION_MAJOR -lt $a; then
+      result=below
+    else
+      if test "$b"; then
+        if test $LINUX_VERSION_MINOR -gt $b; then
+          result=above
+        elif test $LINUX_VERSION_MINOR -lt $b; then
+          result=below
+        else
+          if test "$c"; then
+            if test $LINUX_VERSION_MICRO -gt $c; then
+              result=above
+            elif test $LINUX_VERSION_MICRO -lt $c; then
+              result=below
+            else
+              result=same
+            fi
+          else
+            result=same
+          fi
+        fi
+      else
+        result=same
+      fi
+    fi
+  else
+    result=same
+  fi
+  case $result in
+  below)
+    $2
+    ;;
+  same)
+    $3
+    ;;
+  above)
+    $4
+    ;;
+  esac
+  AC_MSG_RESULT([$result])
+]
+)
+
 # COMEDI_CHECK_LINUX_KBUILD([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # -------------------------------------------------------------
 #
