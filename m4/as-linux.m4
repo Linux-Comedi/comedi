@@ -75,8 +75,8 @@ AC_DEFUN([AS_LINUX],
 	dnl check if we're building on pre-FC2 Red Hat/Fedora,
 	dnl and add some flags if we are
 	AS_CHECK_REDHAT_PRE_FC2()
-	dnl check for the MAJOR/MINOR version of Linux
-	AS_LINUX_VERSION_MAJOR_MINOR($LINUX_SRC_DIR)
+	dnl check for the MAJOR/MINOR/MICRO version of Linux
+	AS_LINUX_VERSION($LINUX_SRC_DIR)
 
 	dnl now call the correct macro to get compiler flags
 	dnl the versioned AS_LINUX macros just use the global variables
@@ -639,26 +639,27 @@ AC_DEFUN([AS_LINUX_CONFIG_OPTION_MODULE],
 	AM_CONDITIONAL([$1],[test "${$1}" = yes -o "${$1}" = module])
 ])
 
-dnl check for the major/minor version of the Linux source by checking
+dnl check for the major/minor/micro version of the Linux source by checking
 dnl the Makefile
 dnl first argument is the linux directory
-dnl sets LINUX_VERSION_MAJOR and LINUX_VERSION_MINOR
-AC_DEFUN([AS_LINUX_VERSION_MAJOR_MINOR],
+dnl sets LINUX_VERSION_MAJOR, LINUX_VERSION_MINOR, and LINUX_VERSION_MICRO
+AC_DEFUN([AS_LINUX_VERSION],
 [
 	LINUXDIR=[$1]
-	AC_MSG_CHECKING([Linux major/minor version])
+	AC_MSG_CHECKING([Linux major/minor/micro version])
 
 	if [[ ! -f "${LINUXDIR}/Makefile" ]];then
 		AC_MSG_ERROR([The Linux kernel Makefile does not exist.])
 	fi
-        dnl the next set of tests is for figuring out version major/minor
+        dnl the next set of tests is for figuring out major/minor/micro
         dnl use VERSION and PATCHLEVEL in the kernel Makefile
 	LINUX_VERSION_MAJOR=`sed -n 's/^VERSION = \([[0-9]]*\)/\1/p' "${LINUXDIR}/Makefile"`
 	LINUX_VERSION_MINOR=`sed -n 's/^PATCHLEVEL = \([[0-9]]*\)/\1/p' "${LINUXDIR}/Makefile"`
-	if [[ -z "$LINUX_VERSION_MAJOR" -o -z "$LINUX_VERSION_MINOR" ]]; then
-		AC_MSG_ERROR([No major/minor version information found in Linux kernel Makefile.])
+	LINUX_VERSION_MICRO=`sed -n 's/^SUBLEVEL = \([[0-9]]*\)/\1/p' "${LINUXDIR}/Makefile"`
+	if [[ -z "$LINUX_VERSION_MAJOR" -o -z "$LINUX_VERSION_MINOR" -o -z "$LINUX_VERSION_MICRO" ]]; then
+		AC_MSG_ERROR([No major/minor/micro version information found in Linux kernel Makefile.])
 	fi
-        AC_MSG_RESULT($LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR)
+        AC_MSG_RESULT($LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR.$LINUX_VERSION_MICRO)
 ])
 
 # COMEDI_CHECK_LINUX_KBUILD([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
