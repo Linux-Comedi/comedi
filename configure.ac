@@ -51,6 +51,17 @@ if test "$DEPMOD" == "no" ; then
 fi
 
 AS_LINUX()
+
+dnl Check for (hopefully) supported kernel versions
+dnl TODO The minimum supported kernel version is yet to be determined, but
+dnl 2.4 kernels are definitely no longer supported, and we do not care about
+dnl 2.5 (development) kernels.
+AC_CHECK_KERNEL_VERSION([2.6],
+	[support_kernel="no"], [support_kernel="yes"], [support_kernel="yes"])
+if test "$support_kernel" != "yes"; then
+	AC_MSG_ERROR([kernel version not supported!])
+fi
+
 AS_LINUX_MODTOOL()
 
 AC_ARG_ENABLE([modulesdir-prefix],
