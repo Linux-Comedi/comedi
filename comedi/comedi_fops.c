@@ -438,7 +438,7 @@ static long compat_chaninfo(struct file *file, unsigned long arg)
 	memset(&chaninfo, 0, sizeof(chaninfo));
 
 	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(chaninfo32, sizeof(*chaninfo32))) {
+	if (!comedi_access_ok(chaninfo32, sizeof(*chaninfo32))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -473,7 +473,7 @@ static long compat_rangeinfo(struct file *file, unsigned long arg)
 	memset(&rangeinfo, 0, sizeof(rangeinfo));
 
 	/* Copy rangeinfo structure. */
-	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32))) {
+	if (!comedi_access_ok(rangeinfo32, sizeof(*rangeinfo32))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -498,7 +498,7 @@ static int get_compat_cmd(comedi_cmd *cmd,
 	compat_uptr_t temp_uptr;
 
 	/* Copy cmd structure. */
-	if (!access_ok(cmd32, sizeof(*cmd32))) {
+	if (!comedi_access_ok(cmd32, sizeof(*cmd32))) {
 		return -EFAULT;
 	}
 	memset(cmd, 0, sizeof(*cmd));
@@ -533,7 +533,7 @@ static int put_compat_cmd(comedi32_cmd __user *cmd32, comedi_cmd *cmd)
 	/* Assume the pointer values are already valid. */
 	/* (Could use ptr_to_compat() to set them, but that wasn't implemented
 	 * until kernel version 2.6.11.) */
-	if (!access_ok(cmd32, sizeof(*cmd32))) {
+	if (!comedi_access_ok(cmd32, sizeof(*cmd32))) {
 		return -EFAULT;
 	}
 	err = 0;
@@ -628,7 +628,7 @@ static int get_compat_insn(comedi_insn *insn,
 
 	/* Copy insn structure.  Ignore the unused members. */
 	err = 0;
-	if (!access_ok(insn32, sizeof(*insn32))) {
+	if (!comedi_access_ok(insn32, sizeof(*insn32))) {
 		return -EFAULT;
 	}
 	err |= __get_user(insn->insn, &insn32->insn);
@@ -655,7 +655,7 @@ static long compat_insnlist(struct file *file, unsigned long arg)
 	insnlist32 = compat_ptr(arg);
 
 	/* Get 32-bit insnlist structure.  */
-	if (!access_ok(insnlist32, sizeof(*insnlist32))) {
+	if (!comedi_access_ok(insnlist32, sizeof(*insnlist32))) {
 		return -EFAULT;
 	}
 	err = 0;

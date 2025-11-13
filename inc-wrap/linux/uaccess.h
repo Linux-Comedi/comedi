@@ -6,6 +6,7 @@
 #define __COMPAT_LINUX_UACCESS_H_
 
 #include <linux/version.h>
+#include <linux/compiler.h> /* for __user */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 #include <asm/uaccess.h>
@@ -19,14 +20,14 @@
  *
  * The verification type has been completely ignored in the 2.6 kernel onwards.
  */
-#ifdef VERIFY_READ
-static inline int _comedi_access_ok(unsigned long addr, size_t size)
+static inline int comedi_access_ok(const void __user *addr, size_t size)
 {
-	/* The verification type is ignored by the kernel (2.6 onwards). */
-	return access_ok(0, addr, size);
-}
-#undef access_ok
-#define access_ok(addr, size) _comedi_access_ok((unsigned long)(addr), (size))
+	/* Always use VERIFY_WRITE.  Most architectures ignore it. */
+	return access_ok(
+#ifdef VERIFY_WRITE
+			 VERIFY_WRITE,
 #endif
+			 addr, size);
+}
 
 #endif /* __COMPAT_LINUX_UACCESS_H_ */
