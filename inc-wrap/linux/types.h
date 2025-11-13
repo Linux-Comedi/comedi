@@ -29,7 +29,15 @@ typedef unsigned long resource_size_t;
 #endif
 
 #ifndef COMEDI_COMPAT_HAVE_GENERIC_BOOL_TYPE
+#if __GNUC__ >= 3
 typedef _Bool bool;
+#else
+/*
+ * The compiler does not have a type with C99 _Bool semantics, so use char
+ * instead.  Things might break if they rely on the _Bool semantics.
+ */
+typedef char bool;
+#endif
 #endif
 
 #include_next <linux/types.h>
