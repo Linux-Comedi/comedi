@@ -23,14 +23,6 @@
 #include_next <linux/kernel.h>
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-
-#define container_of(ptr, type, member) ({ \
-	const typeof( ((type *)0)->member ) *__mptr = (ptr); \
-	(type *)( (char *)__mptr - offsetof(type,member) );})
-
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 /* Add missing strict_strtox functions. */
 #include <linux/string.h>
@@ -137,39 +129,6 @@ static inline int comedi_strict_strtoll(const char *cp, unsigned int base,
 #define kstrtoll(s, base, res)	strict_strtoll(s, base, res)
 #undef kstrtoull
 #define kstrtoull(s, base, res)	strict_strtoull(s, base, res)
-#endif
-
-/*
- * min()/max() were first defined in <linux/kernel.h> around 2.4.9,
- * but they were really min_t() and max_t().  They weren't used much by
- * other kernel headers except <net/tcp.h> which we can probably assume
- * won't be included.  (If <net/tcp.h> is included, the build won't work
- * for kernel version 2.4.9 unless <net/tcp.h> is included before this file.)
- *
- * min_t()/max_t() were first defined in <linux/kernel.h> around 2.4.10.
- */
-#ifndef min_t
-#undef min
-#define min(x, y) ({ \
-	const typeof(x) _x = (x);	\
-	const typeof(y) _y = (y);	\
-	(void)(&_x == &_y);		\
-	_x < _y ? _x : _y; })
-
-#define min_t(type, x, y) \
-	({ type __x = (x); type __y = (y); __x < __y ? __x : __y; })
-#endif
-
-#ifndef max_t
-#undef max
-#define max(x, y) ({ \
-	const typeof(x) _x = (x);	\
-	const typeof(y) _y = (y);	\
-	(void)(&_x == &_y);		\
-	_x > _y ? _x : _y; })
-
-#define max_t(type, x, y) \
-	({ type __x = (x); type __y = (y); __x > __y ? __x : __y; })
 #endif
 
 #ifndef KERN_CONT
