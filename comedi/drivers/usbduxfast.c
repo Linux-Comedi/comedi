@@ -184,10 +184,8 @@ typedef struct {
 	int16_t *insnBuffer;
 	// interface number
 	int ifnum;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// interface structure in 2.6
 	struct usb_interface *interface;
-#endif
 	// comedi device for the interrupt context
 	comedi_device *comedidev;
 	// asynchronous command is running
@@ -326,11 +324,7 @@ static int usbduxfast_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxfastsub_ai_Irq(struct urb *urb)
-#else
 static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
-#endif
 {
 	int n, err;
 	usbduxfastsub_t *this_usbduxfastsub;
@@ -439,7 +433,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	// resubmit urb for BULK transfer
 	urb->dev = this_usbduxfastsub->usbdev;
 	urb->status = 0;
-	if ((err = USB_SUBMIT_URB(urb)) < 0) {
+	if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
 		printk("comedi%d: usbduxfast: urb resubm failed: %d\n",
 			this_usbduxfastsub->comedidev->minor, err);
 		s->async->events |= COMEDI_CB_EOA;
@@ -593,10 +587,10 @@ static int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 		(int)(usbduxfastsub->urbIn->context),
 		(int)(usbduxfastsub->urbIn->dev));
 #endif
-	errFlag = USB_SUBMIT_URB(usbduxfastsub->urbIn);
+	errFlag = usb_submit_urb(usbduxfastsub->urbIn, GFP_ATOMIC);
 	if (errFlag) {
 		printk("comedi_: usbduxfast: ai: ");
-		printk(KERN_CONT "USB_SUBMIT_URB");
+		printk(KERN_CONT "usb_submit_urb");
 		printk(KERN_CONT " error %d\n", errFlag);
 		return errFlag;
 	}
@@ -1425,12 +1419,10 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 	if (!usbduxfastsub_tmp) {
 		return;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// shows the usb subsystem that the driver is down
 	if (usbduxfastsub_tmp->interface) {
 		usb_set_intfdata(usbduxfastsub_tmp->interface, NULL);
 	}
-#endif
 
 	usbduxfastsub_tmp->probed = 0;
 
@@ -1495,24 +1487,17 @@ out:
 }
 
 // allocate memory for the urbs and initialise them
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void *usbduxfastsub_probe(struct usb_device *udev,
-				 unsigned int interfnum,
-				 const struct usb_device_id *id)
-{
-#else
 static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
-#endif
 	int i;
 	int index;
 	int ret;
 
 	if (udev->speed != USB_SPEED_HIGH) {
 		printk("comedi_: usbduxfast_: This driver needs USB 2.0 to operate. Aborting...\n");
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
 #ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast_: finding a free structure for the usb-device\n");
@@ -1531,7 +1516,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	if (index == -1) {
 		printk("Too many usbduxfast-devices connected.\n");
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-EMFILE);
+		return -EMFILE;
 	}
 #ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: usbduxfastsub[%d] is ready to connect to comedi.\n", index);
@@ -1541,10 +1526,6 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	// save a pointer to the usb device
 	usbduxfastsub[index].usbdev = udev;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	// save the interface number
-	usbduxfastsub[index].ifnum = interfnum;
-#else
 	// 2.6: save the interface itself
 	usbduxfastsub[index].interface = uinterf;
 	// get the interface number from the interface
@@ -1552,7 +1533,6 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	// hand the private data over to the usb subsystem
 	// will be needed for disconnect
 	usb_set_intfdata(uinterf, &(usbduxfastsub[index]));
-#endif
 
 #ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbduxfast: ifnum=%d\n", usbduxfastsub[index].ifnum);
@@ -1564,7 +1544,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast: error alloc space for dac commands\n");
 		tidy_up(&(usbduxfastsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space of the instruction buffer
 	usbduxfastsub[index].insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
@@ -1572,7 +1552,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast: could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxfastsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// setting to alternate setting 1: enabling bulk ep
 	i = usb_set_interface(usbduxfastsub[index].usbdev,
@@ -1581,14 +1561,14 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast%d: could not switch to alternate setting 1.\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
-	usbduxfastsub[index].urbIn = USB_ALLOC_URB(0);
+	usbduxfastsub[index].urbIn = usb_alloc_urb(0, GFP_KERNEL);
 	if (usbduxfastsub[index].urbIn == NULL) {
 		printk("comedi_: usbduxfast%d: Could not alloc. urb\n", index);
 		tidy_up(&(usbduxfastsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!(usbduxfastsub[index].transfer_buffer)) {
@@ -1596,7 +1576,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 			index);
 		tidy_up(&(usbduxfastsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// we've reached the bottom of the function
 	usbduxfastsub[index].probed = 1;
@@ -1620,24 +1600,14 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	printk("comedi_: usbduxfast%d has been successfully initialized.\n",
 	       index);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	return (void *)(&usbduxfastsub[index]);
-#else
 	// success
 	return 0;
-#endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxfastsub_disconnect(struct usb_device *udev, void *ptr)
-{
-	usbduxfastsub_t *usbduxfastsub_tmp = (usbduxfastsub_t *) ptr;
-#else
 static void usbduxfastsub_disconnect(struct usb_interface *intf)
 {
 	usbduxfastsub_t *usbduxfastsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
-#endif
 	if (!usbduxfastsub_tmp) {
 		printk("comedi_: usbduxfast: disconnect called with null pointer.\n");
 		return;
