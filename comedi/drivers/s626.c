@@ -567,8 +567,9 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->allocatedBuf = 0;
 
 		if ((devpriv->ANABuf.LogicalBase =
-				pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE,
-					&appdma)) == NULL) {
+				dma_alloc_coherent(&devpriv->pdev->dev,
+					DMABUF_SIZE, &appdma,
+					GFP_KERNEL)) == NULL) {
 			printk("s626_attach: DMA Memory mapping error\n");
 			return -ENOMEM;
 		}
@@ -580,8 +581,9 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->allocatedBuf++;
 
 		if ((devpriv->RPSBuf.LogicalBase =
-				pci_alloc_consistent(devpriv->pdev, DMABUF_SIZE,
-					&appdma)) == NULL) {
+				dma_alloc_coherent(&devpriv->pdev->dev,
+					DMABUF_SIZE, &appdma,
+					GFP_KERNEL)) == NULL) {
 			printk("s626_attach: DMA Memory mapping error\n");
 			return -ENOMEM;
 		}
@@ -2732,7 +2734,7 @@ static void CloseDMAB(comedi_device * dev, DMABUF * pdma, size_t bsize)
 	vbptr = pdma->LogicalBase;
 	vpptr = pdma->PhysicalBase;
 	if (vbptr) {
-		pci_free_consistent(devpriv->pdev, bsize, vbptr, vpptr);
+		dma_free_coherent(&devpriv->pdev->dev, bsize, vbptr, vpptr);
 		pdma->LogicalBase = 0;
 		pdma->PhysicalBase = 0;
 
