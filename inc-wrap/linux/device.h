@@ -55,37 +55,6 @@
  * None of the above is currently supported for 2.4 kernels!
  */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <pcmcia/cs_types.h>
-
-struct device_driver {
-	char *name;
-};
-
-struct class;
-struct device;
-
-static inline struct class *class_create(char *name)
-{
-	return NULL;
-}
-
-static inline void class_destroy(struct class *cs)
-{
-}
-
-static inline struct device *device_create(struct class *cls,
-	struct device *parent, dev_t devt, void *drvdata, char *fmt, ...)
-{
-	return NULL;
-}
-
-static inline void device_destroy(struct class *cs, dev_t devt)
-{
-}
-
-#else // LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
 #include_next <linux/device.h>
 #include <linux/module.h>
 
@@ -240,7 +209,5 @@ ssize_t func(struct device *dev, struct device_attribute *_attr, \
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
-
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
 #endif // __COMPAT_LINUX_DEVICE_H_
