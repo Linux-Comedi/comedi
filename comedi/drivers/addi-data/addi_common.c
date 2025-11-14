@@ -2707,9 +2707,9 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	if (devpriv->s_EeParameters.i_Dma) {
 		printk("DMA used\n");
 		pci_set_master(devpriv->amcc->pcidev);
-		if (pci_set_dma_mask(devpriv->amcc->pcidev,
+		if (dma_set_mask(&devpriv->amcc->pcidev->dev,
 				((1ULL << 32) - 1)) != 0 ||
-			pci_set_consistent_dma_mask(devpriv->amcc->pcidev,
+			dma_set_coherent_mask(&devpriv->amcc->pcidev->dev,
 				((1ULL << 32) - 1)) != 0) {
 			if (devpriv->us_UseDma == ADDI_ENABLE) {
 				rt_printk
@@ -2726,10 +2726,10 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 
 				for (order = 2; order >= 0; order--) {
 					if ((devpriv->ul_DmaBufferVirtual[i] =
-						pci_alloc_consistent(
-							devpriv->amcc->pcidev,
+						dma_alloc_coherent(
+							&devpriv->amcc->pcidev->dev,
 							(PAGE_SIZE << order),
-							&hwaddr))) {
+							&hwaddr, GFP_KERNEL))) {
 						break;
 					}
 				}
@@ -2974,14 +2974,14 @@ static int i_ADDI_Detach(comedi_device * dev)
 			}
 
 			if (devpriv->ul_DmaBufferVirtual[0]) {
-				pci_free_consistent(devpriv->amcc->pcidev,
+				dma_free_coherent(&devpriv->amcc->pcidev->dev,
 					devpriv->ui_DmaBufferSize[0],
 					devpriv->ul_DmaBufferVirtual[0],
 					devpriv->ul_DmaBufferHw[0]);
 			}
 
 			if (devpriv->ul_DmaBufferVirtual[1]) {
-				pci_free_consistent(devpriv->amcc->pcidev,
+				dma_free_coherent(&devpriv->amcc->pcidev->dev,
 					devpriv->ui_DmaBufferSize[1],
 					devpriv->ul_DmaBufferVirtual[1],
 					devpriv->ul_DmaBufferHw[1]);
