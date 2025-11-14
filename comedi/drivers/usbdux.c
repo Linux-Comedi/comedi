@@ -299,10 +299,8 @@ typedef struct {
 	int16_t *outBuffer;
 	// interface number
 	int ifnum;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// interface structure in 2.6
 	struct usb_interface *interface;
-#endif
 	// comedi device for the interrupt context
 	comedi_device *comedidev;
 	// is it USB_SPEED_HIGH or not?
@@ -433,11 +431,7 @@ static int usbdux_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxsub_ai_IsocIrq(struct urb *urb)
-#else
 static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
-#endif
 {
 	int i, err, n;
 	usbduxsub_t *this_usbduxsub;
@@ -525,7 +519,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 	urb->dev = this_usbduxsub->usbdev;
 
 	// resubmit the urb
-	err = USB_SUBMIT_URB(urb);
+	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (unlikely(err < 0)) {
 		printk("comedi_: usbdux_: urb resubmit failed in int-context! err=%d ", err);
 		if (err == -EL2NSYNC) {
@@ -666,13 +660,8 @@ static int usbdux_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 	return res;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxsub_ao_IsocIrq(struct urb *urb)
-{
-#else
 static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 {
-#endif
 	int i, ret;
 	int8_t *datap;
 	usbduxsub_t *this_usbduxsub;
@@ -794,7 +783,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 		urb->iso_frame_desc[0].offset = 0;
 		urb->iso_frame_desc[0].length = SIZEOUTBUF;
 		urb->iso_frame_desc[0].status = 0;
-		if ((ret = USB_SUBMIT_URB(urb)) < 0) {
+		if ((ret = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
 			printk("comedi_: usbdux_: ao urb resubm failed in int-cont.");
 			printk(KERN_CONT"ret=%d", ret);
 			if (ret == EL2NSYNC) {
@@ -953,10 +942,10 @@ static int usbduxsub_submit_InURBs(usbduxsub_t * usbduxsub)
 #ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi%d: usbdux: submitting in-urb[%d]: %p,%p intv=%d\n", usbduxsub->comedidev->minor, i, (usbduxsub->urbIn[i]->context), (usbduxsub->urbIn[i]->dev), (usbduxsub->urbIn[i]->interval));
 #endif
-		errFlag = USB_SUBMIT_URB(usbduxsub->urbIn[i]);
+		errFlag = usb_submit_urb(usbduxsub->urbIn[i], GFP_ATOMIC);
 		if (errFlag) {
 			printk("comedi_: usbdux: ai: ");
-			printk(KERN_CONT "USB_SUBMIT_URB(%d)", i);
+			printk(KERN_CONT "usb_submit_urb(%d, GFP_ATOMIC)", i);
 			printk(KERN_CONT " error %d\n", errFlag);
 			return errFlag;
 		}
@@ -980,10 +969,10 @@ static int usbduxsub_submit_OutURBs(usbduxsub_t * usbduxsub)
 		usbduxsub->urbOut[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbOut[i]->status = 0;
 		usbduxsub->urbOut[i]->transfer_flags = URB_ISO_ASAP;
-		errFlag = USB_SUBMIT_URB(usbduxsub->urbOut[i]);
+		errFlag = usb_submit_urb(usbduxsub->urbOut[i], GFP_ATOMIC);
 		if (errFlag) {
 			printk("comedi_: usbdux: ao: ");
-			printk(KERN_CONT "USB_SUBMIT_URB(%d)", i);
+			printk(KERN_CONT "usb_submit_urb(%d, GPF_ATOMIC)", i);
 			printk(KERN_CONT " error %d\n", errFlag);
 			return errFlag;
 		}
@@ -1972,7 +1961,7 @@ static int usbdux_pwm_cancel(comedi_device * dev, comedi_subdevice * s)
 	return res;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static void usbduxsub_pwm_irq(struct urb *urb)
 {
 #else
@@ -2039,7 +2028,7 @@ static void usbduxsub_pwm_irq(struct urb *urb, struct pt_regs *regs)
 	urb->dev = this_usbduxsub->usbdev;
 	urb->status = 0;
 	if (this_usbduxsub->pwm_cmd_running) {
-		if ((ret = USB_SUBMIT_URB(urb)) < 0) {
+		if ((ret = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
 			printk("comedi_: usbdux_: pwm urb resubm failed in int-cont.");
 			printk(KERN_CONT "ret=%d", ret);
 			if (ret == EL2NSYNC) {
@@ -2071,10 +2060,10 @@ static int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
 		usbduxsub->urbPwm->transfer_buffer,
 		usbduxsub->sizePwmBuf, usbduxsub_pwm_irq, usbduxsub->comedidev);
 
-	errFlag = USB_SUBMIT_URB(usbduxsub->urbPwm);
+	errFlag = usb_submit_urb(usbduxsub->urbPwm, GFP_ATOMIC);
 	if (errFlag) {
 		printk("comedi_: usbdux: pwm: ");
-		printk(KERN_CONT "USB_SUBMIT_URB");
+		printk(KERN_CONT "usb_submit_urb");
 		printk(KERN_CONT " error %d\n", errFlag);
 		return errFlag;
 	}
@@ -2275,12 +2264,10 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 	if (!usbduxsub_tmp) {
 		return;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	// shows the usb subsystem that the driver is down
 	if (usbduxsub_tmp->interface) {
 		usb_set_intfdata(usbduxsub_tmp->interface, NULL);
 	}
-#endif
 
 	usbduxsub_tmp->probed = 0;
 
@@ -2523,16 +2510,10 @@ out:
 
 
 // allocate memory for the urbs and initialise them
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void *usbduxsub_probe(struct usb_device *udev,
-			     unsigned int interfnum, const struct usb_device_id *id)
-{
-#else
 static int usbduxsub_probe(struct usb_interface *uinterf,
 	const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
-#endif
 	int i;
 	int index;
 	int ret;
@@ -2554,7 +2535,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	if (index == -1) {
 		printk("Too many usbdux-devices connected.\n");
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-EMFILE);
+		return -EMFILE;
 	}
 #ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: usbduxsub[%d] is ready to connect to comedi.\n", index);
@@ -2564,10 +2545,6 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// save a pointer to the usb device
 	usbduxsub[index].usbdev = udev;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	// save the interface number
-	usbduxsub[index].ifnum = interfnum;
-#else
 	// 2.6: save the interface itself
 	usbduxsub[index].interface = uinterf;
 	// get the interface number from the interface
@@ -2575,7 +2552,6 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// hand the private data over to the usb subsystem
 	// will be needed for disconnect
 	usb_set_intfdata(uinterf, &(usbduxsub[index]));
-#endif
 
 #ifdef COMEDI_CONFIG_DEBUG
 	printk("comedi_: usbdux: ifnum=%d\n", usbduxsub[index].ifnum);
@@ -2590,7 +2566,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: error alloc space for dac commands\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space for the commands going to the usb device
 	usbduxsub[index].dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
@@ -2598,7 +2574,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: error alloc space for dac commands\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space for the in buffer and set it to zero
 	usbduxsub[index].inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
@@ -2606,7 +2582,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: could not alloc space for inBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space of the instruction buffer
 	usbduxsub[index].insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
@@ -2614,7 +2590,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// create space for the outbuffer
 	usbduxsub[index].outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
@@ -2622,7 +2598,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: could not alloc space for outBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	// setting to alternate setting 3: enabling iso ep and bulk ep.
 	i = usb_set_interface(usbduxsub[index].usbdev,
@@ -2631,7 +2607,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux%d: could not set alternate setting 3 in high speed.\n", index);
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENODEV);
+		return -ENODEV;
 	}
 	if (usbduxsub[index].high_speed) {
 		usbduxsub[index].numOfInBuffers = NUMOFINBUFFERSHIGH;
@@ -2645,17 +2621,17 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: Could not alloc. urbIn array\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	for (i = 0; i < usbduxsub[index].numOfInBuffers; i++) {
 		// one frame: 1ms
-		usbduxsub[index].urbIn[i] = USB_ALLOC_URB(1);
+		usbduxsub[index].urbIn[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urbIn[i] == NULL) {
 			printk("comedi_: usbdux%d: Could not alloc. urb(%d)\n",
 				index, i);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbIn[i]->dev = usbduxsub[index].usbdev;
 		// will be filled later with a pointer to the comedi-device
@@ -2671,7 +2647,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				index);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbIn[i]->complete = usbduxsub_ai_IsocIrq;
 		usbduxsub[index].urbIn[i]->number_of_packets = 1;
@@ -2693,17 +2669,17 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbdux: Could not alloc. urbOut array\n");
 		tidy_up(&(usbduxsub[index]));
 		mutex_unlock(&start_stop_mutex);
-		return PROBE_ERR_RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 	for (i = 0; i < usbduxsub[index].numOfOutBuffers; i++) {
 		// one frame: 1ms
-		usbduxsub[index].urbOut[i] = USB_ALLOC_URB(1);
+		usbduxsub[index].urbOut[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urbOut[i] == NULL) {
 			printk("comedi_: usbdux%d: Could not alloc. urb(%d)\n",
 				index, i);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbOut[i]->dev = usbduxsub[index].usbdev;
 		// will be filled later with a pointer to the comedi-device
@@ -2719,7 +2695,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 				index);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbOut[i]->complete = usbduxsub_ao_IsocIrq;
 		usbduxsub[index].urbOut[i]->number_of_packets = 1;
@@ -2739,13 +2715,13 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// pwm
 	if (usbduxsub[index].high_speed) {
 		usbduxsub[index].sizePwmBuf = 512;	// max bulk ep size in high speed
-		usbduxsub[index].urbPwm = USB_ALLOC_URB(0);
+		usbduxsub[index].urbPwm = usb_alloc_urb(0, GFP_KERNEL);
 		if (usbduxsub[index].urbPwm == NULL) {
 			printk("comedi_: usbdux%d: Could not alloc. pwm urb\n",
 				index);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 		usbduxsub[index].urbPwm->transfer_buffer =
 			kzalloc(usbduxsub[index].sizePwmBuf, GFP_KERNEL);
@@ -2753,7 +2729,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			printk("comedi_: usbdux%d: could not alloc. transb. for pwm\n", index);
 			tidy_up(&(usbduxsub[index]));
 			mutex_unlock(&start_stop_mutex);
-			return PROBE_ERR_RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 	} else {
 		usbduxsub[index].urbPwm = NULL;
@@ -2784,24 +2760,14 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	}
 
 	printk("comedi_: usbdux%d has been successfully initialised.\n", index);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	return (void *)(&usbduxsub[index]);
-#else
 	// success
 	return 0;
-#endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxsub_disconnect(struct usb_device *udev, void *ptr)
-{
-	usbduxsub_t *usbduxsub_tmp = (usbduxsub_t *) ptr;
-#else
 static void usbduxsub_disconnect(struct usb_interface *intf)
 {
 	usbduxsub_t *usbduxsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
-#endif
 	if (!usbduxsub_tmp) {
 		printk("comedi_: usbdux: disconnect called with null pointer.\n");
 		return;
