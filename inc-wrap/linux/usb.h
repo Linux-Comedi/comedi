@@ -26,10 +26,6 @@
 #include <linux/version.h>
 #include <linux/time.h>
 
-#define USB_ALLOC_URB(x) usb_alloc_urb(x,GFP_KERNEL)
-#define USB_SUBMIT_URB(x) usb_submit_urb(x,GFP_ATOMIC)
-#define PROBE_ERR_RETURN(x) (x)
-
 #include_next <linux/usb.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
