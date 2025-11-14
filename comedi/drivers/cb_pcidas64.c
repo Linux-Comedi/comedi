@@ -1609,8 +1609,10 @@ static int alloc_and_init_dma_members(comedi_device * dev)
 	// alocate pci dma buffers
 	for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 		priv(dev)->ai_buffer[i] =
-			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
-			&priv(dev)->ai_buffer_bus_addr[i]);
+			dma_alloc_coherent(&priv(dev)->hw_dev->dev,
+				DMA_BUFFER_SIZE,
+				&priv(dev)->ai_buffer_bus_addr[i],
+				GFP_KERNEL);
 		if (priv(dev)->ai_buffer[i] == NULL) {
 			return -ENOMEM;
 		}
@@ -1618,9 +1620,10 @@ static int alloc_and_init_dma_members(comedi_device * dev)
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board(dev))) {
 			priv(dev)->ao_buffer[i] =
-				pci_alloc_consistent(priv(dev)->hw_dev,
-				DMA_BUFFER_SIZE,
-				&priv(dev)->ao_buffer_bus_addr[i]);
+				dma_alloc_coherent(&priv(dev)->hw_dev->dev,
+					DMA_BUFFER_SIZE,
+					&priv(dev)->ao_buffer_bus_addr[i],
+					GFP_KERNEL);
 			if (priv(dev)->ao_buffer[i] == NULL) {
 				return -ENOMEM;
 			}
@@ -1628,9 +1631,10 @@ static int alloc_and_init_dma_members(comedi_device * dev)
 	}
 	// allocate dma descriptors
 	priv(dev)->ai_dma_desc =
-		pci_alloc_consistent(priv(dev)->hw_dev,
-		sizeof(struct plx_dma_desc) * ai_dma_ring_count(board(dev)),
-		&priv(dev)->ai_dma_desc_bus_addr);
+		dma_alloc_coherent(&priv(dev)->hw_dev->dev,
+			sizeof(struct plx_dma_desc) *
+				ai_dma_ring_count(board(dev)),
+			&priv(dev)->ai_dma_desc_bus_addr, GFP_KERNEL);
 	if (priv(dev)->ai_dma_desc == NULL) {
 		return -ENOMEM;
 	}
@@ -1638,9 +1642,9 @@ static int alloc_and_init_dma_members(comedi_device * dev)
 		priv(dev)->ai_dma_desc_bus_addr);
 	if (ao_cmd_is_supported(board(dev))) {
 		priv(dev)->ao_dma_desc =
-			pci_alloc_consistent(priv(dev)->hw_dev,
-			sizeof(struct plx_dma_desc) * AO_DMA_RING_COUNT,
-			&priv(dev)->ao_dma_desc_bus_addr);
+			dma_alloc_coherent(&priv(dev)->hw_dev->dev,
+				sizeof(struct plx_dma_desc) * AO_DMA_RING_COUNT,
+				&priv(dev)->ao_dma_desc_bus_addr, GFP_KERNEL);
 		if (priv(dev)->ao_dma_desc == NULL) {
 			return -ENOMEM;
 		}
@@ -1869,7 +1873,8 @@ static int detach(comedi_device * dev)
 			// free pci dma buffers
 			for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 				if (priv(dev)->ai_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					dma_free_coherent(&priv(dev)->
+							   hw_dev->dev,
 						DMA_BUFFER_SIZE,
 						priv(dev)->ai_buffer[i],
 						priv(dev)->
@@ -1877,7 +1882,8 @@ static int detach(comedi_device * dev)
 			}
 			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 				if (priv(dev)->ao_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					dma_free_coherent(&priv(dev)->
+							   hw_dev->dev,
 						DMA_BUFFER_SIZE,
 						priv(dev)->ao_buffer[i],
 						priv(dev)->
@@ -1885,13 +1891,13 @@ static int detach(comedi_device * dev)
 			}
 			// free dma descriptors
 			if (priv(dev)->ai_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				dma_free_coherent(&priv(dev)->hw_dev->dev,
 					sizeof(struct plx_dma_desc) *
 					ai_dma_ring_count(board(dev)),
 					priv(dev)->ai_dma_desc,
 					priv(dev)->ai_dma_desc_bus_addr);
 			if (priv(dev)->ao_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				dma_free_coherent(&priv(dev)->hw_dev->dev,
 					sizeof(struct plx_dma_desc) *
 					AO_DMA_RING_COUNT,
 					priv(dev)->ao_dma_desc,
