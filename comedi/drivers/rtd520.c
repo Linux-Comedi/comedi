@@ -945,9 +945,9 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Buff[index] =
-				pci_alloc_consistent(devpriv->pci_dev,
+				dma_alloc_coherent(&devpriv->pci_dev->dev,
 				sizeof(u16) * devpriv->fifoLen / 2,
-				&devpriv->dma0BuffPhysAddr[index]);
+				&devpriv->dma0BuffPhysAddr[index], GFP_KERNEL);
 			if (devpriv->dma0Buff[index] == NULL) {
 				ret = -ENOMEM;
 				goto rtd_attach_die_error;
@@ -959,9 +959,9 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 		/* setup DMA descriptor ring (use cpu_to_le32 for byte ordering?) */
 		devpriv->dma0Chain =
-			pci_alloc_consistent(devpriv->pci_dev,
+			dma_alloc_coherent(&devpriv->pci_dev->dev,
 			sizeof(struct plx_dma_desc) * DMA_CHAIN_COUNT,
-			&devpriv->dma0ChainPhysAddr);
+			&devpriv->dma0ChainPhysAddr, GFP_KERNEL);
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Chain[index].pci_start_addr =
 				devpriv->dma0BuffPhysAddr[index];
@@ -1012,7 +1012,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef USE_DMA
 	for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 		if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory */
-			pci_free_consistent(devpriv->pci_dev,
+			dma_free_coherent(&devpriv->pci_dev->dev,
 				sizeof(u16) * devpriv->fifoLen / 2,
 				devpriv->dma0Buff[index],
 				devpriv->dma0BuffPhysAddr[index]);
@@ -1020,7 +1020,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	}
 	if (NULL != devpriv->dma0Chain) {
-		pci_free_consistent(devpriv->pci_dev,
+		dma_free_coherent(&devpriv->pci_dev->dev,
 			sizeof(struct plx_dma_desc)
 			* DMA_CHAIN_COUNT,
 			devpriv->dma0Chain, devpriv->dma0ChainPhysAddr);
@@ -1091,7 +1091,7 @@ static int rtd_detach(comedi_device * dev)
 		/* release DMA */
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			if (NULL != devpriv->dma0Buff[index]) {
-				pci_free_consistent(devpriv->pci_dev,
+				dma_free_coherent(&devpriv->pci_dev->dev,
 					sizeof(u16) * devpriv->fifoLen / 2,
 					devpriv->dma0Buff[index],
 					devpriv->dma0BuffPhysAddr[index]);
@@ -1099,7 +1099,7 @@ static int rtd_detach(comedi_device * dev)
 			}
 		}
 		if (NULL != devpriv->dma0Chain) {
-			pci_free_consistent(devpriv->pci_dev,
+			dma_free_coherent(&devpriv->pci_dev->dev,
 				sizeof(struct plx_dma_desc) * DMA_CHAIN_COUNT,
 				devpriv->dma0Chain, devpriv->dma0ChainPhysAddr);
 			devpriv->dma0Chain = NULL;
