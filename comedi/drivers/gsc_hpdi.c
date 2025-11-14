@@ -664,16 +664,18 @@ static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
 	// alocate pci dma buffers
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		priv(dev)->dio_buffer[i] =
-			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
-			&priv(dev)->dio_buffer_phys_addr[i]);
+			dma_alloc_coherent(&priv(dev)->hw_dev->dev,
+				DMA_BUFFER_SIZE,
+				&priv(dev)->dio_buffer_phys_addr[i],
+				GFP_KERNEL);
 		DEBUG_PRINT("dio_buffer at virt 0x%p, phys 0x%lx\n",
 			priv(dev)->dio_buffer[i],
 			(unsigned long)priv(dev)->dio_buffer_phys_addr[i]);
 	}
 	// allocate dma descriptors
-	priv(dev)->dma_desc = pci_alloc_consistent(priv(dev)->hw_dev,
+	priv(dev)->dma_desc = dma_alloc_coherent(&priv(dev)->hw_dev->dev,
 		sizeof(struct plx_dma_desc) * NUM_DMA_DESCRIPTORS,
-		&priv(dev)->dma_desc_phys_addr);
+		&priv(dev)->dma_desc_phys_addr, GFP_KERNEL);
 	if (priv(dev)->dma_desc_phys_addr & 0xf) {
 		printk(" dma descriptors not quad-word aligned (bug)\n");
 		return -EIO;
@@ -709,7 +711,8 @@ static int hpdi_detach(comedi_device * dev)
 			// free pci dma buffers
 			for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 				if (priv(dev)->dio_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					dma_free_coherent(&priv(dev)->
+							   hw_dev->dev,
 						DMA_BUFFER_SIZE,
 						priv(dev)->dio_buffer[i],
 						priv(dev)->
@@ -717,7 +720,7 @@ static int hpdi_detach(comedi_device * dev)
 			}
 			// free dma descriptors
 			if (priv(dev)->dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				dma_free_coherent(&priv(dev)->hw_dev->dev,
 					sizeof(struct plx_dma_desc) *
 					NUM_DMA_DESCRIPTORS,
 					priv(dev)->dma_desc,
