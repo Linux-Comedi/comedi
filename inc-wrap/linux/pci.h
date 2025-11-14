@@ -5,30 +5,13 @@
 #ifndef _COMPAT_PCI_H
 #define _COMPAT_PCI_H
 
-#include <linux/version.h>
-
 #include_next <linux/pci.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#define pci_get_device pci_find_device
-#define pci_get_subsys pci_find_subsys
-#define pci_dev_get(x)	(x)
-#define pci_dev_put(x)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,22)
-static inline char *pci_name(struct pci_dev *pdev)
-{
-	return pdev->slot_name;
-}
-#endif
 
 #ifndef DEFINE_PCI_DEVICE_TABLE
 #define DEFINE_PCI_DEVICE_TABLE(_table) \
 	struct pci_device_id _table[]
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,53)
 /*
  * Since kernel version 2.5.53, the PCI DMA API is just a set of inline wrapper
  * functions around the DMA API.  These wrappers have been removed for kernel
@@ -161,6 +144,5 @@ static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 #endif
 
 #endif /* PCI_DMA_NONE */
-#endif	/* LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,53) */
 
 #endif /* _COMPAT_PCI_H */
