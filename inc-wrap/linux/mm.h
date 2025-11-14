@@ -27,24 +27,12 @@
 
 #include_next <linux/mm.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10) \
-			  && LINUX_VERSION_CODE < KERNEL_VERSION(2,5,3)
-#include <asm/pgalloc.h>
-#include <asm/tlb.h>		/* look for tlb_vma() macro for "statm" patch */
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,3) && !defined(tlb_vma)
-#define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(b,c,d,e)
-#else
-#define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(a,b,c,d,e)
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 static inline int remap_pfn_range(struct vm_area_struct *vma,
 	unsigned long from, unsigned long pfn, unsigned long size,
 	pgprot_t prot)
 {
-	return REMAP_PAGE_RANGE(vma, from, pfn << PAGE_SHIFT, size, prot);
+	return remap_page_range(vma, from, pfn << PAGE_SHIFT, size, prot);
 };
 
 #endif
