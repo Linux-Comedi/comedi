@@ -34,31 +34,6 @@
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10) */
 
 /*
- * Define a Comedi-specific macro MODULE_PARAM_ARRAY(name,type,len,perm)
- * supported on 2.4 and 2.6 kernels, because
- * module_param_array(name,type,nump,perm) * is only available for 2.6.
- *
- * name - Name of module parameter and array variable.
- * type - Module parameter type: byte, short, ushort, int, uint, long, ulong,
- *        bool, charp.  Note that invbool is not supported.
- * len  - Length of array variable; needed for 2.4 kernel; ignored for 2.6
- *        kernel.  Note that this must be specified as a sequence of decimal
- *        digits or a macro that expands to a sequence of decimal digits.
- *        Using ARRAY_SIZE() or sizeof() is not allowed.
- * perm - Permissions for module parameter in sysfs, e.g. 0444.  Only used
- *        for 2.6 kernels.
- */
-#ifdef module_param_array
-#define MODULE_PARAM_ARRAY(name,type,len,perm) \
-	module_param_array(name,type,0,perm)
-#else
-#define MODULE_PARAM_ARRAY(name,type,len,perm) \
-	static inline void *__check_existence_##name(void) \
-		{ return &name[0]; } \
-	MODULE_PARM(name, "1-" __MODULE_STRING(len) _MODULE_PARM_STRING_##type)
-#endif /* module_param_array */
-
-/*
  * Define a type for 'bool' parameters....
  */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31))
