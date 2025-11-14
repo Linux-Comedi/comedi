@@ -43,9 +43,6 @@ for my needs.
  *      says P1).
  */
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -1042,5 +1039,3 @@ MODULE_AUTHOR("Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_DESCRIPTION("Comedi DT9812 driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
-
-#endif // LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
