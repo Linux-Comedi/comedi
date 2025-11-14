@@ -1935,9 +1935,9 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = irq;
 
 	if (master) {
-		if (pci_set_dma_mask(devpriv->pcidev,
+		if (dma_set_mask(&devpriv->pcidev->dev,
 				((1ULL << 32) - 1)) != 0 ||
-			pci_set_consistent_dma_mask(devpriv->pcidev,
+			dma_set_coherent_mask(&devpriv->pcidev->dev,
 				((1ULL << 32) - 1)) != 0) {
 			rt_printk(KERN_CONT ", Can't set DMA mask, DMA disabled!");
 			master = 0;
@@ -1951,9 +1951,9 @@ static int pci9118_attach(comedi_device * dev, comedi_devconfig * it)
 
 			for (order = 2; order >= 0; order--) {
 				if ((devpriv->dmabuf_virt[i] =
-					pci_alloc_consistent(devpriv->pcidev,
+					dma_alloc_coherent(&devpriv->pcidev->dev,
 						(PAGE_SIZE << order),
-						&hwaddr)))
+						&hwaddr, GFP_KERNEL)))
 					break;
 			}
 			if (devpriv->dmabuf_virt[i]) {
@@ -2095,12 +2095,12 @@ static int pci9118_detach(comedi_device * dev)
 			pci_dev_put(devpriv->pcidev);
 		}
 		if (devpriv->dmabuf_virt[0])
-			pci_free_consistent(devpriv->pcidev,
+			dma_free_coherent(&devpriv->pcidev->dev,
 				devpriv->dmabuf_size[0],
 				devpriv->dmabuf_virt[0],
 				devpriv->dmabuf_hw[0]);
 		if (devpriv->dmabuf_virt[1])
-			pci_free_consistent(devpriv->pcidev,
+			dma_free_coherent(&devpriv->pcidev->dev,
 				devpriv->dmabuf_size[1],
 				devpriv->dmabuf_virt[1],
 				devpriv->dmabuf_hw[1]);
