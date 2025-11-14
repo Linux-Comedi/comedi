@@ -2,27 +2,7 @@
 #ifndef __COMPAT_LINUX_JIFFIES_H
 #define __COMPAT_LINUX_JIFFIES_H
 
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,18)
 #include_next <linux/jiffies.h>
-#endif
-
-#ifndef time_after
-#define time_after(a, b)	((long)(b) - (long)(a) < 0)
-#endif
-
-#ifndef time_before
-#define time_before(a, b)	time_after(b, a)
-#endif
-
-#ifndef time_after_eq
-#define time_after_eq(a, b)	((long)(a) - (long)(b) >= 0)
-#endif
-
-#ifndef time_before_eq
-#define time_before_eq(a, b)	time_after_eq(b, a)
-#endif
 
 #ifndef time_in_range
 #define time_in_range(a, b, c)	(time_after_eq(a, b) && time_before_eq(a, c))
