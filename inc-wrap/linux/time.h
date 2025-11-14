@@ -14,25 +14,11 @@
 #define USEC_PER_MSEC	1000L
 #endif
 
-#ifndef NSEC_PER_USEC
-#define NSEC_PER_USEC	1000L
-#endif
-
 #ifndef NSEC_PER_MSEC
 #define NSEC_PER_MSEC	1000000L
 #endif
 
-#ifndef USEC_PER_SEC
-#define USEC_PER_SEC	1000000L
-#endif
-
-#ifndef NSEC_PER_SEC
-#define NSEC_PER_SEC	1000000000L
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,29) || \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)
 static inline unsigned int jiffies_to_msecs(const unsigned long j)
 {
 	if ((HZ <= MSEC_PER_SEC) && !(MSEC_PER_SEC % HZ)) {
@@ -61,9 +47,7 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 };
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,29) || \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) && \
-     LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 static inline unsigned int jiffies_to_usecs(const unsigned long j)
 {
 	if ((HZ <= USEC_PER_SEC) && !(USEC_PER_SEC % HZ)) {
