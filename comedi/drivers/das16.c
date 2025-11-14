@@ -1481,8 +1481,14 @@ static int das16_attach(comedi_device * dev, comedi_devconfig * it)
 		// allocate dma buffers
 		int i;
 		for (i = 0; i < 2; i++) {
-			devpriv->dma_buffer[i] = pci_alloc_consistent(NULL,
-				DAS16_DMA_SIZE, &devpriv->dma_buffer_addr[i]);
+#if 1
+			/* FIXME: DMA buffer allocation broken! */
+			printk(KERN_CONT " FIXME: DMA buffer allocation broken!\n");
+#else
+			devpriv->dma_buffer[i] = dma_alloc_coherent(NULL,
+				DAS16_DMA_SIZE, &devpriv->dma_buffer_addr[i],
+				GFP_KERNEL);
+#endif
 			if (devpriv->dma_buffer[i] == NULL)
 				return -ENOMEM;
 		}
@@ -1659,7 +1665,7 @@ static int das16_detach(comedi_device * dev)
 		}
 		for (i = 0; i < 2; i++) {
 			if (devpriv->dma_buffer[i])
-				pci_free_consistent(NULL, DAS16_DMA_SIZE,
+				dma_free_coherent(NULL, DAS16_DMA_SIZE,
 					devpriv->dma_buffer[i],
 					devpriv->dma_buffer_addr[i]);
 		}
