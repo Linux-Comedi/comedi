@@ -6,51 +6,9 @@
 #define _COMPAT_MODULEPARAM_H
 
 #include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25)
-/* We should have <linux/moduleparam.h> so include it. */
-/* (We don't care about 2.5 kernels.) */
 #include_next <linux/moduleparam.h>
-#else
-/* Need to fake contents of <linux/moduleparam.h> */
-#include <linux/module.h>
 
-#define module_param(name, type, perm)	\
-	static inline void *__check_existence_##name(void) { return &name; } \
-	MODULE_PARM(name, _MODULE_PARM_STRING_##type)
-
-#define _MODULE_PARM_STRING_byte	"b"
-#define _MODULE_PARM_STRING_short	"h"
-#define _MODULE_PARM_STRING_ushort	"h"
-#define _MODULE_PARM_STRING_int		"i"
-#define _MODULE_PARM_STRING_uint	"i"
-#define _MODULE_PARM_STRING_long	"l"
-#define _MODULE_PARM_STRING_ulong	"l"
-#define _MODULE_PARM_STRING_bool	"i"
-
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25) */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-/*
- * Extend <linux/moduleparam.h> support for 2.4.
- *
- * Additionally supported:
- * 	'charp' parameters
- * Not supported:
- * 	'invbool' parameters
- * 	module_param_named()
- * 	module_param_array()
- * 	module_param_array_named()
- */
-
-/* Support charp parameters */
-#define _MODULE_PARM_STRING_charp	"s"
-
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) */
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)) && \
-			   (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 /*
  * 2.6 kernels before 2.6.10 use an unsigned int lvalue for third parameter of
  * module_param_array() instead of the pointer to unsigned int used in
@@ -73,7 +31,7 @@
 #define module_param_array(name, type, nump, perm)		\
 	module_param_array_named(name, name, type, nump, perm)
 
-#endif /* (L_V_C >= K_V(2,6,0)) && (L_V_C < K_V(2,6,10)) */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10) */
 
 /*
  * Define a Comedi-specific macro MODULE_PARAM_ARRAY(name,type,len,perm)
