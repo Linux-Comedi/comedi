@@ -53,9 +53,8 @@ static inline unsigned int jiffies_to_usecs(const unsigned long j)
 	if ((HZ <= USEC_PER_SEC) && !(USEC_PER_SEC % HZ)) {
 		return (USEC_PER_SEC / HZ) * j;
 	} else if ((HZ > USEC_PER_SEC) && !(HZ % USEC_PER_SEC)) {
-		/* gcc emits 'warning: division by zero' here, but this code
-		 * is unreachable in that case. */
-		return (j + (HZ / USEC_PER_SEC) - 1) / (HZ / USEC_PER_SEC);
+		unsigned long tmp = HZ / USEC_PER_SEC;
+		return (j + tmp - 1) / tmp;
 	} else {
 		return (j * USEC_PER_SEC) / HZ;
 	}
