@@ -56,7 +56,10 @@ dnl Check for (hopefully) supported kernel versions
 dnl TODO The minimum supported kernel version is yet to be determined, but
 dnl 2.4 kernels are definitely no longer supported, and we do not care about
 dnl 2.5 (development) kernels.
-AC_CHECK_KERNEL_VERSION([2.6],
+dnl Use 2.6.8 as a minimum for now.  Our modtool script assumes kernel version
+dnl 2.6.6 as a minimum, and we have a couple of drivers that assume 2.6.8 as
+dnl a minimum (although they could probably be fixed).
+AC_CHECK_KERNEL_VERSION([2.6.8],
 	[support_kernel="no"], [support_kernel="yes"], [support_kernel="yes"])
 if test "$support_kernel" != "yes"; then
 	AC_MSG_ERROR([kernel version not supported!])
