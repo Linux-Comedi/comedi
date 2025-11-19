@@ -8,7 +8,7 @@
 #include_next <linux/delay.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)
-static inline void msleep(unsigned int msecs)
+static inline void comedi_msleep(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs);
 
@@ -17,10 +17,12 @@ static inline void msleep(unsigned int msecs)
 		timeout = schedule_timeout(timeout);
 	}
 }
+#undef msleep
+#define msleep(msecs) comedi_msleep(msecs)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
-static inline unsigned long msleep_interruptible(unsigned int msecs)
+static inline unsigned long comedi_msleep_interruptible(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs);
 
@@ -30,13 +32,17 @@ static inline unsigned long msleep_interruptible(unsigned int msecs)
 	}
 	return jiffies_to_msecs(timeout);
 }
+#undef msleep_interruptible
+#define msleep_interruptible(msecs) comedi_msleep_interruptible(msecs)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
-static inline void ssleep(unsigned int seconds)
+static inline void comedi_ssleep(unsigned int seconds)
 {
 	msleep(seconds * 1000);
 }
+#undef ssleep
+#define ssleep(seconds) comedi_ssleep(seconds)
 #endif
 
 #endif
