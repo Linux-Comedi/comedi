@@ -2923,7 +2923,7 @@ static struct usb_driver usbduxsigma_driver = {
 /* registering the usb-system _and_ the comedi-driver */
 static int __init init_usbduxsigma(void)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": "
+	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
 	usb_register(&usbduxsigma_driver);
 	comedi_driver_register(&driver_usbduxsigma);
