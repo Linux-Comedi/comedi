@@ -3040,7 +3040,7 @@ static struct usb_driver usbduxsub_driver = {
 // registering the usb-system _and_ the comedi-driver
 static int init_usbdux(void)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": "
+	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
 	init_usb_devices();
 	usb_register(&usbduxsub_driver);
