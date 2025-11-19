@@ -253,6 +253,10 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 
   	//Initialize dev->board_name
 
+	// FIXME 2025-11-19 Need to check that DIO_COUNTER_BADDRINDEX
+	// really is a PCI memory bar, because according to
+	// RegMapPCI-DAC670x.pdf it should be I/O mapped.
+
 
 	devpriv->plx9030_phys_iobase =
 		pci_resource_start(pcidev, PLX9030_BADDRINDEX);
@@ -295,7 +299,7 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
   s->insn_write = &cb_pcidac_ao_winsn;
   s->insn_read = &cb_pcidac_ao_rinsn;
   /* Put all DAC channels in immediate update mode. */
-  iowrite16(0, devpriv->main_iobase + DAC_UPDATE_MODE);
+  writew(0, devpriv->main_iobase + DAC_UPDATE_MODE);
 
   s = dev->subdevices + 1;
   /* digital i/o subdevice */
@@ -372,8 +376,8 @@ static int cb_pcidac_ao_winsn(comedi_device * dev, comedi_subdevice * s,
   /* Writing a list of values to an AO channel is probably not
    * very useful, but that's how the interface is defined. */
   for (i = 0; i < insn->n; i++) {
-      iowrite16(chan, devpriv->main_iobase + DAC_CHSELECT);
-      iowrite16(data[i], devpriv->main_iobase + DAC_DATA); 
+      writew(chan, devpriv->main_iobase + DAC_CHSELECT);
+      writew(data[i], devpriv->main_iobase + DAC_DATA);
   }
 
   /* return the number of samples read/written */
@@ -391,8 +395,8 @@ static int cb_pcidac_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
   for (i = 0; i < insn->n; i++)
     {
     //data[i] = devpriv->ao_readback[chan];
-      iowrite16(chan, devpriv->main_iobase + DAC_CHSELECT);
-      data[i] = ioread16(devpriv->main_iobase + DAC_READOUT);        
+      writew(chan, devpriv->main_iobase + DAC_CHSELECT);
+      data[i] = readw(devpriv->main_iobase + DAC_READOUT);
     }
     return i;
     
@@ -414,12 +418,12 @@ static int cb_pcidac_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
-		iowrite8(s->state,devpriv->dio_counter_iobase + DIO_DATA);
+		writeb(s->state,devpriv->dio_counter_iobase + DIO_DATA);
 	}
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	data[1]=ioread8(devpriv->dio_counter_iobase + DIO_DATA);
+	data[1]=readb(devpriv->dio_counter_iobase + DIO_DATA);
 
 	return 2;
 }
@@ -450,7 +454,7 @@ static int cb_pcidac_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 		return -EINVAL;
 		break;
 	}
-	iowrite8(s->io_bits,devpriv->dio_counter_iobase + DIO_DIRECTION);
+	writeb(s->io_bits,devpriv->dio_counter_iobase + DIO_DIRECTION);
 
 	return insn->n;
 }
