@@ -35,13 +35,17 @@
  * We assume the CPU address is in the linear mapped range of addresses.
  */
 static inline int
-dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
-		  void *cpu_addr, dma_addr_t dma_addr, size_t size)
+comedi_dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
+			 void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	return remap_pfn_range(vma, (unsigned long)cpu_addr,
 			       virt_to_phys(cpu_addr) >> PAGE_SHIFT, size,
 			       vma->vm_page_prot);
 }
+
+#undef dma_mmap_coherent
+#define dma_mmap_coherent(dev, vma, cpu_addr, dma_addr, size) \
+	comedi_dma_mmap_coherent(dev, vma, cpu_addr, dma_addr, size)
 
 #endif
 
