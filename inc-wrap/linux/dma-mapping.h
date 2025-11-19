@@ -49,4 +49,22 @@ comedi_dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
 
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34)
+
+/*
+ * Provide a version of dma_set_coherent_mask() for compatibility.
+ */
+static inline int comedi_dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (!dma_supported(dev, mask))
+		return -EIO;
+	dev->coherent_dma_mask = mask;
+	return 0;
+}
+
+#undef dma_set_coherent_mask
+#define dma_set_coherent_mask(dev, mask) comedi_dma_set_coherent_mask(dev, mask)
+
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34) */
+
 #endif
