@@ -992,14 +992,14 @@ static int __init usb_dt9812_init(void)
 	// register with the USB subsystem 
 	result = usb_register(&dt9812_usb_driver);
 	if (result) {
-		printk(KERN_ERR KBUILD_MODNAME
+		printk(KERN_ERR COMEDI_MODNAME
 			": usb_register failed. Error number %d\n", result);
 		goto out_destroy_mutexes;
 	}
 	// register with comedi
 	result = comedi_driver_register(&dt9812_comedi_driver);
 	if (result) {
-		printk(KERN_ERR KBUILD_MODNAME
+		printk(KERN_ERR COMEDI_MODNAME
 			": comedi_driver_register failed. Error number %d\n", result);
 		goto out_deregister_usb;
 	}
