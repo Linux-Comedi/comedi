@@ -1819,7 +1819,7 @@ static struct usb_driver usbduxfastsub_driver = {
 // registering the usb-system _and_ the comedi-driver
 static int init_usbduxfast(void)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": "
+	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
 	init_usb_devices();
 	usb_register(&usbduxfastsub_driver);
