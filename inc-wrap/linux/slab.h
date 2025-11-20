@@ -25,7 +25,9 @@ static inline void *comedi_kzalloc(size_t size, unsigned int flags)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 
-static inline void *kcalloc(size_t n, size_t size, int flags)
+#undef kcalloc
+#define kcalloc(n, size, flags) comedi_kcalloc(n, size, flags)
+static inline void *comedi_kcalloc(size_t n, size_t size, int flags)
 {
 	if (n != 0 && size > INT_MAX / n)
 		return NULL;
