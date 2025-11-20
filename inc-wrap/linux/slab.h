@@ -3,6 +3,7 @@
 #define __COMPAT_LINUX_SLAB_H
 
 #include <linux/version.h>
+#include <linux/types.h>
 #include <linux/string.h>
 
 #include_next <linux/slab.h>
@@ -13,7 +14,7 @@
    about static declaration following non-static declaration. */
 #undef kzalloc
 #define kzalloc(size, flags) comedi_kzalloc(size, flags)
-static inline void *comedi_kzalloc(size_t size, unsigned int flags)
+static inline void *comedi_kzalloc(size_t size, gfp_t flags)
 {
 	void *ret = kmalloc(size, flags);
 	if (ret)
@@ -27,7 +28,7 @@ static inline void *comedi_kzalloc(size_t size, unsigned int flags)
 
 #undef kcalloc
 #define kcalloc(n, size, flags) comedi_kcalloc(n, size, flags)
-static inline void *comedi_kcalloc(size_t n, size_t size, int flags)
+static inline void *comedi_kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	if (n != 0 && size > INT_MAX / n)
 		return NULL;
@@ -42,7 +43,7 @@ static inline void *comedi_kcalloc(size_t n, size_t size, int flags)
    about static declaration following non-static declaration. */
 #undef kmalloc_array
 #define kmalloc_array(n, size, flags) comedi_kmalloc_array(n, size, flags)
-static inline void *comedi_kmalloc_array(size_t n, size_t size, unsigned int flags)
+static inline void *comedi_kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
 	if (n != 0 && size > ULONG_MAX / n)
 		return NULL;
