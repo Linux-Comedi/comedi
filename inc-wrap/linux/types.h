@@ -20,12 +20,17 @@
 #define __COMPAT_LINUX_TYPES_H_
 
 #include <linux/version.h>
+#include <linux/compiler.h>
 #include <linux/comedi-config.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
 typedef unsigned long resource_size_t;
 #else
 /* resource_size_t is either u32 or u64, depending on CONFIG_RESOURCES_64BIT */
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
+typedef unsigned __nocast gfp_t;
 #endif
 
 #ifndef COMEDI_COMPAT_HAVE_GENERIC_BOOL_TYPE
