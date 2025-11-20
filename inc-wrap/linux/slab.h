@@ -12,7 +12,7 @@
 /* Some RHEL4 2.6.9 kernels have kzalloc.  Redefine to avoid warnings
    about static declaration following non-static declaration. */
 #undef kzalloc
-#define kzalloc comedi_kzalloc
+#define kzalloc(size, flags) comedi_kzalloc(size, flags)
 static inline void *comedi_kzalloc(size_t size, unsigned int flags)
 {
 	void *ret = kmalloc(size, flags);
@@ -39,7 +39,7 @@ static inline void *kcalloc(size_t n, size_t size, int flags)
 /* Some RHEL 2.6.32 kernels have kmalloc_array.  Redefine to avoid warnings
    about static declaration following non-static declaration. */
 #undef kmalloc_array
-#define kmalloc_array comedi_kmalloc_array
+#define kmalloc_array(n, size, flags) comedi_kmalloc_array(n, size, flags)
 static inline void *comedi_kmalloc_array(size_t n, size_t size, unsigned int flags)
 {
 	if (n != 0 && size > ULONG_MAX / n)
