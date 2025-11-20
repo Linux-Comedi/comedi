@@ -34,7 +34,7 @@ static inline void *kcalloc(size_t n, size_t size, int flags)
 
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 
 /* Some RHEL 2.6.32 kernels have kmalloc_array.  Redefine to avoid warnings
    about static declaration following non-static declaration. */
