@@ -811,7 +811,7 @@ static int usbduxsub_start(usbduxsub_t * usbduxsub)
 
 	// 7f92 to zero
 	local_transfer_buffer[0] = 0;
-	errcode = USB_CONTROL_MSG(usbduxsub->usbdev,
+	errcode = usb_control_msg(usbduxsub->usbdev,
 				  // create a pipe for a control transfer
 				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
 				  // bRequest, "Firmware"
@@ -846,7 +846,7 @@ static int usbduxsub_stop(usbduxsub_t * usbduxsub)
 
 	// 7f92 to one
 	local_transfer_buffer[0] = 1;
-	errcode = USB_CONTROL_MSG
+	errcode = usb_control_msg
 		(usbduxsub->usbdev,
 		 usb_sndctrlpipe(usbduxsub->usbdev, 0),
 		 // bRequest, "Firmware"
@@ -874,7 +874,7 @@ static int usbduxsub_upload(usbduxsub_t * usbduxsub,
 {
 	int errcode;
 
-	errcode = USB_CONTROL_MSG
+	errcode = usb_control_msg
 		(usbduxsub->usbdev,
 		 usb_sndctrlpipe(usbduxsub->usbdev, 0),
 		 // brequest, firmware
@@ -1149,7 +1149,7 @@ static int send_dux_commands(usbduxsub_t * this_usbduxsub, int cmd_type)
 	}
 	printk(KERN_CONT "\n");
 #endif
-	result = USB_BULK_MSG(this_usbduxsub->usbdev,
+	result = usb_bulk_msg(this_usbduxsub->usbdev,
 		usb_sndbulkpipe(this_usbduxsub->usbdev,
 			COMMAND_OUT_EP),
 		this_usbduxsub->dux_commands, SIZEOFDUXBUFFER, &nsent, BULK_TIMEOUT);
@@ -1166,7 +1166,7 @@ static int receive_dux_commands(usbduxsub_t * this_usbduxsub, int command)
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		result = USB_BULK_MSG(this_usbduxsub->usbdev,
+		result = usb_bulk_msg(this_usbduxsub->usbdev,
 			usb_rcvbulkpipe(this_usbduxsub->usbdev,
 				COMMAND_IN_EP),
 			this_usbduxsub->insnBuffer, SIZEINSNBUF, &nrec, BULK_TIMEOUT);
