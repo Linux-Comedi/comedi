@@ -8,6 +8,9 @@
 #include_next <linux/kernel.h>
 #include <linux/version.h>
 
+/* Include our linux/printk.h compatibility wrapper. */
+#include <linux/printk.h>
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
 /* Add missing strict_strtox functions. */
 #include <linux/string.h>
@@ -114,14 +117,6 @@ static inline int comedi_strict_strtoll(const char *cp, unsigned int base,
 #define kstrtoll(s, base, res)	strict_strtoll(s, base, res)
 #undef kstrtoull
 #define kstrtoull(s, base, res)	strict_strtoull(s, base, res)
-#endif
-
-#ifndef KERN_CONT
-#define KERN_CONT	""
-#endif
-
-#ifndef KERN_DEFAULT
-#define KERN_DEFAULT	""
 #endif
 
 #endif
