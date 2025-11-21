@@ -23,4 +23,12 @@
 #define fallthrough	do {} while (0)	/* fallthrough */
 #endif
 
+/*
+ * If no __printf(a,b) macro, just define a dummy one instead of a
+ * GCC-specific attribute checking one.
+ */
+#ifndef __printf
+#define __printf(a, b) /* nop */
+#endif
+
 #endif
