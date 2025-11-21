@@ -11,6 +11,9 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 
+/* Include our linux/usb/ch9.h compatibility wrapper. */
+#include <linux/usb/ch9.h>
+
 /*
  * usb_kill_urb() was added in kernel version 2.6.8.  For earlier kernels,
  * define usb_kill_urb(), and redefine usb_unlink_urb() to return immediately
