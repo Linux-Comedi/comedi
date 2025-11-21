@@ -10,35 +10,46 @@
 #include <linux/version.h>
 #include <linux/time.h>
 
+/*
+ * Since kernel version 2.6.12, USB timeouts have been specified in
+ * milliseconds rather than jiffies.
+ *
+ * For older kernels, redefine usb_control_msg() and usb_bulk_msg() to 
+ * use a timeout specified in milliseconds, and redefine the
+ * USB_CTRL_GET_TIMEOUT and USB_CTRL_SET_TIMEOUT macros to be specified
+ * in milliseconds.
+ */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
-static inline int USB_CONTROL_MSG(struct usb_device *dev, unsigned int pipe,
+static inline int
+comedi_usb_control_msg(struct usb_device *dev, unsigned int pipe,
 	__u8 request, __u8 requesttype, __u16 value, __u16 index,
 	void *data, __u16 size, int millisec_timeout)
 {
 	return usb_control_msg(dev, pipe, request, requesttype, value, index,
-			       data, size,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
-			       msecs_to_jiffies(millisec_timeout)
-#else
-			       millisec_timeout
-#endif			    
-		);
+			       data, size, msecs_to_jiffies(millisec_timeout));
 }
-static inline int USB_BULK_MSG(struct usb_device *usb_dev, unsigned int pipe,
+#undef usb_control_msg
+#define usb_control_msg(dev, pipe, req, rt, val, i, dat, s, tout) \
+	comedi_usb_control_msg(dev, pipe, req, rt, val, i, dat, s, tout)
+
+static inline int
+comedi_usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 	void *data, int len, int *actual_length, int millisec_timeout)
 {
 	return usb_bulk_msg(usb_dev, pipe, data, len, actual_length,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
-			    msecs_to_jiffies(millisec_timeout)
-#else
-			    millisec_timeout
-#endif			    
-		);
+			    msecs_to_jiffies(millisec_timeout));
 }
-#else
-#define USB_CONTROL_MSG usb_control_msg
-#define USB_BULK_MSG usb_bulk_msg
-#endif
+#undef usb_bulk_msg
+#define usb_bulk_msg(dev, pipe, dat, len, actlen, tout) \
+	comedi_usb_bulk_msg(dev, pipe, dat, len, actlen, tout)
+
+#undef USB_CTRL_GET_TIMEOUT
+#define USB_CTRL_GET_TIMEOUT 5000
+
+#undef USB_CTRL_SET_TIMEOUT
+#define USB_CTRL_SET_TIMEOUT 5000
+
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12) */
 
 /*
  * Determine whether we need the "owner" member of struct usb_driver and
