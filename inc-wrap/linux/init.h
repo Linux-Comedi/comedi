@@ -1,6 +1,9 @@
+/*
+ * linux/init.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_INIT_H
-#define __COMPAT_LINUX_INIT_H
+#ifndef COMEDI_COMPAT__LINUX__INIT_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__INIT_H__INCLUDED__
 
 #include_next <linux/init.h>
 

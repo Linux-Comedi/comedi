@@ -1,14 +1,9 @@
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+/*
+ * linux/pci_ids.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_PCI_IDS_H
-#define __COMPAT_LINUX_PCI_IDS_H
+#ifndef LINUX_COMPAT__LINUX__PCI_IDS_H__INCLUDED__
+#define LINUX_COMPAT__LINUX__PCI_IDS_H__INCLUDED__
 
 #include_next <linux/pci_ids.h>
 
@@ -28,4 +23,4 @@
 #define PCI_DEVICE_ID_QUANCOM_GPIB	0x3302
 #endif
 
-#endif // __COMPAT_LINUX_PCI_IDS_H
+#endif

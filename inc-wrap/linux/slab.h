@@ -1,12 +1,14 @@
+/*
+ * linux/slab.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_SLAB_H
-#define __COMPAT_LINUX_SLAB_H
+#ifndef COMEDI_COMPAT__LINUX__SLAB_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__SLAB_H__INCLUDED__
 
+#include_next <linux/slab.h>
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/string.h>
-
-#include_next <linux/slab.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
 

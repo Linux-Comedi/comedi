@@ -2,17 +2,18 @@
  * linux/uaccess.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_UACCESS_H_
-#define __COMPAT_LINUX_UACCESS_H_
+#ifndef COMEDI_COMPAT__LINUX__UACCESS_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__UACCESS_H__INCLUDED__
 
 #include <linux/version.h>
-#include <linux/compiler.h> /* for __user */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 #include <asm/uaccess.h>
 #else
 #include_next <linux/uaccess.h>
 #endif
+
+#include <linux/compiler.h> /* for __user */
 
 /*
  * Kernel 5.0 removed the verification type (first argument) of
@@ -30,4 +31,4 @@ static inline int comedi_access_ok(const void __user *addr, size_t size)
 			 addr, size);
 }
 
-#endif /* __COMPAT_LINUX_UACCESS_H_ */
+#endif

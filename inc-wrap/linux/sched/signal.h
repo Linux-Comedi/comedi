@@ -2,8 +2,8 @@
  * linux/sched/signal.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_SCHED_SIGNAL_H_
-#define __COMPAT_LINUX_SCHED_SIGNAL_H_
+#ifndef COMEDI_COMPAT__LINUX__SCHED__SIGNAL_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__SCHED__SIGNAL_H__INCLUDED__
 
 #include <linux/version.h>
 
@@ -13,4 +13,4 @@
 #include_next <linux/sched/signal.h>
 #endif
 
-#endif /* __COMPAT_LINUX_SCHED_SIGNAL_H_ */
+#endif

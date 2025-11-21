@@ -1,6 +1,9 @@
+/*
+ * linux/jiffies.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_JIFFIES_H
-#define __COMPAT_LINUX_JIFFIES_H
+#ifndef COMEDI_COMPAT__LINUX__JIFFIES_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__JIFFIES_H__INCLUDED__
 
 #include_next <linux/jiffies.h>
 

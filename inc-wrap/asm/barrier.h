@@ -2,8 +2,8 @@
  * asm/barrier.h compatibility header
  */
 
-#ifndef __COMPAT_ASM_BARRIER_H_
-#define __COMPAT_ASM_BARRIER_H_
+#ifndef LINUX_COMPAT__ASM__BARRIER_H__INCLUDED__
+#define LINUX_COMPAT__ASM__BARRIER_H__INCLUDED__
 
 #include <linux/version.h>
 
@@ -13,4 +13,4 @@
 #include_next <asm/barrier.h>
 #endif
 
-#endif /* __COMPAT_ASM_BARRIER_H_ */
+#endif

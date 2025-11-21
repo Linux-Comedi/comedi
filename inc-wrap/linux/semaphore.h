@@ -2,8 +2,8 @@
  * linux/semaphore.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_SEMAPHORE_H_
-#define __COMPAT_LINUX_SEMAPHORE_H_
+#ifndef COMEDI_COMPAT__LINUX__SEMAPHORE_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__SEMAPHORE_H__INCLUDED__
 
 #include <linux/comedi-config.h>
 
@@ -17,4 +17,4 @@
 
 #endif /* COMEDI_COMPAT_HAVE_LINUX_SEMAPHORE_H */
 
-#endif /* __COMPAT_LINUX_SEMAPHORE_H_ */
+#endif

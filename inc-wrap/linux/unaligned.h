@@ -2,8 +2,8 @@
  * linux/unaligned.h compatibility header
  */
 
-#ifndef _COMEDI_COMPAT_LINUX_UNALIGNED_H
-#define _COMEDI_COMPAT_LINUX_UNALIGNED_H
+#ifndef COMEDI_COMPAT__LINUX__UNALIGNED_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__UNALIGNED_H__INCLUDED__
 
 #include <linux/version.h>
 

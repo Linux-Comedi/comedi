@@ -2,12 +2,12 @@
  * linux/poll.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_POLL_H_
-#define __COMPAT_LINUX_POLL_H_
-
-#include <linux/version.h>
+#ifndef COMEDI_COMPAT__LINUX__POLL_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__POLL_H__INCLUDED__
 
 #include_next <linux/poll.h>
+
+#include <linux/version.h>
 
 /*
  * For poll() file operation, the EPOLL* constants should be used for kernel
@@ -50,4 +50,4 @@ typedef unsigned int comedi_poll_t;
 typedef __poll_t comedi_poll_t;
 #endif
 
-#endif /* __COMPAT_LINUX_POLL_H */
+#endif

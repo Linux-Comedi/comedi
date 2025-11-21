@@ -2,14 +2,12 @@
  * asm/io.h compatibility header
  */
 
-#ifndef __COMPAT_ASM_IO_H_
-#define __COMPAT_ASM_IO_H_
-
-#include <linux/version.h>
-
-#include <linux/config.h>
+#ifndef COMEDI_COMPAT__ASM__IO_H__INCLUDED__
+#define COMEDI_COMPAT__ASM__IO_H__INCLUDED__
 
 #include_next <asm/io.h>
+#include <linux/version.h>
+#include <linux/config.h>
 
 #ifndef mmiowb			/* Defined in 2.6.10 */
 

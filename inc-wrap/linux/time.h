@@ -1,10 +1,12 @@
+/*
+ * linux/time.h compatibilty header
+ */
 
-#ifndef __COMPAT_LINUX_TIME_H
-#define __COMPAT_LINUX_TIME_H
-
-#include <linux/version.h>
+#ifndef COMEDI_COMPAT__LINUX__TIME_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__TIME_H__INCLUDED__
 
 #include_next <linux/time.h>
+#include <linux/version.h>
 
 #ifndef MSEC_PER_SEC
 #define MSEC_PER_SEC	1000L

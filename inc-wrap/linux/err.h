@@ -2,8 +2,8 @@
  * linux/err.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_ERR_H_
-#define __COMPAT_LINUX_ERR_H_
+#ifndef COMEDI_COMPAT__LINUX__ERR_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__ERR_H__INCLUDED__
 
 /*
  * Debian patches for 2.6.8 kernels modify the IS_ERR() function to use the 

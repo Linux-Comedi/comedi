@@ -1,11 +1,13 @@
+/*
+ * linux/delay.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_DELAY_H
-#define __COMPAT_LINUX_DELAY_H
-
-#include <linux/version.h>
-#include <linux/time.h>
+#ifndef COMEDI_COMPAT__LINUX__DELAY_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__DELAY_H__INCLUDED__
 
 #include_next <linux/delay.h>
+#include <linux/version.h>
+#include <linux/time.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7)
 static inline void comedi_msleep(unsigned int msecs)

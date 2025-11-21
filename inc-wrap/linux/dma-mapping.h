@@ -2,11 +2,10 @@
  * linux/dma-mapping.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_DMA_MAPPING_H_
-#define __COMPAT_LINUX_DMA_MAPPING_H_
+#ifndef COMEDI_COMPAT__LINUX__DMA_MAPPING_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__DMA_MAPPING_H__INCLUDED__
 
 #include <linux/version.h>
-#include <linux/config.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 /*
@@ -17,6 +16,8 @@
 #endif
 
 #include_next <linux/dma-mapping.h>
+
+#include <linux/config.h>
 
 #if !defined(dma_mmap_coherent) && !defined(CONFIG_ARC) && \
     !defined(CONFIG_METAG) && \

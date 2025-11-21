@@ -2,8 +2,8 @@
  * linux/compiler.h compatibility header
  */
 
-#ifndef _COMPAT_COMPILER_H
-#define _COMPAT_COMPILER_H
+#ifndef COMEDI_COMPAT__LINUX__COMPILER_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__COMPILER_H__INCLUDED__
 
 #include_next <linux/compiler.h>
 
@@ -23,4 +23,4 @@
 #define fallthrough	do {} while (0)	/* fallthrough */
 #endif
 
-#endif /* _COMPAT_COMPILER_H */
+#endif

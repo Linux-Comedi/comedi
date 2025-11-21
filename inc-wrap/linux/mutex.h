@@ -1,39 +1,20 @@
 /*
  * linux/mutex.h compatibility header
  */
-/*
-    Copyright (C) 2007 Ian Abbott <abbotti@mev.co.uk>
 
-    Based on "FUSE: Filesystem in Userspace",
-    Copyright (C) 2001-2007 Miklos Szeredi
+#ifndef COMEDI_COMPAT__LINUX__MUTEX_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__MUTEX_H__INCLUDED__
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
-
-#ifndef __COMPAT_LINUX_MUTEX_H_
-#define __COMPAT_LINUX_MUTEX_H_
-
-#include <linux/version.h>
-#include <linux/config.h>
 #include <linux/comedi-config.h>
 
 #ifdef COMEDI_COMPAT_HAVE_MUTEX_H
 
 #include_next <linux/mutex.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
+#include <linux/version.h>
+#include <linux/config.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16)
 #ifndef CONFIG_DEBUG_MUTEXES
 #ifndef mutex_destroy
 /* Some Redhat kernels include a backported mutex.h, lacking mutex_destroy */
@@ -59,4 +40,4 @@
 
 #endif /* COMEDI_COMPAT_HAVE_MUTEX_H */
 
-#endif /* __COMPAT_LINUX_MUTEX_H_ */
+#endif

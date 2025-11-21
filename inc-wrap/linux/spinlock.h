@@ -2,8 +2,8 @@
  * linux/spinlock.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_SPINLOCK_H_
-#define __COMPAT_LINUX_SPINLOCK_H_
+#ifndef COMEDI_COMPAT__LINUX__SPINLOCK_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__SPINLOCK_H__INCLUDED__
 
 #include_next <linux/spinlock.h>
 

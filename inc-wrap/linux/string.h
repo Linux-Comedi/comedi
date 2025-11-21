@@ -1,12 +1,14 @@
+/*
+ * linux/string.h compatibility header
+ */
 
-#ifndef COMEDI_COMPAT_LINUX_STRING_H
-#define COMEDI_COMPAT_LINUX_STRING_H
+#ifndef COMEDI_COMPAT__LINUX__STRING_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__STRING_H__INCLUDED__
 
+#include_next <linux/string.h>
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-
-#include_next <linux/string.h>
 
 /*
  * strscpy() was introduced in Linux kernel 4.3.0.  Define a compatibility
@@ -38,4 +40,4 @@ static inline ssize_t comedi_strscpy(char *d, const char *s, size_t n)
 
 #endif
 
-#endif /* COMEDI_COMPAT_LINUX_STRING_H */
+#endif

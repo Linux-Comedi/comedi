@@ -2,8 +2,8 @@
  * linux/pci.h compatibility header
  */
 
-#ifndef _COMPAT_PCI_H
-#define _COMPAT_PCI_H
+#ifndef COMEDI_COMPAT__LINUX__PCI_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__PCI_H__INCLUDED__
 
 #include_next <linux/pci.h>
 
@@ -12,4 +12,4 @@
 	struct pci_device_id _table[]
 #endif
 
-#endif /* _COMPAT_PCI_H */
+#endif

@@ -2,8 +2,8 @@
  * asm/dma-mapping.h compatibility header
  */
 
-#ifndef __COMPAT_ASM_DMA_MAPPING_H_
-#define __COMPAT_ASM_DMA_MAPPING_H_
+#ifndef COMEDI_COMPAT__ASM__DMA_MAPPING_H__INCLUDED__
+#define COMEDI_COMPAT__ASM__DMA_MAPPING_H__INCLUDED__
 
 #include <linux/version.h>
 

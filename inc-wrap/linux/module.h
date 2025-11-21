@@ -2,11 +2,11 @@
  * linux/module.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_MODULE_H_
-#define __COMPAT_LINUX_MODULE_H_
+#ifndef COMEDI_COMPAT__LINUX__MODULE_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__MODULE_H__INCLUDED__
 
-#include <linux/version.h>
 #include_next <linux/module.h>
+#include <linux/version.h>
 
 #ifndef MODULE_VERSION
 /* Early 2.6.x kernels are missing the MODULE_VERSION() macro. */

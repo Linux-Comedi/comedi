@@ -1,9 +1,12 @@
+/*
+ * linux/fs.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_FS_H
-#define __COMPAT_LINUX_FS_H
+#ifndef COMEDI_COMPAT__LINUX__FS_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__FS_H__INCLUDED__
 
-#include <linux/version.h>
 #include_next <linux/fs.h>
+#include <linux/version.h>
 
 /*
  * The HAVE_COMPAT_IOCTL and HAVE_UNLOCKED_IOCTL macros were defined in

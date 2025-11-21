@@ -2,12 +2,11 @@
  * linux/timer.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_TIMER_H_
-#define __COMPAT_LINUX_TIMER_H_
-
-#include <linux/version.h>
+#ifndef COMEDI_COMPAT__LINUX__TIMER_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__TIMER_H__INCLUDED__
 
 #include_next <linux/timer.h>
+#include <linux/version.h>
 
 /*
  * from_timer() was added in kernel version 4.14.0 at the same time as
@@ -48,4 +47,4 @@ static inline void timer_setup(struct timer_list *timer,
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6,2,0) */
 
-#endif /* __COMPAT_LINUX_TIMER_H_ */
+#endif

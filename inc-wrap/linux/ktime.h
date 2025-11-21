@@ -1,6 +1,9 @@
+/*
+ * linux/ktime.h compatibility header
+ */
 
-#ifndef __COMPAT_LINUX_KTIME_H
-#define __COMPAT_LINUX_KTIME_H
+#ifndef COMEDI_COMPAT__LINUX__KTIME_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__KTIME_H__INCLUDED__
 
 #include <linux/version.h>
 

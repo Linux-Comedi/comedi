@@ -2,11 +2,11 @@
  * linux/firmware.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_FIRMWARE_H
-
-#include <linux/comedi-config.h>
+#ifndef COMEDI_COMPAT__LINUX__FIRMWARE_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__FIRMWARE_H__INCLUDED__
 
 #include_next <linux/firmware.h>
+#include <linux/comedi-config.h>
 
 #ifdef COMEDI_COMPAT_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
 

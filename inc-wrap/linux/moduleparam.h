@@ -1,12 +1,12 @@
 /*
- * moduleparam.h compatibility header
+ * linux/moduleparam.h compatibility header
  */
 
-#ifndef _COMPAT_MODULEPARAM_H
-#define _COMPAT_MODULEPARAM_H
+#ifndef COMEDI_COMPAT__LINUX__MODULEPARAM_H__INCLUDED__
+#define COMEDI_COMPAT__LINUX__MODULEPARAM_H__INCLUDED__
 
-#include <linux/version.h>
 #include_next <linux/moduleparam.h>
+#include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 /*
@@ -46,4 +46,4 @@ typedef int COMEDI_MODULE_PARAM_BOOL_T;
 typedef bool COMEDI_MODULE_PARAM_BOOL_T;
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)) */
 
-#endif /* _COMPAT_MODULEPARAM_H */
+#endif
