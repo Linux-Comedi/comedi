@@ -54,5 +54,83 @@ static inline void *comedi_kmalloc_array(size_t n, size_t size, gfp_t flags)
 
 #endif
 
+/*
+ * The following compability functions really belong in our linux/string.h
+ * compatibility header, but adding #include <linux/slab.h> to our
+ * linux/string.h compatibility header produces all sorts of problems, at
+ * least when building for early 2.6.x kernels.
+ */
+
+/*
+ * kstrdup() was introduced in Linux kernel 2.6.13.  Define a compatibility
+ * function for earlier kernels.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+
+#undef kstrdup
+#define kstrdup(src, gfp) comedi_kstrdup(src, gfp)
+static inline char *comedi_kstrdup(const char *s, gfp_t gfp)
+{
+	size_t len;
+	char *buf;
+
+	if (!s)
+		return NULL;
+
+	len = strlen(s) + 1;
+	buf = kmalloc(len, gfp);
+	if (buf)
+		memcpy(buf, s, len);
+	return buf;
+}
+
+#endif
+
+/*
+ * kstrndup() was introduced in Linux kernel 2.6.23.  Define a compatibility
+ * function for earlier kernels.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+
+#undef kstrndup
+#define kstrndup(src, max, gfp) comedi_kstrndup(src, max, gfp)
+static inline char *comedi_kstrndup(const void *s, size_t max, gfp_t gfp)
+{
+	size_t len;
+	char *buf;
+
+	if (!s)
+		return NULL;
+
+	len = strnlen(s, max);
+	buf = kmalloc(len + 1, gfp);
+	if (buf) {
+		memcpy(buf, s, len);
+		buf[len] = '\0';
+	}
+	return buf;
+}
+
+#endif
+
+/*
+ * kmemdup() was introduced in Linux kernel 2.6.19.  Define a compatibility
+ * function for earlier kernels.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+
+#undef kmemdup
+#define kmemdup(src, len, gfp) comedi_kmemdup(src, len, gfp)
+static inline void *comedi_kmemdup(const void *src, size_t len, gfp_t gfp)
+{
+	void *p = kmalloc(len, gfp);
+
+	if (p)
+		memcpy(p, src, len);
+	return p;
+}
+
+#endif
+
 #endif
 
