@@ -12,8 +12,10 @@
 #include <linux/errno.h>
 
 /*
- * usb_kill_urb() was added in kernel version 2.6.8.  Define a compatible
- * version for earlier kernels.
+ * usb_kill_urb() was added in kernel version 2.6.8.  For earlier kernels,
+ * define usb_kill_urb(), and redefine usb_unlink_urb() to return immediately
+ * without waiting for the URB to be completed.  This matches the modern
+ * usage.
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 
@@ -26,6 +28,16 @@ static inline void comedi_usb_kill_urb(struct urb *urb)
 }
 #undef usb_kill_urb
 #define usb_kill_urb comedi_usb_kill_urb
+
+static inline int comedi_usb_unlink_urb(struct urb *urb)
+{
+	if (!urb)
+		return -ENODEV;
+	urb->transfer_flags |= URB_ASYNC_UNLINK;
+	return usb_unlink_urb(urb);
+}
+#undef usb_unlink_urb
+#define usb_unlink_urb(urb) comedi_usb_unlink_urb(urb)
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8) */
 
