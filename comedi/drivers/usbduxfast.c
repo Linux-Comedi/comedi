@@ -230,7 +230,7 @@ static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 	}
 	printk(KERN_CONT "\n");
 #endif
-	result = USB_BULK_MSG(this_usbduxfastsub->usbdev,
+	result = usb_bulk_msg(this_usbduxfastsub->usbdev,
 		usb_sndbulkpipe(this_usbduxfastsub->usbdev,
 			CHANNELLISTEP),
 		this_usbduxfastsub->dux_commands,
@@ -454,7 +454,7 @@ static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 
 	// 7f92 to zero
 	local_transfer_buffer[0] = 0;
-	errcode = USB_CONTROL_MSG(usbduxfastsub->usbdev,
+	errcode = usb_control_msg(usbduxfastsub->usbdev,
 				  // create a pipe for a control transfer
 				  usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 				  // bRequest, "Firmware"
@@ -489,7 +489,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 
 	// 7f92 to one
 	local_transfer_buffer[0] = 1;
-	errcode = USB_CONTROL_MSG
+	errcode = usb_control_msg
 		(usbduxfastsub->usbdev,
 		 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 		 // bRequest, "Firmware"
@@ -517,7 +517,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 {
 	int errcode;
 
-	errcode = USB_CONTROL_MSG
+	errcode = usb_control_msg
 		(usbduxfastsub->usbdev,
 		 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 		 // brequest, firmware
@@ -1253,7 +1253,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		(int)(usbduxfastsub->urbIn->dev));
 #endif
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = USB_BULK_MSG(usbduxfastsub->usbdev,
+		err = usb_bulk_msg(usbduxfastsub->usbdev,
 			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
 			usbduxfastsub->transfer_buffer,
 			SIZEINBUF, &actual_length, BULK_TIMEOUT);
@@ -1266,7 +1266,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	}
 	// data points
 	for (i = 0; i < insn->n;) {
-		err = USB_BULK_MSG(usbduxfastsub->usbdev,
+		err = usb_bulk_msg(usbduxfastsub->usbdev,
 			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
 			usbduxfastsub->transfer_buffer,
 			SIZEINBUF, &actual_length, BULK_TIMEOUT);
