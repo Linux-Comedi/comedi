@@ -1927,13 +1927,8 @@ static int usbdux_pwm_cancel(comedi_device * dev, comedi_subdevice * s)
 	return res;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
-static void usbduxsub_pwm_irq(struct urb *urb)
+static void usbduxsub_pwm_irq(struct urb *urb PT_REGS_ARG)
 {
-#else
-static void usbduxsub_pwm_irq(struct urb *urb, struct pt_regs *regs)
-{
-#endif
 	int ret;
 	usbduxsub_t *this_usbduxsub;
 	comedi_device *this_comedidev;
