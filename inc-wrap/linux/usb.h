@@ -9,6 +9,25 @@
 
 #include <linux/version.h>
 #include <linux/time.h>
+#include <linux/errno.h>
+
+/*
+ * usb_kill_urb() was added in kernel version 2.6.8.  Define a compatible
+ * version for earlier kernels.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
+
+static inline void comedi_usb_kill_urb(struct urb *urb)
+{
+	if (!urb)
+		return;
+	urb->transfer_flags &= ~URB_ASYNC_UNLINK;
+	usb_unlink_urb(urb);
+}
+#undef usb_kill_urb
+#define usb_kill_urb comedi_usb_kill_urb
+
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8) */
 
 /*
  * Since kernel version 2.6.12, USB timeouts have been specified in
