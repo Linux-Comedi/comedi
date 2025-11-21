@@ -83,6 +83,27 @@ comedi_usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12) */
 
 /*
+ * usb_interrupt_msg() was added in kernel version 2.6.18, but does the same
+ * thing as usb_bulk_msg().  Define it for earlier kernels to just call
+ * usb_bulk_msg() which might have been redefined above to use a timeout in
+ * milliseconds, which is what we want for usb_interrupt_msg() too.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+
+static inline int
+comedi_usb_interrupt_msg(struct usb_device *usb_dev, unsigned int pipe,
+	void *data, int len, int *actual_length, int millisec_timeout)
+{
+	return usb_bulk_msg(usb_dev, pipe, data, len, actual_length,
+			    millisec_timeout);
+}
+#undef usb_interrupt_msg
+#define usb_interrupt_msg(dev, pipe, dat, len, actlen, tout) \
+	comedi_usb_interrupt_msg(dev, pipe, dat, len, actlen, tout)
+
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18) */
+
+/*
  * Determine whether we need the "owner" member of struct usb_driver and
  * define COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER if we need it.
  */
