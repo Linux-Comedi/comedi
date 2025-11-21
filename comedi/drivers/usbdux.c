@@ -347,24 +347,12 @@ static DEFINE_MUTEX(start_stop_mutex);
 static int usbduxsub_unlink_InURBs(usbduxsub_t * usbduxsub_tmp)
 {
 	int i = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
 		for (i = 0; i < usbduxsub_tmp->numOfInBuffers; i++) {
 			if (usbduxsub_tmp->urbIn[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-				j = usb_unlink_urb(usbduxsub_tmp->urbIn[i]);
-				if (j < 0) {
-					err = j;
-				}
-#else
-				// We wait here until all transfers
-				// have been cancelled.
 				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
-#endif
 			}
 #ifdef NOISY_DUX_DEBUGBUG
 			printk("comedi: usbdux: unlinked InURB %d, err=%d\n",
@@ -585,23 +573,12 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 static int usbduxsub_unlink_OutURBs(usbduxsub_t * usbduxsub_tmp)
 {
 	int i = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
-
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
 		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
 			if (usbduxsub_tmp->urbOut[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-				j = usb_unlink_urb(usbduxsub_tmp->urbOut[i]);
-				if (j < err) {
-					err = j;
-				}
-#else
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-#endif
 			}
 #ifdef NOISY_DUX_DEBUGBUG
 			printk("comedi: usbdux: unlinked OutURB %d: res=%d\n",
@@ -1891,22 +1868,11 @@ static int usbdux_counter_config(comedi_device * dev, comedi_subdevice * s,
 
 static int usbduxsub_unlink_PwmURBs(usbduxsub_t * usbduxsub_tmp)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-	int j = 0;
-#endif
-
 	int err = 0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbPwm) {
 		if (usbduxsub_tmp->urbPwm) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-			j = usb_unlink_urb(usbduxsub_tmp->urbPwm);
-			if (j < err) {
-				err = j;
-			}
-#else
 			usb_kill_urb(usbduxsub_tmp->urbPwm);
-#endif
 		}
 #ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi: usbdux: unlinked PwmURB: res=%d\n", err);
@@ -2282,9 +2248,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 				usbduxsub_tmp->urbIn[i]->transfer_buffer = NULL;
 			}
 			if (usbduxsub_tmp->urbIn[i]) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
-#endif
 				usb_free_urb(usbduxsub_tmp->urbIn[i]);
 				usbduxsub_tmp->urbIn[i] = NULL;
 			}
@@ -2305,9 +2269,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 					NULL;
 			}
 			if (usbduxsub_tmp->urbOut[i]) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-#endif
 				usb_free_urb(usbduxsub_tmp->urbOut[i]);
 				usbduxsub_tmp->urbOut[i] = NULL;
 			}
@@ -2324,9 +2286,7 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 			kfree(usbduxsub_tmp->urbPwm->transfer_buffer);
 			usbduxsub_tmp->urbPwm->transfer_buffer = NULL;
 		}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 		usb_kill_urb(usbduxsub_tmp->urbPwm);
-#endif
 		usb_free_urb(usbduxsub_tmp->urbPwm);
 		usbduxsub_tmp->urbPwm = NULL;
 	}
