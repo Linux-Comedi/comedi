@@ -396,7 +396,7 @@ static int usbdux_ai_cancel(comedi_device *dev,
 }
 
 /* analogue IN - interrupt service routine */
-static void usbduxsub_ai_IsocIrq(struct urb *urb)
+static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 {
 	int i, err, n;
 	struct usbduxsub *this_usbduxsub;
@@ -598,7 +598,7 @@ static int usbdux_ao_cancel(comedi_device *dev,
 	return res;
 }
 
-static void usbduxsub_ao_IsocIrq(struct urb *urb)
+static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 {
 	int i, ret;
 	uint8_t *datap;
@@ -1998,7 +1998,7 @@ static int usbdux_pwm_cancel(comedi_device *dev,
 	return res;
 }
 
-static void usbduxsub_pwm_irq(struct urb *urb)
+static void usbduxsub_pwm_irq(struct urb *urb PT_REGS_ARG)
 {
 	int ret;
 	struct usbduxsub *this_usbduxsub;
