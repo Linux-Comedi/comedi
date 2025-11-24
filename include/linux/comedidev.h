@@ -41,7 +41,6 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/comedi.h>
