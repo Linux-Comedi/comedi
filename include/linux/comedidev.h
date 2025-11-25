@@ -468,9 +468,10 @@ static inline void *comedi_aux_data(int options[], int n)
 int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
 	unsigned long context);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
-struct usb_device;	// forward declaration
-int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
-void comedi_usb_auto_unconfig(struct usb_device *usbdev);
+struct usb_interface;	// forward declaration
+int comedi_usb_auto_config(struct usb_interface *intf, comedi_driver *driver,
+	unsigned long context);
+void comedi_usb_auto_unconfig(struct usb_interface *intf);
 
 //#ifdef COMEDI_CONFIG_RT
 #include <linux/comedi_rt.h>

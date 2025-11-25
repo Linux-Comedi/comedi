@@ -870,15 +870,15 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 	comedi_auto_unconfig(&pcidev->dev);
 }
 
-int comedi_usb_auto_config(struct usb_device *usbdev,
-	const char *board_name)
+int comedi_usb_auto_config(struct usb_interface *intf, comedi_driver *driver,
+	unsigned long context)
 {
-	BUG_ON(usbdev == NULL);
-	return comedi_auto_config(&usbdev->dev, board_name, NULL, 0);
+	BUG_ON(intf == NULL);
+	return comedi_auto_config(&intf->dev, driver->driver_name, NULL, 0);
 }
 
-void comedi_usb_auto_unconfig(struct usb_device *usbdev)
+void comedi_usb_auto_unconfig(struct usb_interface *intf)
 {
-	BUG_ON(usbdev == NULL);
-	comedi_auto_unconfig(&usbdev->dev);
+	BUG_ON(intf == NULL);
+	comedi_auto_unconfig(&intf->dev);
 }

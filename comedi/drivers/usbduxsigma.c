@@ -317,6 +317,8 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_MUTEX(start_stop_sem);
 
+static comedi_driver driver_usbduxsigma; /* See below for initializer. */
+
 /*
  * Stops the data acquision
  * It should be safe to call this function from any context
@@ -2387,7 +2389,8 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(usbduxsub_tmp->interface,
+			       &driver_usbduxsigma, 0);
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -2667,14 +2670,13 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 static void usbduxsigma_disconnect(struct usb_interface *intf)
 {
 	struct usbduxsub *usbduxsub_tmp = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
 
 	if (!usbduxsub_tmp) {
 		dev_err(&intf->dev,
 			"comedi_: disconnect called with null pointer.\n");
 		return;
 	}
-	if (usbduxsub_tmp->usbdev != udev) {
+	if (usbduxsub_tmp->interface != intf) {
 		dev_err(&intf->dev, "comedi_: BUG! wrong ptr!\n");
 		return;
 	}
@@ -2684,7 +2686,7 @@ static void usbduxsigma_disconnect(struct usb_interface *intf)
 	if (usbduxsub_tmp->ao_cmd_running)
 		/* we are still running a command */
 		usbdux_ao_stop(usbduxsub_tmp, 1);
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 	mutex_lock(&start_stop_sem);
 	mutex_lock(&usbduxsub_tmp->sem);
 	tidy_up(usbduxsub_tmp);

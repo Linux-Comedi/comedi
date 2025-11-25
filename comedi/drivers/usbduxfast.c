@@ -212,6 +212,8 @@ static usbduxfastsub_t usbduxfastsub[NUMUSBDUXFAST];
 
 static DEFINE_MUTEX(start_stop_mutex);
 
+static comedi_driver driver_usbduxfast; /* See below for initializer. */
+
 // bulk transfers to usbduxfast
 
 #define SENDADCOMMANDS            0
@@ -1467,7 +1469,8 @@ static void usbduxfast_firmware_request_complete_handler(
 		goto out;
 	}
 
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(usbduxfastsub_tmp->interface,
+			       &driver_usbduxfast, 0);
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -1598,17 +1601,16 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 static void usbduxfastsub_disconnect(struct usb_interface *intf)
 {
 	usbduxfastsub_t *usbduxfastsub_tmp = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
 	if (!usbduxfastsub_tmp) {
 		printk("comedi_: usbduxfast: disconnect called with null pointer.\n");
 		return;
 	}
-	if (usbduxfastsub_tmp->usbdev != udev) {
+	if (usbduxfastsub_tmp->interface != intf) {
 		printk("comedi_: usbduxfast: BUG! called with wrong ptr!!!\n");
 		return;
 	}
 
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 
 	mutex_lock(&start_stop_mutex);
 	mutex_lock(&usbduxfastsub_tmp->mutex);

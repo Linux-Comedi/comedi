@@ -1080,7 +1080,7 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
-	comedi_usb_auto_config(devpriv->usb, BOARDNAME);
+	comedi_usb_auto_config(devpriv->intf, &driver_vmk80xx, devpriv->model);
 
 	return 0;
 
@@ -1108,7 +1108,7 @@ static void vmk80xx_usb_disconnect(struct usb_interface *intf)
 
 	board = &vmk80xx_boardinfo[devpriv->model];
 
-	comedi_usb_auto_unconfig(devpriv->usb);
+	comedi_usb_auto_unconfig(intf);
 
 	mutex_lock(&glb_mutex);
 	down(&devpriv->limit_sem);

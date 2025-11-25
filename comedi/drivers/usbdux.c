@@ -342,6 +342,8 @@ static usbduxsub_t usbduxsub[NUMUSBDUX];
 
 static DEFINE_MUTEX(start_stop_mutex);
 
+static comedi_driver driver_usbdux; /* See below for initializer. */
+
 // Stops the data acquision
 // It should be safe to call this function from any context
 static int usbduxsub_unlink_InURBs(usbduxsub_t * usbduxsub_tmp)
@@ -2453,7 +2455,7 @@ static void usbdux_firmware_request_complete_handler(
 			ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(usbduxsub_tmp->interface, &driver_usbdux, 0);
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -2722,16 +2724,15 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 static void usbduxsub_disconnect(struct usb_interface *intf)
 {
 	usbduxsub_t *usbduxsub_tmp = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
 	if (!usbduxsub_tmp) {
 		printk("comedi_: usbdux: disconnect called with null pointer.\n");
 		return;
 	}
-	if (usbduxsub_tmp->usbdev != udev) {
+	if (usbduxsub_tmp->interface != intf) {
 		printk("comedi_: usbdux: BUG! called with wrong ptr!!!\n");
 		return;
 	}
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 	mutex_lock(&start_stop_mutex);
 	mutex_lock(&usbduxsub_tmp->mutex);
 	tidy_up(usbduxsub_tmp);
