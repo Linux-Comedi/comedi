@@ -76,7 +76,8 @@
 	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
 		const struct pci_device_id *ent) \
 	{ \
-		return comedi_pci_auto_config(dev, comedi_driver.driver_name); \
+		return comedi_pci_auto_config(dev, &(comedi_driver), \
+			(ent)->driver_data); \
 	} \
 	static void __devexit comedi_driver ## _pci_remove(struct pci_dev *dev) \
 	{ \
@@ -464,7 +465,8 @@ static inline void *comedi_aux_data(int options[], int n)
 	return (void *)address;
 }
 
-int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
+int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
+	unsigned long context);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 struct usb_device;	// forward declaration
 int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
