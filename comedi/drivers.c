@@ -794,7 +794,8 @@ void comedi_reset_async_buf(comedi_async * async)
 	async->events = 0;
 }
 
-static int comedi_auto_config(struct device *hardware_device, const char *board_name, const int *options, unsigned num_options)
+static int comedi_old_auto_config(struct device *hardware_device,
+	const char *board_name, const int *options, unsigned num_options)
 {
 	comedi_devconfig it;
 	int minor;
@@ -861,7 +862,7 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
 	// pci slot
 	options[1] = PCI_SLOT(pcidev->devfn);
 
-	return comedi_auto_config(&pcidev->dev, driver->driver_name,
+	return comedi_old_auto_config(&pcidev->dev, driver->driver_name,
 		options, sizeof(options) / sizeof(options[0]));
 }
 
@@ -874,7 +875,7 @@ int comedi_usb_auto_config(struct usb_interface *intf, comedi_driver *driver,
 	unsigned long context)
 {
 	BUG_ON(intf == NULL);
-	return comedi_auto_config(&intf->dev, driver->driver_name, NULL, 0);
+	return comedi_old_auto_config(&intf->dev, driver->driver_name, NULL, 0);
 }
 
 void comedi_usb_auto_unconfig(struct usb_interface *intf)
