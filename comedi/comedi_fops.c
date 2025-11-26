@@ -864,14 +864,8 @@ static int do_devconfig_ioctl(comedi_device * dev,
 			it.options[COMEDI_DEVCONF_AUX_DATA_HI] = 0;
 	}
 
+	/* This increments the driver module count on success. */
 	ret = comedi_device_attach(dev, &it);
-	if(ret == 0)
-	{
-		if(!try_module_get(dev->driver->module)) {
-			comedi_device_detach(dev);
-			return -ENOSYS;
-		}
-	}
 
 	if (aux_data)
 		vfree(aux_data);

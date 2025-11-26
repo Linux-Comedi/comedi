@@ -111,13 +111,11 @@ void comedi_device_detach(comedi_device * dev)
 
 /*
  * Do a little post-config cleanup.
- * Called with module refcount incremented, and decrements it.
  */
 static int comedi_device_postconfig(comedi_device *dev)
 {
 	int ret = postconfig(dev);
 
-	module_put(dev->driver->module);
 	if (ret < 0) {
 		__comedi_device_detach(dev);
 		return ret;
@@ -171,7 +169,11 @@ static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 		return ret;
 	}
 	/* Do a little post-config cleanup. */
-	return comedi_device_postconfig(dev);
+	ret = comedi_device_postconfig(dev);
+	if (ret < 0)
+		module_put(driv->module);
+	/* On success, the driver module count has been incremented. */
+	return ret;
 }
 
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
@@ -860,7 +862,14 @@ static int comedi_old_auto_config(struct device *hardware_device,
 	} else {
 		retval = comedi_device_attach_driver(dev, driver, &it,
 			&matched);
-		if (retval && !matched) {
+		if (retval == 0) {
+			/*
+			 * Module count was incremented by
+			 * comedi_device_attach_driver().  Decrement it for
+			 * auto-configured devices.
+			 */
+			module_put(driver->module);
+		} else if (!matched) {
 			printk("comedi: auto config failed to match '%s'\n",
 			       it.board_name);
 		}
