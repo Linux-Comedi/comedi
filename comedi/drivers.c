@@ -47,6 +47,23 @@
 
 #include "comedi_internal.h"
 
+/*
+ * Set hardware device associated with comedi device.
+ * For example, this is needed for devices that need to DMA directly into
+ * the COMEDI data acquisition buffer (which will have been allocated from
+ * DMA coherent memory).
+ */
+int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
+{
+	struct device *old_hw_dev = dev->hw_dev;
+
+	if (old_hw_dev == hw_dev)
+		return 0;
+	dev->hw_dev = get_device(hw_dev);
+	put_device(old_hw_dev);
+	return 0;
+}
+
 static int postconfig(comedi_device * dev);
 static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);

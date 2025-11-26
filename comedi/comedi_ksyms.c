@@ -31,6 +31,7 @@
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
+EXPORT_SYMBOL(comedi_set_hw_dev);
 //EXPORT_SYMBOL(comedi_bufcheck);
 //EXPORT_SYMBOL(comedi_done);
 //EXPORT_SYMBOL(comedi_error_done);

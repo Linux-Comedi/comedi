@@ -402,16 +402,7 @@ static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
 
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
 into comedi's buffer */
-static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
-{
-	struct device *old_hw_dev = dev->hw_dev;
-
-	if (old_hw_dev == hw_dev)
-		return;
-
-	dev->hw_dev = get_device(hw_dev);
-	put_device(old_hw_dev);
-}
+int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev);
 
 int comedi_buf_put(comedi_async * async, sampl_t x);
 int comedi_buf_putl(comedi_async * async, lsampl_t x);
