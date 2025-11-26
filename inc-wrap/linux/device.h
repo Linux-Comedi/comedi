@@ -192,4 +192,19 @@ ssize_t func(struct device *dev, struct device_attribute *_attr, \
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
+/*
+ * Since Linux kernel version 2.6.10, put_device(dev) has accepted a null
+ * pointer.  Support that for earlier kernel versions.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+static inline void comedi_compat_put_device(struct device *dev)
+{
+	if (dev)
+		put_device(dev);
+}
+#undef put_device
+#define put_device(dev) comedi_compat_put_device(dev)
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+
 #endif
