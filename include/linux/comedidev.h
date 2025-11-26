@@ -404,6 +404,8 @@ static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
 into comedi's buffer */
 static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
 {
+	if (dev->hw_dev == hw_dev)
+		return;
 	if (dev->hw_dev) {
 		put_device(dev->hw_dev);
 	}
