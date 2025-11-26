@@ -55,13 +55,18 @@
  */
 int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
 {
-	struct device *old_hw_dev = dev->hw_dev;
-
-	if (old_hw_dev == hw_dev)
+	if (hw_dev == dev->hw_dev)
 		return 0;
+	if (dev->hw_dev)
+		return -EEXIST;
 	dev->hw_dev = get_device(hw_dev);
-	put_device(old_hw_dev);
 	return 0;
+}
+
+static void comedi_clear_hw_dev(comedi_device * dev)
+{
+	put_device(dev->hw_dev);
+	dev->hw_dev = NULL;
 }
 
 static int postconfig(comedi_device * dev);
@@ -104,7 +109,7 @@ static void cleanup_device(comedi_device * dev)
 	dev->write_subdev = NULL;
 	dev->open = NULL;
 	dev->close = NULL;
-	comedi_set_hw_dev(dev, NULL);
+	comedi_clear_hw_dev(dev);
 }
 
 static void __comedi_device_detach(comedi_device * dev)
