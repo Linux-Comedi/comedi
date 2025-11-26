@@ -404,16 +404,13 @@ static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
 into comedi's buffer */
 static inline void comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev)
 {
-	if (dev->hw_dev == hw_dev)
+	struct device *old_hw_dev = dev->hw_dev;
+
+	if (old_hw_dev == hw_dev)
 		return;
-	if (dev->hw_dev) {
-		put_device(dev->hw_dev);
-	}
-	dev->hw_dev = hw_dev;
-	if (dev->hw_dev) {
-		dev->hw_dev = get_device(dev->hw_dev);
-		BUG_ON(dev->hw_dev == NULL);
-	}
+
+	dev->hw_dev = get_device(hw_dev);
+	put_device(old_hw_dev);
 }
 
 int comedi_buf_put(comedi_async * async, sampl_t x);
