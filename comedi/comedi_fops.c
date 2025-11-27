@@ -3085,6 +3085,18 @@ static void comedi_device_cleanup(comedi_device *dev)
 	mutex_destroy(&dev->mutex);
 }
 
+static void comedi_free_board_dev(comedi_device *dev)
+{
+	if(dev) {
+		comedi_device_cleanup(dev);
+		if(dev->class_dev) {
+			COMEDI_DEVICE_DESTROY(comedi_class,
+				MKDEV(COMEDI_MAJOR, dev->minor));
+		}
+		kfree(dev);
+	}
+}
+
 int comedi_alloc_board_minor(struct device *hardware_device)
 {
 	unsigned long flags;
@@ -3149,18 +3161,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 
 void comedi_free_board_minor(unsigned minor)
 {
-	comedi_device *dev;
-
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	dev = comedi_clear_board_minor(minor);
-	if(dev) {
-		comedi_device_cleanup(dev);
-		if(dev->class_dev) {
-			COMEDI_DEVICE_DESTROY(comedi_class,
-				MKDEV(COMEDI_MAJOR, dev->minor));
-		}
-		kfree(dev);
-	}
+	comedi_free_board_dev(comedi_clear_board_minor(minor));
 }
 
 int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
