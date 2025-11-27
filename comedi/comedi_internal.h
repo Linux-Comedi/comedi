@@ -8,6 +8,7 @@
 
 extern COMEDI_MODULE_PARAM_BOOL_T comedi_autoconfig;
 extern comedi_driver *comedi_drivers;
+extern struct mutex comedi_drivers_list_lock;
 
 comedi_device *comedi_alloc_board_minor(struct device *hardware_device);
 void comedi_free_board_minor(unsigned minor);

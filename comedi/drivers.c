@@ -77,6 +77,7 @@ static void comedi_report_boards(comedi_driver * driv);
 static int poll_invalid(comedi_device * dev, comedi_subdevice * s);
 
 comedi_driver *comedi_drivers;
+DEFINE_MUTEX(comedi_drivers_list_lock);
 
 static void cleanup_device(comedi_device * dev)
 {
@@ -207,6 +208,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 	if (dev->attached)
 		return -EBUSY;
 
+	mutex_lock(&comedi_drivers_list_lock);
 	for (driv = comedi_drivers; ret && !matched && driv; driv = driv->next)
 		ret = comedi_device_attach_driver(dev, driv, it, &matched);
 
@@ -223,13 +225,16 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		ret = -EIO;
 	}
+	mutex_unlock(&comedi_drivers_list_lock);
 	return ret;
 }
 
 int comedi_driver_register(comedi_driver * driver)
 {
+	mutex_lock(&comedi_drivers_list_lock);
 	driver->next = comedi_drivers;
 	comedi_drivers = driver;
+	mutex_unlock(&comedi_drivers_list_lock);
 
 	return 0;
 }
@@ -240,7 +245,19 @@ void comedi_driver_unregister(comedi_driver * driver)
 	comedi_driver *elem;
 	int i;
 
-	/* check for devices using this driver */
+	/* Unlink the driver. */
+	mutex_lock(&comedi_drivers_list_lock);
+	link = &comedi_drivers;
+	while ((elem = *link) != NULL) {
+		if (elem == driver) {
+			*link = elem->next;
+			break;
+		}
+		link = &elem->next;
+	}
+	mutex_unlock(&comedi_drivers_list_lock);
+
+	/* Check for devices using this driver. */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
 		comedi_device *dev = comedi_get_device_by_minor(i);
 
@@ -253,15 +270,6 @@ void comedi_driver_unregister(comedi_driver * driver)
 			comedi_device_detach(dev);
 		}
 		mutex_unlock(&dev->mutex);
-	}
-
-	link = &comedi_drivers;
-	while ((elem = *link) != NULL) {
-		if (elem == driver) {
-			*link = elem->next;
-			break;
-		}
-		link = &elem->next;
 	}
 }
 
