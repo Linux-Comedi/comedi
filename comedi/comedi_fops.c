@@ -3092,6 +3092,17 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	comedi_device_create_t *csdev;
 	unsigned i;
 	int retval;
+	static comedi_device_attribute_t * const dev_attrs[] = {
+		&dev_attr_driver_name,
+		&dev_attr_board_name,
+		&dev_attr_bydrivername_index,
+		&dev_attr_byboardname_index,
+		&dev_attr_max_read_buffer_kb,
+		&dev_attr_read_buffer_kb,
+		&dev_attr_max_write_buffer_kb,
+		&dev_attr_write_buffer_kb,
+	};
+	unsigned at;
 
 	dev = kzalloc(sizeof(comedi_device), GFP_KERNEL);
 	if(dev == NULL)
@@ -3124,61 +3135,14 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	/* Using minor device number as the drvdata. */
 	COMEDI_DEV_SET_DRVDATA(csdev, (void *)(unsigned long)i);
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_driver_name);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_driver_name.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_board_name);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_board_name.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_bydrivername_index);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_bydrivername_index.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_byboardname_index);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_byboardname_index.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_read_buffer_kb.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_read_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_read_buffer_kb.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_write_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_write_buffer_kb.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_write_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_write_buffer_kb.attr.name);
-		comedi_free_board_minor(i);
-		return retval;
+	for (at = 0; at < ARRAY_SIZE(dev_attrs); at++) {
+		retval = COMEDI_DEVICE_CREATE_FILE(csdev, dev_attrs[at]);
+		if (retval) {
+			printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n",
+			       dev_attrs[at]->attr.name);
+			comedi_free_board_minor(i);
+			return retval;
+		}
 	}
 	return i;
 }
@@ -3205,6 +3169,13 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	comedi_device_create_t *csdev;
 	unsigned i;
 	int retval;
+	static comedi_device_attribute_t * const dev_attrs[] = {
+		&dev_attr_max_read_buffer_kb,
+		&dev_attr_read_buffer_kb,
+		&dev_attr_max_write_buffer_kb,
+		&dev_attr_write_buffer_kb,
+	};
+	unsigned at;
 
 	comedi_spin_lock_irqsave(&comedi_subdevice_minor_table_lock, flags);
 	for(i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i)
@@ -3231,33 +3202,14 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	}
 	/* Using minor device number as the drvdata. */
 	COMEDI_DEV_SET_DRVDATA(csdev, (void *)(unsigned long)i);
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_read_buffer_kb.attr.name);
-		comedi_free_subdevice_minor(s);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_read_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_read_buffer_kb.attr.name);
-		comedi_free_subdevice_minor(s);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_write_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_write_buffer_kb.attr.name);
-		comedi_free_subdevice_minor(s);
-		return retval;
-	}
-	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_write_buffer_kb);
-	if(retval)
-	{
-		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_write_buffer_kb.attr.name);
-		comedi_free_subdevice_minor(s);
-		return retval;
+	for (at = 0; at < ARRAY_SIZE(dev_attrs); at++) {
+		retval = COMEDI_DEVICE_CREATE_FILE(csdev, dev_attrs[at]);
+		if(retval) {
+			printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n",
+				dev_attrs[at]->attr.name);
+			comedi_free_subdevice_minor(s);
+			return retval;
+		}
 	}
 	return i;
 }
