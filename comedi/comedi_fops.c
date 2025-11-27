@@ -3192,6 +3192,26 @@ void comedi_free_board_minor(unsigned minor)
 	comedi_free_board_dev(comedi_clear_board_minor(minor));
 }
 
+void comedi_release_hardware_device(struct device *hardware_device)
+{
+	unsigned long flags;
+	int minor;
+	comedi_device *dev;
+
+	for (minor = comedi_num_legacy_minors; minor < COMEDI_NUM_BOARD_MINORS;
+	     minor++) {
+		comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
+		dev = comedi_board_minor_table[minor];
+		if (dev && dev->hw_dev == hardware_device) {
+			comedi_board_minor_table[minor] = NULL;
+			comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+			comedi_free_board_dev(dev);
+			break;
+		}
+		comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+	}
+}
+
 int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long flags;
