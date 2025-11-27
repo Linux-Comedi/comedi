@@ -83,6 +83,7 @@ static comedi_device *comedi_board_minor_table[COMEDI_NUM_BOARD_MINORS];
 static DEFINE_SPINLOCK(comedi_subdevice_minor_table_lock);
 static comedi_subdevice *comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
+static void comedi_free_board_dev(comedi_device *dev);
 static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig __user * arg);
 static int do_bufconfig_ioctl(comedi_device * dev, comedi_bufconfig __user *arg);
 static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
@@ -351,6 +352,21 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			goto done;
 		}
 		rc = do_devconfig_ioctl(dev, (comedi_devconfig __user *)arg);
+		if (rc == 0) {
+			if (arg == 0 &&
+			    dev->minor >= comedi_num_legacy_minors) {
+				/* Successfully unconfigured a dynamically
+				 * allocated device.  Try and remove it. */
+				comedi_device *devr;
+
+				devr = comedi_clear_board_minor(dev->minor);
+				if (dev == devr) {
+					mutex_unlock(&dev->mutex);
+					comedi_free_board_dev(dev);
+					return rc;
+				}
+			}
+		}
 		goto done;
 	}
 
@@ -856,8 +872,8 @@ static int do_devconfig_ioctl(comedi_device * dev,
 		if (copy_from_user(aux_data,
 				(void __user *)comedi_aux_data(it.options, 0),
 				aux_len)) {
-			vfree(aux_data);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto out_free_aux_data;
 		}
 		it.options[COMEDI_DEVCONF_AUX_DATA_LO] =
 			(unsigned long)aux_data;
@@ -869,9 +885,16 @@ static int do_devconfig_ioctl(comedi_device * dev,
 			it.options[COMEDI_DEVCONF_AUX_DATA_HI] = 0;
 	}
 
+	if (dev->minor >= comedi_num_legacy_minors) {
+		/* Don't re-use dynamically allocated comedi devices. */
+		ret = -EBUSY;
+		goto out_free_aux_data;
+	}
+
 	/* This increments the driver module count on success. */
 	ret = comedi_device_attach(dev, &it);
 
+out_free_aux_data:
 	if (aux_data)
 		vfree(aux_data);
 
