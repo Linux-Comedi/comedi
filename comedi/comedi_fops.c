@@ -77,10 +77,10 @@ module_param(comedi_autoconfig, bool, 0444);
 static int comedi_num_legacy_minors = 0;
 module_param(comedi_num_legacy_minors, int, 0444);
 
-static DEFINE_SPINLOCK(comedi_board_minor_table_lock);
+static DEFINE_MUTEX(comedi_board_minor_table_lock);
 static comedi_device *comedi_board_minor_table[COMEDI_NUM_BOARD_MINORS];
 
-static DEFINE_SPINLOCK(comedi_subdevice_minor_table_lock);
+static DEFINE_MUTEX(comedi_subdevice_minor_table_lock);
 static comedi_subdevice *comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
 static void comedi_free_board_dev(comedi_device *dev);
@@ -210,12 +210,11 @@ static comedi_device_attribute_t dev_attr_write_buffer_kb =
 static comedi_device *comedi_clear_board_minor(unsigned minor)
 {
 	comedi_device *dev;
-	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
+	mutex_lock(&comedi_board_minor_table_lock);
 	dev = comedi_board_minor_table[minor];
 	comedi_board_minor_table[minor] = NULL;
-	comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+	mutex_unlock(&comedi_board_minor_table_lock);
 	return dev;
 }
 
@@ -223,25 +222,23 @@ static comedi_subdevice*
 comedi_subdevice_from_minor(const comedi_device *dev, unsigned minor)
 {
 	comedi_subdevice *s;
-	unsigned long flags;
 	unsigned i = minor - COMEDI_NUM_BOARD_MINORS;
 
-	comedi_spin_lock_irqsave(&comedi_subdevice_minor_table_lock, flags);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
 	if (s && s->device != dev)
 		s = NULL;
-	comedi_spin_unlock_irqrestore(&comedi_subdevice_minor_table_lock, flags);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	return s;
 }
 
 static comedi_device* comedi_get_device_by_board_minor(unsigned minor)
 {
 	comedi_device *dev;
-	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
+	mutex_lock(&comedi_board_minor_table_lock);
 	dev = comedi_board_minor_table[minor];
-	comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+	mutex_unlock(&comedi_board_minor_table_lock);
 	return dev;
 }
 
@@ -249,13 +246,12 @@ static comedi_device* comedi_get_device_by_subdevice_minor(unsigned minor)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
-	unsigned long flags;
 	unsigned i = minor - COMEDI_NUM_BOARD_MINORS;
 
-	comedi_spin_lock_irqsave(&comedi_subdevice_minor_table_lock, flags);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
 	dev = s ? s->device : NULL;
-	comedi_spin_unlock_irqrestore(&comedi_subdevice_minor_table_lock, flags);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	return dev;
 }
 
@@ -3125,7 +3121,6 @@ static void comedi_free_board_dev(comedi_device *dev)
 /* Note: the ->mutex is pre-locked on successful return */
 comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 {
-	unsigned long flags;
 	comedi_device *dev;
 	comedi_device_create_t *csdev;
 	unsigned i;
@@ -3149,14 +3144,14 @@ comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	comedi_device_init(dev);
 	comedi_set_hw_dev(dev, hardware_device);
 	mutex_lock(&dev->mutex);
-	comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
+	mutex_lock(&comedi_board_minor_table_lock);
 	for(i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_board_minor_table[i] == NULL) {
 			comedi_board_minor_table[i] = dev;
 			break;
 		}
 	}
-	comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+	mutex_unlock(&comedi_board_minor_table_lock);
 	if(i == COMEDI_NUM_BOARD_MINORS) {
 		printk("comedi: error: ran out of minor numbers for board device files.\n");
 		mutex_unlock(&dev->mutex);
@@ -3194,27 +3189,25 @@ void comedi_free_board_minor(unsigned minor)
 
 void comedi_release_hardware_device(struct device *hardware_device)
 {
-	unsigned long flags;
 	int minor;
 	comedi_device *dev;
 
 	for (minor = comedi_num_legacy_minors; minor < COMEDI_NUM_BOARD_MINORS;
 	     minor++) {
-		comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
+		mutex_lock(&comedi_board_minor_table_lock);
 		dev = comedi_board_minor_table[minor];
 		if (dev && dev->hw_dev == hardware_device) {
 			comedi_board_minor_table[minor] = NULL;
-			comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+			mutex_unlock(&comedi_board_minor_table_lock);
 			comedi_free_board_dev(dev);
 			break;
 		}
-		comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
+		mutex_unlock(&comedi_board_minor_table_lock);
 	}
 }
 
 int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 {
-	unsigned long flags;
 	comedi_device_create_t *csdev;
 	unsigned i;
 	int retval;
@@ -3226,7 +3219,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	};
 	unsigned at;
 
-	comedi_spin_lock_irqsave(&comedi_subdevice_minor_table_lock, flags);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
 	for(i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i)
 	{
 		if(comedi_subdevice_minor_table[i] == NULL)
@@ -3235,7 +3228,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 			break;
 		}
 	}
-	comedi_spin_unlock_irqrestore(&comedi_subdevice_minor_table_lock, flags);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if(i == COMEDI_NUM_SUBDEVICE_MINORS)
 	{
 		printk("comedi: error: ran out of minor numbers for subdevice files.\n");
@@ -3265,7 +3258,6 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 
 void comedi_free_subdevice_minor(comedi_subdevice *s)
 {
-	unsigned long flags;
 	unsigned int i;
 
 	if(s == NULL)
@@ -3274,10 +3266,10 @@ void comedi_free_subdevice_minor(comedi_subdevice *s)
 		return;
 
 	i = s->minor - COMEDI_NUM_BOARD_MINORS;
-	comedi_spin_lock_irqsave(&comedi_subdevice_minor_table_lock, flags);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
 	if (s == comedi_subdevice_minor_table[i])
 		comedi_subdevice_minor_table[i] = NULL;
-	comedi_spin_unlock_irqrestore(&comedi_subdevice_minor_table_lock, flags);
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
 
 	if(s->class_dev)
 	{
