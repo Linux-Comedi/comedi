@@ -314,7 +314,7 @@ void comedi_error(const comedi_device * dev, const char *s);
 comedi_device* comedi_get_device_by_minor(unsigned minor);
 
 int comedi_driver_register(comedi_driver *);
-int comedi_driver_unregister(comedi_driver *);
+void comedi_driver_unregister(comedi_driver *);
 
 /* subdevice runflags */
 enum subdevice_runflags {

@@ -234,9 +234,10 @@ int comedi_driver_register(comedi_driver * driver)
 	return 0;
 }
 
-int comedi_driver_unregister(comedi_driver * driver)
+void comedi_driver_unregister(comedi_driver * driver)
 {
-	comedi_driver *prev;
+	comedi_driver **link;
+	comedi_driver *elem;
 	int i;
 
 	/* check for devices using this driver */
@@ -254,18 +255,14 @@ int comedi_driver_unregister(comedi_driver * driver)
 		mutex_unlock(&dev->mutex);
 	}
 
-	if (comedi_drivers == driver) {
-		comedi_drivers = driver->next;
-		return 0;
-	}
-
-	for (prev = comedi_drivers; prev->next; prev = prev->next) {
-		if (prev->next == driver) {
-			prev->next = driver->next;
-			return 0;
+	link = &comedi_drivers;
+	while ((elem = *link) != NULL) {
+		if (elem == driver) {
+			*link = elem->next;
+			break;
 		}
+		link = &elem->next;
 	}
-	return -EINVAL;
 }
 
 static int postconfig(comedi_device * dev)
