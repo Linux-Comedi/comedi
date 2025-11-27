@@ -2909,16 +2909,18 @@ static int __init comedi_init(void)
 
 	// create devices files for legacy/manual use
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
-		int minor;
-		minor = comedi_alloc_board_minor(NULL);
-		if(minor < 0)
-		{
+		comedi_device *dev;
+		dev = comedi_alloc_board_minor(NULL);
+		if(IS_ERR(dev)) {
 			comedi_cleanup_legacy_minors();
 			class_destroy(comedi_class);
 			cdev_del(&comedi_cdev);
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 				COMEDI_NUM_MINORS);
-			return minor;
+			return PTR_ERR(dev);
+		} else {
+			/* comedi_alloc_board_minor() locked the mutex */
+			mutex_unlock(&dev->mutex);
 		}
 	}
 
@@ -3097,7 +3099,8 @@ static void comedi_free_board_dev(comedi_device *dev)
 	}
 }
 
-int comedi_alloc_board_minor(struct device *hardware_device)
+/* Note: the ->mutex is pre-locked on successful return */
+comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 {
 	unsigned long flags;
 	comedi_device *dev;
@@ -3117,27 +3120,26 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	unsigned at;
 
 	dev = kzalloc(sizeof(comedi_device), GFP_KERNEL);
-	if(dev == NULL)
-	{
-		return -ENOMEM;
+	if(dev == NULL) {
+		return ERR_PTR(-ENOMEM);
 	}
 	comedi_device_init(dev);
+	comedi_set_hw_dev(dev, hardware_device);
+	mutex_lock(&dev->mutex);
 	comedi_spin_lock_irqsave(&comedi_board_minor_table_lock, flags);
-	for(i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i)
-	{
-		if (comedi_board_minor_table[i] == NULL)
-		{
+	for(i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
+		if (comedi_board_minor_table[i] == NULL) {
 			comedi_board_minor_table[i] = dev;
 			break;
 		}
 	}
 	comedi_spin_unlock_irqrestore(&comedi_board_minor_table_lock, flags);
-	if(i == COMEDI_NUM_BOARD_MINORS)
-	{
+	if(i == COMEDI_NUM_BOARD_MINORS) {
+		printk("comedi: error: ran out of minor numbers for board device files.\n");
+		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
 		kfree(dev);
-		printk("comedi: error: ran out of minor numbers for board device files.\n");
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
 	dev->minor = i;
 	csdev = COMEDI_DEVICE_CREATE(comedi_class, NULL,
@@ -3152,11 +3154,13 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		if (retval) {
 			printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n",
 			       dev_attrs[at]->attr.name);
+			mutex_unlock(&dev->mutex);
 			comedi_free_board_minor(i);
-			return retval;
+			return ERR_PTR(retval);
 		}
 	}
-	return i;
+	/* Note: dev->mutex needs to be unlocked by the caller. */
+	return dev;
 }
 
 void comedi_free_board_minor(unsigned minor)

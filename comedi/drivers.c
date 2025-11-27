@@ -848,7 +848,6 @@ static int comedi_old_auto_config(struct device *hardware_device,
 	comedi_driver *driver, const int *options, unsigned num_options)
 {
 	comedi_devconfig it;
-	int minor;
 	comedi_device *dev;
 	int retval = 0;
 	unsigned *private_data = NULL;
@@ -859,18 +858,18 @@ static int comedi_old_auto_config(struct device *hardware_device,
 		return 0;
 	}
 
-	minor = comedi_alloc_board_minor(hardware_device);
-	if(minor < 0) return minor;
+	dev = comedi_alloc_board_minor(hardware_device);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	/* Note: comedi_alloc_board_minor() locked dev->mutex */
 	
 	private_data = kmalloc(sizeof(unsigned), GFP_KERNEL);
 	if(private_data == NULL) {
 		retval = -ENOMEM;
 		goto cleanup;
 	}
-	*private_data = minor;
+	*private_data = dev->minor;
 	dev_set_drvdata(hardware_device, private_data);
-
-	dev = comedi_get_device_by_minor(minor);
 
 	memset(&it, 0, sizeof(it));
 	strncpy(it.board_name, driver->driver_name, COMEDI_NAMELEN);
@@ -878,31 +877,24 @@ static int comedi_old_auto_config(struct device *hardware_device,
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
 
-	mutex_lock(&dev->mutex);
-	if (dev->attached) {
-		retval = -EBUSY;
-	} else {
-		retval = comedi_device_attach_driver(dev, driver, &it,
-			&matched);
-		if (retval == 0) {
-			/*
-			 * Module count was incremented by
-			 * comedi_device_attach_driver().  Decrement it for
-			 * auto-configured devices.
-			 */
-			module_put(driver->module);
-		} else if (!matched) {
-			printk("comedi: auto config failed to match '%s'\n",
-			       it.board_name);
-		}
+	retval = comedi_device_attach_driver(dev, driver, &it, &matched);
+	if (retval == 0) {
+		/*
+		 * Module count was incremented by
+		 * comedi_device_attach_driver().  Decrement it for
+		 * auto-configured devices.
+		 */
+		module_put(driver->module);
+	} else if (!matched) {
+		printk("comedi: auto config failed to match '%s'\n",
+		       it.board_name);
 	}
-	mutex_unlock(&dev->mutex);
 
-cleanup:	
-	if(retval < 0)
-	{
+cleanup:
+	mutex_unlock(&dev->mutex);
+	if(retval < 0) {
 		kfree(private_data);
-		comedi_free_board_minor(minor);
+		comedi_free_board_minor(dev->minor);
 	}
 	return retval;
 }
