@@ -176,10 +176,6 @@ static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 	}
 	/* Driver matched. */
 	*matched = true;
-	if (dev->attached) {
-		module_put(driv->module);
-		return -EBUSY;
-	}
 	/*
 	 * Initialize dev->driver here so comedi_error() can be called from
 	 * driv->attach().
