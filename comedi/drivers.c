@@ -905,7 +905,7 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
 	options[1] = PCI_SLOT(pcidev->devfn);
 
 	return comedi_old_auto_config(&pcidev->dev, driver,
-		options, sizeof(options) / sizeof(options[0]));
+		options, ARRAY_SIZE(options));
 }
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
