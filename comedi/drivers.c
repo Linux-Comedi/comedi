@@ -917,15 +917,42 @@ static int comedi_old_auto_config(struct device *hardware_device,
 	return retval;
 }
 
-static void comedi_auto_unconfig(struct device *hardware_device)
+static int comedi_auto_config_wrapper(comedi_device *dev, comedi_driver *driv,
+	void *context)
+{
+	unsigned long driver_context = *(unsigned long *)context;
+
+	if (!driv->auto_attach) {
+		printk("comedi: BUG! driver '%s' has no auto_attach handler!\n",
+			driv->driver_name);
+		return -EINVAL;
+	}
+	dev->driver = driv;
+	return driv->auto_attach(dev, driver_context);
+}
+
+int comedi_auto_config(struct device *hardware_device, comedi_driver *driver,
+	unsigned long context)
+{
+	return comedi_auto_config_helper(hardware_device, driver,
+		comedi_auto_config_wrapper, &context);
+}
+
+void comedi_auto_unconfig(struct device *hardware_device)
 {
 	if (hardware_device == NULL)
 		return;
 	comedi_release_hardware_device(hardware_device);
 }
 
-int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
-	unsigned long context)
+static int comedi_new_pci_auto_config(struct pci_dev *pcidev,
+	comedi_driver *driver, unsigned long context)
+{
+	return comedi_auto_config(&pcidev->dev, driver, context);
+}
+
+static int comedi_old_pci_auto_config(struct pci_dev *pcidev,
+	comedi_driver *driver, unsigned long context)
 {
 	int options[2];
 
@@ -938,16 +965,40 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
 		options, ARRAY_SIZE(options));
 }
 
+int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
+	unsigned long context)
+{
+	if (driver->auto_attach)
+		return comedi_new_pci_auto_config(pcidev, driver, context);
+	else
+		return comedi_old_pci_auto_config(pcidev, driver, context);
+}
+
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 {
 	comedi_auto_unconfig(&pcidev->dev);
+}
+
+static int comedi_usb_new_auto_config(struct usb_interface *intf,
+	comedi_driver *driver, unsigned long context)
+{
+	return comedi_auto_config(&intf->dev, driver, context);
+}
+
+static int comedi_usb_old_auto_config(struct usb_interface *intf,
+	comedi_driver *driver, unsigned long context)
+{
+	return comedi_old_auto_config(&intf->dev, driver, NULL, 0);
 }
 
 int comedi_usb_auto_config(struct usb_interface *intf, comedi_driver *driver,
 	unsigned long context)
 {
 	BUG_ON(intf == NULL);
-	return comedi_old_auto_config(&intf->dev, driver, NULL, 0);
+	if (driver->auto_attach)
+		return comedi_usb_new_auto_config(intf, driver, context);
+	else
+		return comedi_usb_old_auto_config(intf, driver, context);
 }
 
 void comedi_usb_auto_unconfig(struct usb_interface *intf)

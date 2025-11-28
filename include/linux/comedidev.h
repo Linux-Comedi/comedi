@@ -254,6 +254,7 @@ struct comedi_driver_struct {
 	struct module *module;
 	int (*attach) (comedi_device *, comedi_devconfig *);
 	int (*detach) (comedi_device *);
+	int (*auto_attach)(comedi_device *, unsigned long);
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
@@ -455,6 +456,9 @@ static inline void *comedi_aux_data(int options[], int n)
 	return (void *)address;
 }
 
+int comedi_auto_config(struct device *hardware_device, comedi_driver *driver,
+		       unsigned long context);
+void comedi_auto_unconfig(struct device *hardware_device);
 int comedi_pci_auto_config(struct pci_dev *pcidev, comedi_driver *driver,
 	unsigned long context);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);

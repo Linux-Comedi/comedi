@@ -57,6 +57,8 @@ EXPORT_SYMBOL(rt_pend_call);
 #ifdef COMEDI_CONFIG_DEBUG
 EXPORT_SYMBOL(comedi_debug);
 #endif
+EXPORT_SYMBOL_GPL(comedi_auto_config);
+EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
