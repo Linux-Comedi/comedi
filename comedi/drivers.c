@@ -182,8 +182,8 @@ static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 	dev->driver = driv;
 	ret = driv->attach(dev, it);
 	if (ret < 0) {
-		module_put(driv->module);
 		__comedi_device_detach(dev);
+		module_put(driv->module);
 		return ret;
 	}
 	/* Do a little post-config cleanup. */
