@@ -862,46 +862,58 @@ void comedi_reset_async_buf(comedi_async * async)
 	async->events = 0;
 }
 
+static int comedi_auto_config_helper(struct device *hardware_device,
+	comedi_driver *driv,
+	int (*attach_wrapper)(comedi_device *, comedi_driver *, void *),
+	void *context)
+{
+	int ret = 0;
+	comedi_device *comedi_dev;
+
+	if (!comedi_autoconfig)
+		return 0;
+
+	comedi_dev = comedi_alloc_board_minor(hardware_device);
+	if (IS_ERR(comedi_dev))
+		return PTR_ERR(comedi_dev);
+	/* Note: comedi_alloc_board_minor() locked comedi_dev->mutex */
+
+	/* This may set comedi_dev->driver. */
+	ret = attach_wrapper(comedi_dev, driv, context);
+	if (ret < 0) {
+		__comedi_device_detach(comedi_dev);
+	} else {
+		/* Do a little post-config cleanup. */
+		ret = comedi_device_postconfig(comedi_dev);
+	}
+	mutex_unlock(&comedi_dev->mutex);
+	if (ret < 0)
+		comedi_free_board_minor(comedi_dev->minor);
+	return ret;
+}
+
 static int comedi_old_auto_config(struct device *hardware_device,
 	comedi_driver *driver, const int *options, unsigned num_options)
 {
+	struct comedi_device_attach_driver_context cadc;
 	comedi_devconfig it;
-	comedi_device *dev;
 	int retval = 0;
 	bool matched = false;
 
-	if(!comedi_autoconfig)
-		return 0;
-
-	dev = comedi_alloc_board_minor(hardware_device);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
-	/* Note: comedi_alloc_board_minor() locked dev->mutex */
-	
 	memset(&it, 0, sizeof(it));
 	strncpy(it.board_name, driver->driver_name, COMEDI_NAMELEN);
 	it.board_name[COMEDI_NAMELEN - 1] = '\0';
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
 
-	retval = comedi_device_attach_driver(dev, driver, &it, &matched);
-	if (retval == 0) {
-		/*
-		 * Module count was incremented by
-		 * comedi_device_attach_driver().  Decrement it for
-		 * auto-configured devices.
-		 */
-		module_put(driver->module);
-	} else if (!matched) {
+	cadc.it = &it;
+	cadc.matched = &matched;
+	retval = comedi_auto_config_helper(hardware_device, driver,
+			comedi_device_attach_driver_wrapper, &cadc);
+	if (retval && !matched) {
 		printk("comedi: auto config failed to match '%s'\n",
 		       it.board_name);
 	}
-
-	mutex_unlock(&dev->mutex);
-
-	if(retval < 0)
-		comedi_free_board_minor(dev->minor);
-
 	return retval;
 }
 
