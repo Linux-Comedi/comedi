@@ -47,6 +47,11 @@
 
 #include "comedi_internal.h"
 
+struct comedi_device_attach_driver_context {
+	comedi_devconfig *it;
+	bool *matched;
+};
+
 /*
  * Set hardware device associated with comedi device.
  * For example, this is needed for devices that need to DMA directly into
@@ -152,35 +157,48 @@ static int comedi_device_postconfig(comedi_device *dev)
 	return 0;
 }
 
+static int comedi_device_attach_driver_wrapper(comedi_device *dev,
+	comedi_driver *driv, void *context)
+{
+	struct comedi_device_attach_driver_context *cadc = context;
+	comedi_devconfig *it = cadc->it;
+	bool *matched = cadc->matched;
+
+	if (driv->num_names) {
+		/* Look for board entry matching it->board_name */
+		dev->board_ptr = comedi_recognize(driv, it->board_name);
+		if (dev->board_ptr == NULL)
+			return -EINVAL;
+	} else {
+		/* Look for driver name matching it->board_name */
+		if (strcmp(driv->driver_name, it->board_name))
+			return -EINVAL;
+	}
+	/* Driver matched. */
+	*matched = true;
+	if (!driv->attach) {
+		printk("comedi: BUG! driver '%s' has no attach handler!\n",
+		       driv->driver_name);
+		return -EINVAL;
+	}
+	dev->driver = driv;
+	return driv->attach(dev, it);
+}
+
 static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 	comedi_devconfig *it, bool *matched)
 {
+	struct comedi_device_attach_driver_context cadc;
 	int ret = 0;
 
 	if (!try_module_get(driv->module)) {
 		printk("comedi: failed to increment module count, skipping\n");
 		return -EIO;
 	}
-	if (driv->num_names) {
-		dev->board_ptr = comedi_recognize(driv, it->board_name);
-		if (dev->board_ptr == NULL)
-			ret = -EINVAL;
-	} else {
-		if (strcmp(driv->driver_name, it->board_name))
-			ret = -EINVAL;
-	}
-	if (ret) {
-		module_put(driv->module);
-		return ret;
-	}
-	/* Driver matched. */
-	*matched = true;
-	/*
-	 * Initialize dev->driver here so comedi_error() can be called from
-	 * driv->attach().
-	 */
-	dev->driver = driv;
-	ret = driv->attach(dev, it);
+	cadc.it = it;
+	cadc.matched = matched;
+	/* This sets dev->driver if the driver's attach function is called. */
+	ret = comedi_device_attach_driver_wrapper(dev, driv, &cadc);
 	if (ret < 0) {
 		__comedi_device_detach(dev);
 		module_put(driv->module);
