@@ -783,7 +783,7 @@ packages from RPM files in the current directory:
 
 ```
 sudo dnf install comedi-common-0.7.76.1.395_250b-1.fc42.noarch.rpm
-sudo dnf akmod-comedi-0.7.76.1.395_250b-1.fc42.x86_64.rpm
+sudo dnf install akmod-comedi-0.7.76.1.395_250b-1.fc42.x86_64.rpm
 ```
 
 (Adjust those commands to use the actual version being installed.)
