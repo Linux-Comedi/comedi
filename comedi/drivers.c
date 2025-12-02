@@ -139,10 +139,6 @@ static int comedi_device_postconfig(comedi_device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (!dev->board_name) {
-		printk("BUG: dev->board_name=<%p>\n", dev->board_name);
-		dev->board_name = "BUG";
-	}
 	smp_wmb();
 	dev->attached = 1;
 	return 0;
