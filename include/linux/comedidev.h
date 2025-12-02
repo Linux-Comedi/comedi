@@ -159,9 +159,6 @@ struct comedi_subdevice_struct {
 	lsampl_t maxdata;	/* if maxdata==0, use list */
 	const lsampl_t *maxdata_list;	/* list is channel specific */
 
-	unsigned int flags;
-	const unsigned int *flaglist;
-
 	unsigned int settling_time_0;
 
 	const comedi_lrange *range_table;
