@@ -1080,8 +1080,6 @@ static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 			us->insn_bits_support = COMEDI_SUPPORTED;
 		else
 			us->insn_bits_support = COMEDI_UNSUPPORTED;
-
-		us->settling_time_0 = s->settling_time_0;
 	}
 
 	ret = copy_to_user(arg, tmp,
