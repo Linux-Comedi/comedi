@@ -136,10 +136,8 @@ static int comedi_device_postconfig(comedi_device *dev)
 {
 	int ret = postconfig(dev);
 
-	if (ret < 0) {
-		comedi_device_detach(dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	if (!dev->board_name) {
 		printk("BUG: dev->board_name=<%p>\n", dev->board_name);
@@ -192,15 +190,15 @@ static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 	cadc.matched = matched;
 	/* This sets dev->driver if the driver's attach function is called. */
 	ret = comedi_device_attach_driver_wrapper(dev, driv, &cadc);
+	if (ret >= 0) {
+		/* Do a little post-config cleanup. */
+		ret = comedi_device_postconfig(dev);
+	}
 	if (ret < 0) {
 		comedi_device_detach(dev);
 		module_put(driv->module);
 		return ret;
 	}
-	/* Do a little post-config cleanup. */
-	ret = comedi_device_postconfig(dev);
-	if (ret < 0)
-		module_put(driv->module);
 	/* On success, the driver module count has been incremented. */
 	return ret;
 }
@@ -873,11 +871,12 @@ static int comedi_auto_config_helper(struct device *hardware_device,
 
 	/* This may set comedi_dev->driver. */
 	ret = attach_wrapper(comedi_dev, driv, context);
-	if (ret < 0) {
-		comedi_device_detach(comedi_dev);
-	} else {
+	if (ret >= 0) {
 		/* Do a little post-config cleanup. */
 		ret = comedi_device_postconfig(comedi_dev);
+	}
+	if (ret < 0) {
+		comedi_device_detach(comedi_dev);
 	}
 	mutex_unlock(&comedi_dev->mutex);
 	if (ret < 0)
