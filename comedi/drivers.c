@@ -118,7 +118,7 @@ static void cleanup_device(comedi_device * dev)
 	comedi_clear_hw_dev(dev);
 }
 
-static void __comedi_device_detach(comedi_device * dev)
+void comedi_device_detach(comedi_device * dev)
 {
 	dev->attached = 0;
 	if (dev->driver) {
@@ -129,13 +129,6 @@ static void __comedi_device_detach(comedi_device * dev)
 	cleanup_device(dev);
 }
 
-void comedi_device_detach(comedi_device * dev)
-{
-	if (!dev->attached)
-		return;
-	__comedi_device_detach(dev);
-}
-
 /*
  * Do a little post-config cleanup.
  */
@@ -144,7 +137,7 @@ static int comedi_device_postconfig(comedi_device *dev)
 	int ret = postconfig(dev);
 
 	if (ret < 0) {
-		__comedi_device_detach(dev);
+		comedi_device_detach(dev);
 		return ret;
 	}
 
@@ -200,7 +193,7 @@ static int comedi_device_attach_driver(comedi_device *dev, comedi_driver *driv,
 	/* This sets dev->driver if the driver's attach function is called. */
 	ret = comedi_device_attach_driver_wrapper(dev, driv, &cadc);
 	if (ret < 0) {
-		__comedi_device_detach(dev);
+		comedi_device_detach(dev);
 		module_put(driv->module);
 		return ret;
 	}
@@ -881,7 +874,7 @@ static int comedi_auto_config_helper(struct device *hardware_device,
 	/* This may set comedi_dev->driver. */
 	ret = attach_wrapper(comedi_dev, driv, context);
 	if (ret < 0) {
-		__comedi_device_detach(comedi_dev);
+		comedi_device_detach(comedi_dev);
 	} else {
 		/* Do a little post-config cleanup. */
 		ret = comedi_device_postconfig(comedi_dev);
