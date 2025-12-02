@@ -173,6 +173,8 @@ static int comedi_device_attach_driver_wrapper(comedi_device *dev,
 		return -EINVAL;
 	}
 	dev->driver = driv;
+	dev->board_name = dev->board_ptr ? *(const char * const *)dev->board_ptr
+					 : dev->driver->driver_name;
 	return driv->attach(dev, it);
 }
 
@@ -920,6 +922,7 @@ static int comedi_auto_config_wrapper(comedi_device *dev, comedi_driver *driv,
 		return -EINVAL;
 	}
 	dev->driver = driv;
+	dev->board_name = dev->driver->driver_name;
 	return driv->auto_attach(dev, driver_context);
 }
 
