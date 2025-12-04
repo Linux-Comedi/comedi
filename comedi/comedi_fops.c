@@ -2754,11 +2754,9 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	dev->in_request_module = 1;
 
-#ifdef CONFIG_KMOD
 	mutex_unlock(&dev->mutex);
 	request_module("char-major-%i-%i", COMEDI_MAJOR, dev->minor);
 	mutex_lock(&dev->mutex);
-#endif
 
 	dev->in_request_module = 0;
 
