@@ -2377,11 +2377,9 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		mutex_unlock(&dev->mutex);
-		return 0;
+		goto done;
 	}
 
-	mask = 0;
 	read_subdev = comedi_file_read_subdevice(file);
 	if (read_subdev && read_subdev->async) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
@@ -2407,6 +2405,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		}
 	}
 
+done:
 	mutex_unlock(&dev->mutex);
 	return mask;
 }
