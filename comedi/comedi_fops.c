@@ -66,6 +66,8 @@ struct comedi_file {
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
+#define SRF_CMD_MASK	(SRF_ERROR | SRF_RUNNING | SRF_USER)
+
 #ifdef COMEDI_CONFIG_DEBUG
 int comedi_debug;
 module_param(comedi_debug, int, 0644);
@@ -342,6 +344,66 @@ static comedi_subdevice* comedi_file_write_subdevice(struct file *file)
 
 	comedi_file_check(file);
 	return cfp->write_subdev;
+}
+
+static void __comedi_clear_subdevice_runflags(comedi_subdevice *s,
+	unsigned int bits)
+{
+	s->runflags &= ~bits;
+}
+
+static void __comedi_set_subdevice_runflags(comedi_subdevice *s,
+	unsigned int bits)
+{
+	s->runflags |= bits;
+}
+
+static unsigned int __comedi_get_subdevice_runflags(comedi_subdevice *s)
+{
+	return s->runflags;
+}
+
+static bool comedi_is_runflags_running(unsigned int runflags)
+{
+	return !!(runflags & SRF_RUNNING);
+}
+
+static bool comedi_is_runflags_in_error(unsigned int runflags)
+{
+	return !!(runflags & SRF_ERROR);
+}
+
+static bool comedi_is_runflags_user(unsigned int runflags)
+{
+	return !!(runflags & SRF_USER);
+}
+
+#ifdef COMEDI_CONFIG_RT
+static bool comedi_is_runflags_rt(unsigned int runflags)
+{
+	return !!(runflags & SRF_RT);
+}
+#endif
+
+bool comedi_is_subdevice_running(comedi_subdevice *s)
+{
+	unsigned int runflags = comedi_get_subdevice_runflags(s);
+
+	return comedi_is_runflags_running(runflags);
+}
+
+static bool comedi_is_subdevice_in_error(comedi_subdevice *s)
+{
+	unsigned int runflags = comedi_get_subdevice_runflags(s);
+
+	return !!(runflags & SRF_ERROR);
+}
+
+static bool comedi_is_subdevice_idle(comedi_subdevice *s)
+{
+	unsigned int runflags = comedi_get_subdevice_runflags(s);
+
+	return !(runflags & (SRF_ERROR | SRF_RUNNING));
 }
 
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
@@ -1047,7 +1109,7 @@ static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 		us->type = s->type;
 		us->n_chan = s->n_chan;
 		us->subd_flags = s->subdev_flags;
-		if (comedi_get_subdevice_runflags(s) & SRF_RUNNING)
+		if (comedi_is_subdevice_running(s))
 			us->subd_flags |= SDF_RUNNING;
 #define TIMER_nanosec 5		/* backwards compatibility */
 		us->timer_type = TIMER_nanosec;
@@ -1231,20 +1293,21 @@ static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg,
 		 * then become non-busy.
 		 */
 		if (comedi_buf_read_n_available(async) == 0 &&
-			!(runflags & SRF_RUNNING) &&
-			(bi.bytes_read == 0 || !(runflags & SRF_ERROR))) {
+			!comedi_is_runflags_running(runflags) &&
+			(bi.bytes_read == 0 ||
+			 !comedi_is_runflags_in_error(runflags))) {
 			become_nonbusy = 1;
-			if ((runflags & SRF_ERROR) != 0) {
+			if (comedi_is_runflags_in_error(runflags)) {
 				retval = -EPIPE;
 			}
 		}
 		bi.bytes_written = 0;
 	} else {
 		/* command was set up in "write" direction */
-		if (!(runflags & SRF_RUNNING)) {
+		if (!comedi_is_runflags_running(runflags)) {
 			bi.bytes_written = 0;
 			become_nonbusy = 1;
-			if ((runflags & SRF_ERROR) != 0) {
+			if (comedi_is_runflags_in_error(runflags)) {
 				retval = -EPIPE;
 			}
 		} else if (bi.bytes_written) {
@@ -1810,7 +1873,8 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
-	comedi_update_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
+	comedi_update_subdevice_runflags(s, SRF_CMD_MASK,
+					 SRF_USER | SRF_RUNNING);
 
 #ifdef COMEDI_CONFIG_RT
 	if (async->cmd.flags & TRIG_RT) {
@@ -2067,7 +2131,7 @@ static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 
 	ret = do_cancel(dev, s);
 
-	if (comedi_get_subdevice_runflags(s) & SRF_USER) {
+	if (comedi_is_runflags_user(comedi_get_subdevice_runflags(s))) {
 		/* wake up waiters */
 		comedi_async *async = s->async;
 
@@ -2215,7 +2279,7 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	int ret = 0;
 
-	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) && s->cancel)
+	if (comedi_is_subdevice_running(s) && s->cancel)
 		ret = s->cancel(dev, s);
 
 	do_become_nonbusy(dev, s);
@@ -2385,8 +2449,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		poll_wait(file, &read_subdev->async->wait_head, wait);
 		if (!read_subdev->busy
 			|| comedi_buf_read_n_available(read_subdev->async) > 0
-			|| !(comedi_get_subdevice_runflags(read_subdev) &
-				SRF_RUNNING)) {
+			|| !comedi_is_subdevice_running(read_subdev)) {
 			mask |= COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM;
 		}
 	}
@@ -2397,8 +2460,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		}
 		comedi_buf_write_alloc(write_subdev->async, write_subdev->async->prealloc_bufsz);
 		if (!write_subdev->busy
-			|| !(comedi_get_subdevice_runflags(write_subdev) &
-				SRF_RUNNING)
+			|| !comedi_is_subdevice_running(write_subdev)
 			|| comedi_buf_write_n_allocated(write_subdev->async) >=
 			bytes_per_sample(write_subdev->async->subdevice)) {
 			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
@@ -2510,12 +2572,11 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
 				set_current_state(TASK_RUNNING);
 				mutex_lock(&dev->mutex);
-				if (comedi_get_subdevice_runflags(s) &
-					SRF_ERROR) {
+				if (comedi_is_subdevice_in_error(s)) {
 					retval = -EPIPE;
 				} else {
 					retval = 0;
@@ -2636,11 +2697,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+			if (!comedi_is_subdevice_running(s)) {
 				set_current_state(TASK_RUNNING);
 				mutex_lock(&dev->mutex);
-				if (comedi_get_subdevice_runflags(s) &
-					SRF_ERROR) {
+				if (comedi_is_subdevice_in_error(s)) {
 					retval = -EPIPE;
 				} else {
 					retval = 0;
@@ -2686,7 +2746,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
-	if (!(comedi_get_subdevice_runflags(s) & (SRF_ERROR | SRF_RUNNING))) {
+	if (comedi_is_subdevice_idle(s)) {
 		mutex_lock(&dev->mutex);
 		if (async->buf_read_count - async->buf_write_count == 0)
 			do_become_nonbusy(dev, s);
@@ -2706,7 +2766,7 @@ static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 
 	comedi_update_subdevice_runflags(s, SRF_RUNNING, 0);
 #ifdef COMEDI_CONFIG_RT
-	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
+	if (comedi_is_runflags_rt(comedi_get_subdevice_runflags(s))) {
 		comedi_switch_to_non_rt(dev);
 		comedi_update_subdevice_runflags(s, SRF_RT, 0);
 	}
@@ -3008,7 +3068,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 
 	//DPRINTK("comedi_event 0x%x\n",mask);
 
-	if ((comedi_get_subdevice_runflags(s) & SRF_RUNNING) == 0)
+	if (!comedi_is_subdevice_running(s))
 		return;
 
 	if (s->async->
@@ -3028,7 +3088,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	if (async->cb_mask & s->async->events) {
-		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
+		if (comedi_is_runflags_user(comedi_get_subdevice_runflags(s))) {
 
 			if (dev->rt) {
 #ifdef COMEDI_CONFIG_RT
@@ -3067,8 +3127,8 @@ void comedi_update_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&s->spin_lock, flags);
-	s->runflags &= ~mask;
-	s->runflags |= (bits & mask);
+	__comedi_clear_subdevice_runflags(s, mask);
+	__comedi_set_subdevice_runflags(s, bits & mask);
 	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 }
 
@@ -3078,7 +3138,7 @@ unsigned comedi_get_subdevice_runflags(comedi_subdevice * s)
 	unsigned runflags;
 
 	comedi_spin_lock_irqsave(&s->spin_lock, flags);
-	runflags = s->runflags;
+	runflags = __comedi_get_subdevice_runflags(s);
 	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
 }

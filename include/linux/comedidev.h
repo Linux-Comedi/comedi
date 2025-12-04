@@ -329,6 +329,7 @@ int check_chanlist(comedi_subdevice * s, int n, unsigned int *chanlist);
 void comedi_update_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 	unsigned bits);
 unsigned comedi_get_subdevice_runflags(comedi_subdevice * s);
+bool comedi_is_subdevice_running(comedi_subdevice *s);
 
 /* range stuff */
 
