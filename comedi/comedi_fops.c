@@ -911,13 +911,19 @@ static int do_devconfig_ioctl(comedi_device * dev,
 		return -EPERM;
 
 	if (arg == NULL) {
-		if (is_device_busy(dev))
-			return -EBUSY;
-		if(dev->attached)
-		{
-			struct module *driver_module = dev->driver->module;
-			comedi_device_detach(dev);
-			module_put(driver_module);
+		int rc = 0;
+
+		if (dev->attached) {
+			down_write(&dev->attach_lock);
+			if (is_device_busy(dev)) {
+				rc = -EBUSY;
+			} else {
+				struct module *driver_module =
+					dev->driver->module;
+				comedi_device_detach_locked(dev);
+				module_put(driver_module);
+			}
+			up_write(&dev->attach_lock);
 		}
 		return 0;
 	}
@@ -2347,7 +2353,15 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	comedi_subdevice *s;
 	comedi_device *dev = cfp->dev;
 
-	mutex_lock(&dev->mutex);
+	/*
+	 * 'trylock' avoids circular dependency with current->mm->mmap_sem
+	 * and down-reading &dev->attach_lock should normally succeed without
+	 * contention unless the device is in the process of being attached
+	 * or detached.
+	 */
+	if (!down_read_trylock(&dev->attach_lock))
+		return -EAGAIN;
+
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		retval = -ENODEV;
@@ -2426,7 +2440,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	retval = 0;
       done:
-	mutex_unlock(&dev->mutex);
+	up_read(&dev->attach_lock);
 	return retval;
 }
 
@@ -2438,7 +2452,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	comedi_subdevice *write_subdev;
 	comedi_device *dev = cfp->dev;
 
-	mutex_lock(&dev->mutex);
+	down_read(&dev->attach_lock);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		goto done;
@@ -2468,7 +2482,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	}
 
 done:
-	mutex_unlock(&dev->mutex);
+	up_read(&dev->attach_lock);
 	return mask;
 }
 
@@ -2538,6 +2552,14 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	comedi_device *dev = cfp->dev;
+	bool on_wait_queue = false;
+	bool attach_locked;
+	unsigned int old_detach_count;
+
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -2569,19 +2591,45 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		goto done;
 	}
 	add_wait_queue(&async->wait_head, &wait);
+	on_wait_queue = true;
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (!comedi_is_subdevice_running(s)) {
 			if (count == 0) {
-				set_current_state(TASK_RUNNING);
-				mutex_lock(&dev->mutex);
+				comedi_subdevice *new_s;
+
 				if (comedi_is_subdevice_in_error(s)) {
 					retval = -EPIPE;
 				} else {
 					retval = 0;
 				}
-				do_become_nonbusy(dev, s);
+				set_current_state(TASK_RUNNING);
+				/*
+				 * To avoid deadlock, cannot acquire dev->mutex
+				 * while dev->attach_lock is held.  Need to
+				 * remove task from the async wait queue before
+				 * releasing dev->attach_lock, as it might not
+				 * be valid afterwards.
+				 */
+				remove_wait_queue(&async->wait_head, &wait);
+				on_wait_queue = false;
+				up_read(&dev->attach_lock);
+				attach_locked = false;
+				mutex_lock(&dev->mutex);
+				/*
+				 * Become non-busy unless things have changed
+				 * behind our back.  Checking dev->detach_count
+				 * is unchanged ought to be sufficient (unless
+				 * there have been 2**32 detaches in the
+				 * meantime!), but check the subdevice pointer
+				 * as well just in case.
+				 */
+				new_s = comedi_file_write_subdevice(file);
+				if (dev->attached &&
+				    old_detach_count == dev->detach_count &&
+				    s == new_s && async == new_s->async)
+					do_become_nonbusy(dev, s);
 				mutex_unlock(&dev->mutex);
 			}
 			break;
@@ -2635,10 +2683,13 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&async->wait_head, &wait);
-
 done:
+	if (on_wait_queue)
+		remove_wait_queue(&async->wait_head, &wait);
+	set_current_state(TASK_RUNNING);
+	if (attach_locked)
+		up_read(&dev->attach_lock);
+
 	return (count ? count : retval);
 }
 
@@ -2651,6 +2702,14 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	comedi_device *dev = cfp->dev;
+	unsigned int old_detach_count;
+	bool become_nonbusy = false;
+	bool attach_locked;
+
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -2698,15 +2757,12 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		if (n == 0) {
 			if (!comedi_is_subdevice_running(s)) {
-				set_current_state(TASK_RUNNING);
-				mutex_lock(&dev->mutex);
 				if (comedi_is_subdevice_in_error(s)) {
 					retval = -EPIPE;
 				} else {
 					retval = 0;
 				}
-				do_become_nonbusy(dev, s);
-				mutex_unlock(&dev->mutex);
+				become_nonbusy = true;
 				break;
 			}
 			if (file->f_flags & O_NONBLOCK) {
@@ -2746,14 +2802,37 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
-	if (comedi_is_subdevice_idle(s)) {
+	if (become_nonbusy || comedi_is_subdevice_idle(s)) {
+		comedi_subdevice *new_s;
+
+		/*
+		 * To avoid deadlock, cannot acquire dev->mutex
+		 * while dev->attach_lock is held.
+		 */
+		up_read(&dev->attach_lock);
+		attach_locked = false;
 		mutex_lock(&dev->mutex);
-		if (async->buf_read_count - async->buf_write_count == 0)
-			do_become_nonbusy(dev, s);
+		/*
+		 * Check device hasn't become detached behind our back.
+		 * Checking dev->detach_count is unchanged ought to be
+		 * sufficient (unless there have been 2**32 detaches in the
+		 * meantime!), but check the subdevice pointer as well just in
+		 * case.
+		 */
+		new_s = comedi_file_read_subdevice(file);
+		if (dev->attached && old_detach_count == dev->detach_count &&
+		    s == new_s && async == new_s->async) {
+			if (become_nonbusy ||
+			    async->buf_read_count - async->buf_write_count == 0)
+				do_become_nonbusy(dev, s);
+		}
 		mutex_unlock(&dev->mutex);
 	}
 
 done:
+	if (attach_locked)
+		up_read(&dev->attach_lock);
+
 	return (count ? count : retval);
 }
 
@@ -3167,6 +3246,7 @@ static void comedi_device_init(comedi_device *dev)
 	memset(dev, 0, sizeof(comedi_device));
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
+	init_rwsem(&dev->attach_lock);
 	dev->minor = -1;
 }
 

@@ -53,6 +53,7 @@ static int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 
 		if (dev == NULL) continue;
 
+		down_read(&dev->attach_lock);
 		if (dev->attached) {
 			devices_q = 1;
 			l += sprintf(buf + l, "%2d: %-20s %-20s %4d\n",
@@ -60,6 +61,7 @@ static int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 				dev->driver->driver_name,
 				dev->board_name, dev->n_subdevices);
 		}
+		up_read(&dev->attach_lock);
 	}
 	if (!devices_q) {
 		l += sprintf(buf + l, "no devices\n");
@@ -113,12 +115,14 @@ static int comedi_read(struct seq_file *m, void *v)
 		if (dev == NULL)
 			continue;
 
+		down_read(&dev->attach_lock);
 		if (dev->attached) {
 			devices_q = 1;
 			seq_printf(m, "%2d: %-20s %-20s %4d\n",
 				   i, dev->driver->driver_name,
 				   dev->board_name, dev->n_subdevices);
 		}
+		up_read(&dev->attach_lock);
 	}
 	if (!devices_q)
 		seq_puts(m, "no devices\n");

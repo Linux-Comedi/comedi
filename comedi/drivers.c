@@ -118,7 +118,7 @@ static void cleanup_device(comedi_device * dev)
 	comedi_clear_hw_dev(dev);
 }
 
-void comedi_device_detach(comedi_device * dev)
+void comedi_device_detach_locked(comedi_device *dev)
 {
 	comedi_device_cancel_all(dev);
 	dev->attached = 0;
@@ -128,6 +128,13 @@ void comedi_device_detach(comedi_device * dev)
 			dev->driver->detach(dev);
 	}
 	cleanup_device(dev);
+}
+
+void comedi_device_detach(comedi_device * dev)
+{
+	down_write(&dev->attach_lock);
+	comedi_device_detach_locked(dev);
+	up_write(&dev->attach_lock);
 }
 
 /*
@@ -140,8 +147,9 @@ static int comedi_device_postconfig(comedi_device *dev)
 	if (ret < 0)
 		return ret;
 
-	smp_wmb();
+	down_write(&dev->attach_lock);
 	dev->attached = 1;
+	up_write(&dev->attach_lock);
 	return 0;
 }
 
