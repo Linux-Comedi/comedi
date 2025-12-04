@@ -2913,22 +2913,17 @@ static int comedi_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 ok:
-	__module_get(THIS_MODULE);
-
-	if (dev->attached) {
+	if (dev->attached && dev->use_count == 0) {
 		if (!try_module_get(dev->driver->module)) {
-			module_put(THIS_MODULE);
 			rc = -ENOSYS;
 			goto out;
 		}
-	}
-
-	if (dev->attached && dev->use_count == 0 && dev->open) {
-		rc = dev->open(dev);
-		if (rc < 0) {
-			module_put(dev->driver->module);
-			module_put(THIS_MODULE);
-			goto out;
+		if (dev->open) {
+			rc = dev->open(dev);
+			if (rc < 0) {
+				module_put(dev->driver->module);
+				goto out;
+			}
 		}
 	}
 
@@ -2966,12 +2961,9 @@ static int comedi_close(struct inode *inode, struct file *file)
 			}
 		}
 	}
-	if (dev->attached && dev->use_count == 1 && dev->close) {
-		dev->close(dev);
-	}
-
-	module_put(THIS_MODULE);
-	if (dev->attached) {
+	if (dev->attached && dev->use_count == 1) {
+		if (dev->close)
+			dev->close(dev);
 		module_put(dev->driver->module);
 	}
 
@@ -3246,9 +3238,15 @@ static void comedi_device_init(comedi_device *dev)
 
 static void comedi_device_cleanup(comedi_device *dev)
 {
+	struct module *driver_module = NULL;
+
 	if(dev == NULL) return;
 	mutex_lock(&dev->mutex);
+	if (dev->attached)
+		driver_module = dev->driver->module;
 	comedi_device_detach(dev);
+	if (driver_module && dev->use_count)
+		module_put(driver_module);
 	mutex_unlock(&dev->mutex);
 	mutex_destroy(&dev->mutex);
 }
