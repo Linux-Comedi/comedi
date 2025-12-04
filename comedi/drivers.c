@@ -120,6 +120,7 @@ static void cleanup_device(comedi_device * dev)
 
 void comedi_device_detach(comedi_device * dev)
 {
+	comedi_device_cancel_all(dev);
 	dev->attached = 0;
 	if (dev->driver) {
 		dev->detach_count++;

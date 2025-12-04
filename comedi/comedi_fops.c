@@ -2223,6 +2223,21 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s)
 	return ret;
 }
 
+void comedi_device_cancel_all(comedi_device *dev)
+{
+	comedi_subdevice *s;
+	int i;
+
+	if (!dev->attached)
+		return;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		if (s->async)
+			do_cancel(dev, s);
+	}
+}
+
 static void comedi_vm_open(struct vm_area_struct *area)
 {
 	comedi_async *async;

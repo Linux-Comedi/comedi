@@ -18,6 +18,7 @@ void comedi_free_subdevice_minor(comedi_subdevice *s);
 
 void comedi_device_detach(comedi_device * dev);
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
+void comedi_device_cancel_all(comedi_device *dev);
 int insn_inval(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s, unsigned long
