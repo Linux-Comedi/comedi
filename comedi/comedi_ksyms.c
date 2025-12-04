@@ -40,7 +40,7 @@ EXPORT_SYMBOL(comedi_error);
 //EXPORT_SYMBOL(comedi_eos);
 EXPORT_SYMBOL(comedi_event);
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
-EXPORT_SYMBOL(comedi_set_subdevice_runflags);
+EXPORT_SYMBOL(comedi_update_subdevice_runflags);
 EXPORT_SYMBOL(range_bipolar10);
 EXPORT_SYMBOL(range_bipolar5);
 EXPORT_SYMBOL(range_bipolar2_5);

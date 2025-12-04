@@ -1810,12 +1810,12 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
-	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
+	comedi_update_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
 
 #ifdef COMEDI_CONFIG_RT
 	if (async->cmd.flags & TRIG_RT) {
 		if (comedi_switch_to_rt(dev) == 0)
-			comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
+			comedi_update_subdevice_runflags(s, SRF_RT, SRF_RT);
 	}
 #endif
 
@@ -2705,11 +2705,11 @@ static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 
-	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
+	comedi_update_subdevice_runflags(s, SRF_RUNNING, 0);
 #ifdef COMEDI_CONFIG_RT
 	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
 		comedi_switch_to_non_rt(dev);
-		comedi_set_subdevice_runflags(s, SRF_RT, 0);
+		comedi_update_subdevice_runflags(s, SRF_RT, 0);
 	}
 #endif
 	if (async) {
@@ -3025,7 +3025,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 	}
 	if (runflags_mask) {
 		/*sets SRF_ERROR and SRF_RUNNING together atomically */
-		comedi_set_subdevice_runflags(s, runflags_mask, runflags);
+		comedi_update_subdevice_runflags(s, runflags_mask, runflags);
 	}
 
 	if (async->cb_mask & s->async->events) {
@@ -3062,7 +3062,7 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 	s->async->events = 0;
 }
 
-void comedi_set_subdevice_runflags(comedi_subdevice * s, unsigned mask,
+void comedi_update_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 	unsigned bits)
 {
 	unsigned long flags;

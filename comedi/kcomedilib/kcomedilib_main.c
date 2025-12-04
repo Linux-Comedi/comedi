@@ -239,7 +239,7 @@ int comedi_command(comedi_t * d, comedi_cmd * cmd)
 	if (comedi_switch_to_rt(dev) == 0)
 		runflags |= SRF_RT;
 #endif
-	comedi_set_subdevice_runflags(s, ~0, runflags);
+	comedi_update_subdevice_runflags(s, ~0, runflags);
 
 	comedi_reset_async_buf(async);
 
@@ -536,7 +536,7 @@ int comedi_cancel(comedi_t * d, unsigned int subdevice)
 		comedi_switch_to_non_rt(dev);
 	}
 #endif
-	comedi_set_subdevice_runflags(s, SRF_RUNNING | SRF_RT, 0);
+	comedi_update_subdevice_runflags(s, SRF_RUNNING | SRF_RT, 0);
 	s->async->inttrig = NULL;
 	s->busy = NULL;
 
