@@ -2461,9 +2461,10 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	read_subdev = comedi_file_read_subdevice(file);
 	if (read_subdev && read_subdev->async) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
-		if (!read_subdev->busy
-			|| comedi_buf_read_n_available(read_subdev->async) > 0
-			|| !comedi_is_subdevice_running(read_subdev)) {
+		if (read_subdev->busy != file ||
+		    !comedi_is_subdevice_running(read_subdev) ||
+		    (read_subdev->async->cmd.flags & CMDF_WRITE) ||
+		    comedi_buf_read_n_available(read_subdev->async) > 0) {
 			mask |= COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM;
 		}
 	}
@@ -2472,10 +2473,10 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		if (write_subdev != read_subdev) {
 			poll_wait(file, &write_subdev->async->wait_head, wait);
 		}
-		comedi_buf_write_alloc(write_subdev->async, write_subdev->async->prealloc_bufsz);
-		if (!write_subdev->busy
-			|| !comedi_is_subdevice_running(write_subdev)
-			|| comedi_buf_write_n_allocated(write_subdev->async) >=
+		if (write_subdev->busy != file ||
+		    !comedi_is_subdevice_running(write_subdev) ||
+		    !(read_subdev->async->cmd.flags & CMDF_WRITE) ||
+		    comedi_buf_write_n_allocated(write_subdev->async) >=
 			bytes_per_sample(write_subdev->async->subdevice)) {
 			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
 		}
