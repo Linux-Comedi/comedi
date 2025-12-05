@@ -86,6 +86,7 @@ static DEFINE_MUTEX(comedi_subdevice_minor_table_lock);
 static comedi_subdevice *comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
 static void comedi_free_board_dev(comedi_device *dev);
+static void comedi_free_board_minor(unsigned minor);
 static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig __user * arg);
 static int do_bufconfig_ioctl(comedi_device * dev, comedi_bufconfig __user *arg);
 static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
@@ -3326,7 +3327,7 @@ comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	return dev;
 }
 
-void comedi_free_board_minor(unsigned minor)
+static void comedi_free_board_minor(unsigned minor)
 {
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	comedi_free_board_dev(comedi_clear_board_minor(minor));
