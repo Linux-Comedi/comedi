@@ -134,7 +134,7 @@ comedi_t *comedi_open_minor_from(unsigned int minor, int from)
 	if (minor >= COMEDI_NUM_MINORS)
 		return NULL;
 
-	dev = comedi_get_device_by_minor(minor);
+	dev = comedi_dev_get_from_minor(minor);
 	if (dev == NULL)
 		return NULL;
 
@@ -144,6 +144,9 @@ comedi_t *comedi_open_minor_from(unsigned int minor, int from)
 	else
 		retval = NULL;
 	up_read(&dev->attach_lock);
+
+	if (!retval)
+		comedi_dev_put(dev);
 
 	return (comedi_t *)retval;
 }
@@ -178,6 +181,7 @@ int comedi_close_from(comedi_t * d, int from)
 	comedi_device *dev = (comedi_device *) d;
 
 	kcomedilib_clear_link_from_to(from, dev->minor);
+	comedi_dev_put(dev);
 
 	return 0;
 }

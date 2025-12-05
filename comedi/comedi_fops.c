@@ -85,6 +85,7 @@ static comedi_device *comedi_board_minor_table[COMEDI_NUM_BOARD_MINORS];
 static DEFINE_MUTEX(comedi_subdevice_minor_table_lock);
 static comedi_subdevice *comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
+static comedi_device *comedi_dev_get(comedi_device *dev);
 static void comedi_free_board_dev(comedi_device *dev);
 static void comedi_free_board_minor(unsigned minor);
 static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig __user * arg);
@@ -249,27 +250,37 @@ comedi_subdevice_from_minor(const comedi_device *dev, unsigned minor)
 	return s;
 }
 
-static comedi_device* comedi_get_device_by_board_minor(unsigned minor)
+static comedi_device* comedi_dev_get_from_board_minor(unsigned minor)
 {
 	comedi_device *dev;
 
 	mutex_lock(&comedi_board_minor_table_lock);
-	dev = comedi_board_minor_table[minor];
+	dev = comedi_dev_get(comedi_board_minor_table[minor]);
 	mutex_unlock(&comedi_board_minor_table_lock);
 	return dev;
 }
 
-static comedi_device* comedi_get_device_by_subdevice_minor(unsigned minor)
+static comedi_device* comedi_dev_get_from_subdevice_minor(unsigned minor)
 {
-	comedi_device *dev;
+	comedi_device *dev = NULL;
 	comedi_subdevice *s;
 	unsigned i = minor - COMEDI_NUM_BOARD_MINORS;
 
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	s = comedi_subdevice_minor_table[i];
-	dev = s ? s->device : NULL;
+	dev = comedi_dev_get(s ? s->device : NULL);
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	return dev;
+}
+
+comedi_device *comedi_dev_get_from_minor(unsigned minor)
+{
+	if (minor < COMEDI_NUM_BOARD_MINORS)
+		return comedi_dev_get_from_board_minor(minor);
+	else if (minor < COMEDI_NUM_MINORS)
+		return comedi_dev_get_from_subdevice_minor(minor);
+	else
+		return NULL;
 }
 
 static comedi_subdevice*
@@ -2861,7 +2872,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
 	struct comedi_file *cfp;
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	int rc;
 
 	if (dev == NULL) {
@@ -2871,6 +2882,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	cfp = kzalloc(sizeof(*cfp), GFP_KERNEL);
 	if (!cfp) {
+		comedi_dev_put(dev);
 		return -ENOMEM;
 	}
 
@@ -2936,6 +2948,7 @@ ok:
 out:
 	mutex_unlock(&dev->mutex);
 	if (rc) {
+		comedi_dev_put(dev);
 		kfree(cfp);
 	}
 	return rc;
@@ -2978,6 +2991,7 @@ static int comedi_close(struct inode *inode, struct file *file)
 	}
 #endif
 
+	comedi_dev_put(dev);
 	kfree(cfp);
 
 	return 0;
@@ -3230,11 +3244,34 @@ static int is_device_busy(comedi_device * dev)
 
 static void comedi_device_init(comedi_device *dev)
 {
-	memset(dev, 0, sizeof(comedi_device));
+	kref_init(&dev->refcount);
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
 	init_rwsem(&dev->attach_lock);
 	dev->minor = -1;
+}
+
+static void comedi_dev_kref_release(struct kref *kref)
+{
+	comedi_device *dev = container_of(kref, comedi_device, refcount);
+
+	mutex_destroy(&dev->mutex);
+	/* TODO: reference counting for dev->class_dev, but depends on kernel */
+	kfree(dev);
+}
+
+int comedi_dev_put(comedi_device *dev)
+{
+	if (dev)
+		return kref_put(&dev->refcount, comedi_dev_kref_release);
+	return 1;
+}
+
+static comedi_device *comedi_dev_get(comedi_device *dev)
+{
+	if (dev)
+		kref_get(&dev->refcount);
+	return dev;
 }
 
 static void comedi_device_cleanup(comedi_device *dev)
@@ -3249,7 +3286,6 @@ static void comedi_device_cleanup(comedi_device *dev)
 	if (driver_module && dev->use_count)
 		module_put(driver_module);
 	mutex_unlock(&dev->mutex);
-	mutex_destroy(&dev->mutex);
 }
 
 static void comedi_free_board_dev(comedi_device *dev)
@@ -3260,7 +3296,7 @@ static void comedi_free_board_dev(comedi_device *dev)
 			COMEDI_DEVICE_DESTROY(comedi_class,
 				MKDEV(COMEDI_MAJOR, dev->minor));
 		}
-		kfree(dev);
+		comedi_dev_put(dev);
 	}
 }
 
@@ -3302,7 +3338,7 @@ comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		printk("comedi: error: ran out of minor numbers for board device files.\n");
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
-		kfree(dev);
+		comedi_dev_put(dev);
 		return ERR_PTR(-EBUSY);
 	}
 	dev->minor = i;
@@ -3425,15 +3461,6 @@ void comedi_free_subdevice_minor(comedi_subdevice *s)
 	}
 }
 
-comedi_device *comedi_get_device_by_minor(unsigned minor)
-{
-	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	if (minor < COMEDI_NUM_BOARD_MINORS)
-		return comedi_get_device_by_board_minor(minor);
-
-	return comedi_get_device_by_subdevice_minor(minor);
-}
-
 static int resize_async_buffer(comedi_device *dev,
 	comedi_subdevice *s, comedi_async *async, unsigned new_size)
 {
@@ -3478,7 +3505,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, csdev, buf)
 {
 	ssize_t retval;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -3492,6 +3519,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_driver_name, csdev, buf)
 	}
 	up_read(&dev->attach_lock);
 
+	comedi_dev_put(dev);
+
 	return retval;
 }
 
@@ -3499,7 +3528,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_board_name, csdev, buf)
 {
 	ssize_t retval;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -3511,6 +3540,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_board_name, csdev, buf)
 		retval = -ENODEV;
 	up_read(&dev->attach_lock);
 
+	comedi_dev_put(dev);
+
 	return retval;
 }
 
@@ -3520,7 +3551,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, csdev, buf)
 	int i;
 	int result = 0;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -3530,7 +3561,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, csdev, buf)
 		retval = -ENODEV;
 	} else {
 		for (i = 0; i < dev->minor; i++) {
-			comedi_device *iter_dev = comedi_get_device_by_minor(i);
+			comedi_device *iter_dev = comedi_dev_get_from_minor(i);
 
 			if (iter_dev == NULL)
 				continue;
@@ -3540,9 +3571,12 @@ static COMEDI_DECLARE_ATTR_SHOW(show_bydrivername_index, csdev, buf)
 			    iter_dev->driver == dev->driver)
 				++result;
 			up_read(&iter_dev->attach_lock);
+			comedi_dev_put(iter_dev);
 		}
 	}
 	up_read(&dev->attach_lock);
+
+	comedi_dev_put(dev);
 
 	if (!retval)
 		retval = snprintf(buf, PAGE_SIZE, "%d\n", result);
@@ -3556,7 +3590,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, csdev, buf)
 	int i;
 	int result = 0;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -3566,7 +3600,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, csdev, buf)
 		retval = -ENODEV;
 	} else {
 		for (i = 0; i < dev->minor; i++) {
-			comedi_device *iter_dev = comedi_get_device_by_minor(i);
+			comedi_device *iter_dev = comedi_dev_get_from_minor(i);
 
 			if (iter_dev == NULL)
 				continue;
@@ -3576,9 +3610,12 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, csdev, buf)
 			    strcmp(iter_dev->board_name, dev->board_name) == 0)
 				++result;
 			up_read(&iter_dev->attach_lock);
+			comedi_dev_put(iter_dev);
 		}
 	}
 	up_read(&dev->attach_lock);
+
+	comedi_dev_put(dev);
 
 	if (!retval)
 		retval = snprintf(buf, PAGE_SIZE, "%d\n", result);
@@ -3589,7 +3626,7 @@ static COMEDI_DECLARE_ATTR_SHOW(show_byboardname_index, csdev, buf)
 static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 {
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice *read_subdevice;
 
@@ -3606,6 +3643,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, csdev, buf)
 	}
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
 }
 
@@ -3613,20 +3652,26 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 {
 	ssize_t retval = 0;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice *read_subdevice;
 
 	if (dev == NULL)
 		return -ENODEV;
-	if (kstrtoul(buf, 10, &new_max_size_kb))
-		return -EINVAL;
-	if (new_max_size_kb != (uint32_t)new_max_size_kb)
-		return -EINVAL;
+	if (kstrtoul(buf, 10, &new_max_size_kb)) {
+		retval = -EINVAL;
+		goto out;
+	}
+	if (new_max_size_kb != (uint32_t)new_max_size_kb) {
+		retval = -EINVAL;
+		goto out;
+	}
 	new_max_size = ((uint64_t)new_max_size_kb) * bytes_per_kibi;
-	if (new_max_size != (uint32_t)new_max_size)
-		return -EINVAL;
+	if (new_max_size != (uint32_t)new_max_size) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dev->mutex);
 	read_subdevice = comedi_read_subdevice(dev, minor);
@@ -3639,6 +3684,9 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 	}
 	mutex_unlock(&dev->mutex);
 
+out:
+	comedi_dev_put(dev);
+
 	if (!retval)
 		retval = (ssize_t)count;
 
@@ -3648,7 +3696,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, csdev, buf, count)
 static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 {
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice *read_subdevice;
 
@@ -3665,6 +3713,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, csdev, buf)
 	}
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
 }
 
@@ -3672,20 +3722,26 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 {
 	ssize_t retval = 0;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	comedi_subdevice *read_subdevice;
 
 	if (dev == NULL)
 		return -ENODEV;
-	if (kstrtoul(buf, 10, &new_size_kb))
-		return -EINVAL;
-	if (new_size_kb != (uint32_t)new_size_kb)
-		return -EINVAL;
+	if (kstrtoul(buf, 10, &new_size_kb)) {
+		retval = -EINVAL;
+		goto out;
+	}
+	if (new_size_kb != (uint32_t)new_size_kb) {
+		retval = -EINVAL;
+		goto out;
+	}
 	new_size = ((uint64_t)new_size_kb) * bytes_per_kibi;
-	if (new_size != (uint32_t)new_size)
-		return -EINVAL;
+	if (new_size != (uint32_t)new_size) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dev->mutex);
 	read_subdevice = comedi_read_subdevice(dev, minor);
@@ -3699,6 +3755,9 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 	}
 	mutex_unlock(&dev->mutex);
 
+out:
+	comedi_dev_put(dev);
+
 	if (!retval)
 		retval = (ssize_t)count;
 
@@ -3708,7 +3767,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, csdev, buf, count)
 static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 {
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice *write_subdevice;
 
@@ -3725,6 +3784,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, csdev, buf)
 	}
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%i\n", max_buffer_size_kb);
 }
 
@@ -3732,20 +3793,26 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 {
 	ssize_t retval = 0;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice *write_subdevice;
 
 	if (dev == NULL)
 		return -ENODEV;
-	if (kstrtoul(buf, 10, &new_max_size_kb))
-		return -EINVAL;
-	if (new_max_size_kb != (uint32_t)new_max_size_kb)
-		return -EINVAL;
+	if (kstrtoul(buf, 10, &new_max_size_kb)) {
+		retval = -EINVAL;
+		goto out;
+	}
+	if (new_max_size_kb != (uint32_t)new_max_size_kb) {
+		retval = -EINVAL;
+		goto out;
+	}
 	new_max_size = ((uint64_t)new_max_size_kb) * bytes_per_kibi;
-	if (new_max_size != (uint32_t)new_max_size)
-		return -EINVAL;
+	if (new_max_size != (uint32_t)new_max_size) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dev->mutex);
 	write_subdevice = comedi_write_subdevice(dev, minor);
@@ -3758,6 +3825,9 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 	}
 	mutex_unlock(&dev->mutex);
 
+out:
+	comedi_dev_put(dev);
+
 	if (!retval)
 		retval = (ssize_t)count;
 
@@ -3767,7 +3837,7 @@ static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, csdev, buf, count)
 static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 {
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice *write_subdevice;
 
@@ -3784,6 +3854,8 @@ static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, csdev, buf)
 	}
 	mutex_unlock(&dev->mutex);
 
+	comedi_dev_put(dev);
+
 	return snprintf(buf, PAGE_SIZE, "%i\n", buffer_size_kb);
 }
 
@@ -3791,20 +3863,26 @@ static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, csdev, buf, count)
 {
 	ssize_t retval;
 	const unsigned minor = (unsigned long)COMEDI_DEV_GET_DRVDATA(csdev);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_device *dev = comedi_dev_get_from_minor(minor);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	comedi_subdevice *write_subdevice;
 
 	if (dev == NULL)
 		return -ENODEV;
-	if (kstrtoul(buf, 10, &new_size_kb))
-		return -EINVAL;
-	if (new_size_kb != (uint32_t)new_size_kb)
-		return -EINVAL;
+	if (kstrtoul(buf, 10, &new_size_kb)) {
+		retval = -EINVAL;
+		goto out;
+	}
+	if (new_size_kb != (uint32_t)new_size_kb) {
+		retval = -EINVAL;
+		goto out;
+	}
 	new_size = ((uint64_t)new_size_kb) * bytes_per_kibi;
-	if (new_size != (uint32_t)new_size)
-		return -EINVAL;
+	if (new_size != (uint32_t)new_size) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dev->mutex);
 	write_subdevice = comedi_write_subdevice(dev, minor);
@@ -3817,6 +3895,9 @@ static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, csdev, buf, count)
 				write_subdevice->async, new_size);
 	}
 	mutex_unlock(&dev->mutex);
+
+out:
+	comedi_dev_put(dev);
 
 	if (!retval)
 		retval = (ssize_t)count;

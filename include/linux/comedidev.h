@@ -36,6 +36,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/mutex.h>
+#include <linux/kref.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -278,6 +279,7 @@ struct comedi_device_struct {
 	spinlock_t spinlock;
 	struct mutex mutex;
 	struct rw_semaphore attach_lock;
+	struct kref refcount;
 	int in_request_module;
 
 	int n_subdevices;
@@ -309,7 +311,8 @@ static const int comedi_debug = 0;
 void comedi_event(comedi_device * dev, comedi_subdevice * s);
 void comedi_error(const comedi_device * dev, const char *s);
 
-comedi_device* comedi_get_device_by_minor(unsigned minor);
+comedi_device *comedi_dev_get_from_minor(unsigned minor);
+int comedi_dev_put(comedi_device *dev);
 
 int comedi_driver_register(comedi_driver *);
 void comedi_driver_unregister(comedi_driver *);

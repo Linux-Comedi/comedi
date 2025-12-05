@@ -270,7 +270,7 @@ void comedi_driver_unregister(comedi_driver * driver)
 
 	/* Check for devices using this driver. */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		comedi_device *dev = comedi_get_device_by_minor(i);
+		comedi_device *dev = comedi_dev_get_from_minor(i);
 
 		if(dev == NULL) continue;
 
@@ -281,6 +281,7 @@ void comedi_driver_unregister(comedi_driver * driver)
 			comedi_device_detach(dev);
 		}
 		mutex_unlock(&dev->mutex);
+		comedi_dev_put(dev);
 	}
 }
 

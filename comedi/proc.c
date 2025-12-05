@@ -49,7 +49,7 @@ static int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 		"\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		comedi_device *dev = comedi_get_device_by_minor(i);
+		comedi_device *dev = comedi_dev_get_from_minor(i);
 
 		if (dev == NULL) continue;
 
@@ -62,6 +62,7 @@ static int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 				dev->board_name, dev->n_subdevices);
 		}
 		up_read(&dev->attach_lock);
+		comedi_dev_put(dev);
 	}
 	if (!devices_q) {
 		l += sprintf(buf + l, "no devices\n");
@@ -110,7 +111,7 @@ static int comedi_read(struct seq_file *m, void *v)
 		     "driver_name, board_name, n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		comedi_device *dev = comedi_get_device_by_minor(i);
+		comedi_device *dev = comedi_dev_get_from_minor(i);
 
 		if (dev == NULL)
 			continue;
@@ -123,6 +124,7 @@ static int comedi_read(struct seq_file *m, void *v)
 				   dev->board_name, dev->n_subdevices);
 		}
 		up_read(&dev->attach_lock);
+		comedi_dev_put(dev);
 	}
 	if (!devices_q)
 		seq_puts(m, "no devices\n");
