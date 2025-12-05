@@ -2985,8 +2985,8 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 static int comedi_fasync(int fd, struct file *file, int on)
 {
-	const unsigned minor = iminor(file_inode(file));
-	comedi_device *dev = comedi_get_device_by_minor(minor);
+	struct comedi_file *cfp = file->private_data;
+	comedi_device *dev = cfp->dev;
 
 	if (dev==NULL) return -ENODEV;
 
