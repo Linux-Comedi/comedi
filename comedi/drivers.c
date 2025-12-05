@@ -882,12 +882,9 @@ static int comedi_auto_config_helper(struct device *hardware_device,
 		/* Do a little post-config cleanup. */
 		ret = comedi_device_postconfig(comedi_dev);
 	}
-	if (ret < 0) {
-		comedi_device_detach(comedi_dev);
-	}
 	mutex_unlock(&comedi_dev->mutex);
 	if (ret < 0)
-		comedi_free_board_minor(comedi_dev->minor);
+		comedi_release_hardware_device(hardware_device);
 	return ret;
 }
 
