@@ -129,19 +129,23 @@ static void kcomedilib_clear_link_from_to(unsigned int from, unsigned int to)
 comedi_t *comedi_open_minor_from(unsigned int minor, int from)
 {
 	comedi_device *dev;
+	comedi_device *retval = NULL;
 
 	if (minor >= COMEDI_NUM_MINORS)
 		return NULL;
 
 	dev = comedi_get_device_by_minor(minor);
-
-	if(dev == NULL || !dev->attached)
+	if (dev == NULL)
 		return NULL;
 
-	if (!kcomedilib_set_link_from_to(from, dev->minor))
-		return NULL;
+	down_read(&dev->attach_lock);
+	if (dev->attached && kcomedilib_set_link_from_to(from, dev->minor))
+		retval = dev;
+	else
+		retval = NULL;
+	up_read(&dev->attach_lock);
 
-	return (comedi_t *) dev;
+	return (comedi_t *)retval;
 }
 
 comedi_t *comedi_open_minor(unsigned int minor)
