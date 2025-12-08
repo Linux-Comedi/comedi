@@ -467,7 +467,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 					s->n_chan -
 					subpriv->dio.intr.first_chan;
 				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
+				s->subdev_flags |= SDF_CMD_READ | SDF_LSAMPL | SDF_PACKED;
 				s->cancel = pcmmio_cancel;
 				s->do_cmd = pcmmio_cmd;
 				s->do_cmdtest = pcmmio_cmdtest;
@@ -864,10 +864,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d PT_REGS_ARG)
 									}
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((sampl_t *) & val)[0])
-									&&
-									comedi_buf_put
-									(s->async, ((sampl_t *) & val)[1])) {
+								if (comedi_buf_putl(s->async, val)) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */
