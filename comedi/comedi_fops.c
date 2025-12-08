@@ -403,6 +403,13 @@ bool comedi_is_subdevice_running(comedi_subdevice *s)
 	return comedi_is_runflags_running(runflags);
 }
 
+static bool __comedi_is_subdevice_running(comedi_subdevice *s)
+{
+	unsigned int runflags = __comedi_get_subdevice_runflags(s);
+
+	return comedi_is_runflags_running(runflags);
+}
+
 static bool comedi_is_subdevice_in_error(comedi_subdevice *s)
 {
 	unsigned int runflags = comedi_get_subdevice_runflags(s);
@@ -3148,56 +3155,72 @@ void comedi_error(const comedi_device * dev, const char *s)
 void comedi_event(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
-	unsigned runflags = 0;
-	unsigned runflags_mask = 0;
+	unsigned int events;
+	int si_code = 0;
+	bool do_cb_func = false;
+#ifdef COMEDI_CONFIG_RT
+	bool do_rt_pend_wakeup = false;
+#endif
+	unsigned long flags;
 
 	//DPRINTK("comedi_event 0x%x\n",mask);
 
-	if (!comedi_is_subdevice_running(s))
-		return;
+	spin_lock_irqsave(&s->spin_lock, flags);
 
-	if (s->async->events & COMEDI_CB_CANCEL_MASK)
-	{
-		runflags_mask |= SRF_RUNNING;
+	events = async->events;
+	async->events = 0;
+	if (!__comedi_is_subdevice_running(s)) {
+		spin_unlock_irqrestore(&s->spin_lock, flags);
+		return;
 	}
+
+	if (events & COMEDI_CB_CANCEL_MASK)
+		__comedi_clear_subdevice_runflags(s, SRF_RUNNING);
+
 	/* remember if an error event has occured, so an error
 	 * can be returned the next time the user does a read() */
-	if (s->async->events & COMEDI_CB_ERROR_MASK) {
-		runflags_mask |= SRF_ERROR;
-		runflags |= SRF_ERROR;
-	}
-	if (runflags_mask) {
-		/*sets SRF_ERROR and SRF_RUNNING together atomically */
-		comedi_update_subdevice_runflags(s, runflags_mask, runflags);
-	}
+	if (events & COMEDI_CB_ERROR_MASK)
+		__comedi_set_subdevice_runflags(s, SRF_ERROR);
 
-	if (async->cb_mask & s->async->events) {
-		if (comedi_is_runflags_user(comedi_get_subdevice_runflags(s))) {
+	if (async->cb_mask & events) {
+		if (comedi_is_runflags_user(
+				__comedi_get_subdevice_runflags(s))) {
 
 			if (dev->rt) {
 #ifdef COMEDI_CONFIG_RT
-				// pend wake up
-				comedi_rt_pend_wakeup(&async->wait_head);
+				do_rt_pend_wakeup = true;
 #else
 				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			} else {
 				wake_up_interruptible(&async->wait_head);
-				kill_fasync(&dev->async_queue, SIGIO,
-					((async->cmd.flags & CMDF_WRITE)
-					 ? POLL_OUT : POLL_IN));
+				si_code = ((async->cmd.flags & CMDF_WRITE)
+					   ? POLL_OUT : POLL_IN);
 			}
 		} else {
 			if (async->cb_func)
-				async->cb_func(s->async->events, async->cb_arg);
-			/* XXX bug here.  If subdevice A is rt, and
-			 * subdevice B tries to callback to a normal
-			 * linux kernel function, it will be at the
-			 * wrong priority.  Since this isn't very
-			 * common, I'm not going to worry about it. */
+				do_cb_func = true;
 		}
 	}
-	s->async->events = 0;
+
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+
+#ifdef COMEDI_CONFIG_RT
+	if (do_rt_pend_wakeup)
+		comedi_rt_pend_wakeup(&async->wait_head);
+#endif
+
+	if (do_cb_func) {
+		async->cb_func(s->async->events, async->cb_arg);
+		/* XXX bug here.  If subdevice A is rt, and
+		 * subdevice B tries to callback to a normal
+		 * linux kernel function, it will be at the
+		 * wrong priority.  Since this isn't very
+		 * common, I'm not going to worry about it. */
+	}
+
+	if (si_code)
+		kill_fasync(&dev->async_queue, SIGIO, si_code);
 }
 
 void comedi_update_subdevice_runflags(comedi_subdevice * s, unsigned mask,
