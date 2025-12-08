@@ -1,4 +1,3 @@
-#define __NO_VERSION__
 /* rt_pend_tq.c */
 #include <linux/kernel.h>
 #include <linux/errno.h>

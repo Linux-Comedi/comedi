@@ -23,7 +23,6 @@
 
 #undef DEBUG
 
-#define __NO_VERSION__
 #include <linux/comedidev.h>
 
 #include <linux/errno.h>

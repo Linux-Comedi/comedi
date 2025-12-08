@@ -24,7 +24,6 @@
 
 */
 
-#define __NO_VERSION__
 #include <linux/version.h>
 #include <linux/comedi.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)

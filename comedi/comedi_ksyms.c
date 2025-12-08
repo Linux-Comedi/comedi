@@ -21,7 +21,6 @@
 
 */
 
-#define __NO_VERSION__
 #ifndef EXPORT_SYMTAB
 #define EXPORT_SYMTAB
 #endif
