@@ -133,6 +133,9 @@
 #define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
 #define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
+/* masks */
+#define COMEDI_CB_ERROR_MASK	(COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)
+#define COMEDI_CB_CANCEL_MASK	(COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
 
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
