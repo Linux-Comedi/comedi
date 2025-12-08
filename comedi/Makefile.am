@@ -77,6 +77,7 @@ comedi_ko_SOURCES = \
  proc.c \
  range.c \
  drivers.c \
+ comedi_buf.c \
  comedi_compat32.c \
  comedi_ksyms.c \
  $(RT_SOURCES)
