@@ -34,7 +34,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/comedidev.h>
-#include <linux/highmem.h>	/* for SuSE brokenness */
 #include <linux/vmalloc.h>
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
