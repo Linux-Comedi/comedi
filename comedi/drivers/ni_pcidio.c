@@ -511,9 +511,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	struct mite_struct *mite = devpriv->mite;
 
 	//int i, j;
-	long int AuxData = 0;
-	sampl_t data1 = 0;
-	sampl_t data2 = 0;
+	lsampl_t AuxData = 0;
 	int flags;
 	int status;
 	int work = 0;
@@ -590,11 +588,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 				AuxData =
 					readl(devpriv->mite->daq_io_addr +
 					Group_1_FIFO);
-				data1 = AuxData & 0xffff;
-				data2 = (AuxData & 0xffff0000) >> 16;
-				comedi_buf_put(async, data1);
-				comedi_buf_put(async, data2);
-				//DPRINTK("read:%d, %d\n",data1,data2);
+				comedi_buf_putl(async, AuxData);
+				//DPRINTK("read:0x%x\n",AuxData);
 				flags = readb(devpriv->mite->daq_io_addr +
 					Group_1_Flags);
 			}
