@@ -47,7 +47,6 @@ except maybe the 6514.
 
  */
 
-#define _GNU_SOURCE
 #define DEBUG 1
 #define DEBUG_FLAGS
 #include <linux/comedidev.h>
