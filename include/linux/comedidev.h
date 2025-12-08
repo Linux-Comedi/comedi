@@ -394,12 +394,33 @@ static inline int alloc_private(comedi_device * dev, int size)
 	return 0;
 }
 
-static inline unsigned int bytes_per_sample(const comedi_subdevice * subd)
+static inline unsigned int comedi_bytes_per_sample(const comedi_subdevice *subd)
 {
-	if (subd->subdev_flags & SDF_LSAMPL)
-		return sizeof(lsampl_t);
-	else
-		return sizeof(sampl_t);
+	return subd->subdev_flags & SDF_LSAMPL ? sizeof(lsampl_t)
+					       : sizeof(sampl_t);
+}
+
+/* to be removed */
+static inline unsigned int bytes_per_sample(const comedi_subdevice *subd)
+{
+	return comedi_bytes_per_sample(subd);
+}
+
+static inline unsigned int comedi_sample_shift(const comedi_subdevice *subd)
+{
+	return subd->subdev_flags & SDF_LSAMPL ? 2 : 1;
+}
+
+static inline unsigned int comedi_bytes_to_samples(const comedi_subdevice *subd,
+	unsigned int nbytes)
+{
+	return nbytes >> comedi_sample_shift(subd);
+}
+
+static inline unsigned int comedi_samples_to_bytes(const comedi_subdevice *subd,
+	unsigned int nsamples)
+{
+	return nsamples << comedi_sample_shift(subd);
 }
 
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
