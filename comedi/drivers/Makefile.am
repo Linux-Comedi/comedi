@@ -40,15 +40,6 @@ ni_tiocmd_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i .mods/ni_tio.o.symvers \
 	-i .mods/mite.o.symvers
 
-8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-ni_tio_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-ni_tiocmd_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-
-
 EXTRA_DIST = \
  Kbuild \
  8253.h \
