@@ -400,12 +400,6 @@ static inline unsigned int comedi_bytes_per_sample(const comedi_subdevice *subd)
 					       : sizeof(sampl_t);
 }
 
-/* to be removed */
-static inline unsigned int bytes_per_sample(const comedi_subdevice *subd)
-{
-	return comedi_bytes_per_sample(subd);
-}
-
 static inline unsigned int comedi_sample_shift(const comedi_subdevice *subd)
 {
 	return subd->subdev_flags & SDF_LSAMPL ? 2 : 1;
