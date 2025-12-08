@@ -21,7 +21,6 @@
 
 */
 
-#define __NO_VERSION__
 #include <linux/comedidev.h>
 #include <linux/comedi.h>
 #include <linux/comedilib.h>
