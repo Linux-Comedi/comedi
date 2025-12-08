@@ -2488,7 +2488,8 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		    !comedi_is_subdevice_running(write_subdev) ||
 		    !(read_subdev->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_write_n_allocated(write_subdev->async) >=
-			bytes_per_sample(write_subdev->async->subdevice)) {
+			comedi_bytes_per_sample(write_subdev->async->subdevice))
+		{
 			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
 		}
 	}

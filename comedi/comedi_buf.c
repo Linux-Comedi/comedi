@@ -144,7 +144,7 @@ static unsigned int comedi_buf_munge(comedi_async * async,
 {
 	comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
-	const unsigned num_sample_bytes = bytes_per_sample(s);
+	const unsigned num_sample_bytes = comedi_bytes_per_sample(s);
 
 	if (s->munge == NULL || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
@@ -197,7 +197,7 @@ unsigned int comedi_buf_write_n_available(comedi_async * async)
 
 	free_end = async->buf_read_count + async->prealloc_bufsz;
 	nbytes = free_end - async->buf_write_alloc_count;
-	nbytes -= nbytes % bytes_per_sample(async->subdevice);
+	nbytes -= nbytes % comedi_bytes_per_sample(async->subdevice);
 	/* barrier insures the read of buf_read_count in this
 	   query occurs before any following writes to the buffer which
 	   might be based on the return value from this query.
