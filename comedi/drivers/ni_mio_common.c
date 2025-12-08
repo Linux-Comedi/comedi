@@ -1573,7 +1573,7 @@ static void ni_ai_munge(comedi_device * dev, comedi_subdevice * s,
 {
 	comedi_async *async = s->async;
 	unsigned int i;
-	unsigned int length = num_bytes / bytes_per_sample(s);
+	unsigned int length = num_bytes / comedi_bytes_per_sample(s);
 	sampl_t *array = data;
 	lsampl_t *larray = data;
 	for (i = 0; i < length; i++) {
