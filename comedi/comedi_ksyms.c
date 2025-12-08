@@ -21,10 +21,6 @@
 
 */
 
-#ifndef EXPORT_SYMTAB
-#define EXPORT_SYMTAB
-#endif
-
 #include <linux/comedidev.h>
 
 /* for drivers */
