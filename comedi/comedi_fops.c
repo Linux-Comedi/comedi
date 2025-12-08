@@ -3183,14 +3183,9 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 #endif
 			} else {
 				wake_up_interruptible(&async->wait_head);
-				if (s->subdev_flags & SDF_CMD_READ) {
-					kill_fasync(&dev->async_queue, SIGIO,
-						POLL_IN);
-				}
-				if (s->subdev_flags & SDF_CMD_WRITE) {
-					kill_fasync(&dev->async_queue, SIGIO,
-						POLL_OUT);
-				}
+				kill_fasync(&dev->async_queue, SIGIO,
+					((async->cmd.flags & CMDF_WRITE)
+					 ? POLL_OUT : POLL_IN));
 			}
 		} else {
 			if (async->cb_func)
