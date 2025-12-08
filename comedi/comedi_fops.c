@@ -1747,6 +1747,74 @@ static int do_insn_i(comedi_device * dev, comedi_insn *insn, void *file)
 	return ret;
 }
 
+static int __comedi_check_cmd(comedi_device *dev, comedi_cmd *cmd)
+{
+	comedi_subdevice *s;
+
+	if (cmd->subdev >= dev->n_subdevices) {
+		DPRINTK("%d no such subdevice\n", cmd->subdev);
+		return -ENODEV;
+	}
+
+	s = dev->subdevices + cmd->subdev;
+
+	if (s->type == COMEDI_SUBD_UNUSED) {
+		DPRINTK("%d not valid subdevice\n", cmd->subdev);
+		return -EIO;
+	}
+
+	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
+		DPRINTK("subdevice %i does not support commands\n",
+			cmd->subdev);
+		return -EIO;
+	}
+
+	/* make sure channel/gain list isn't too long */
+	if (cmd->chanlist_len > s->len_chanlist) {
+		DPRINTK("channel/gain list too long %u > %d\n",
+			cmd->chanlist_len, s->len_chanlist);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __comedi_get_user_chanlist(comedi_device *dev, comedi_subdevice *s,
+	unsigned int __user *user_chanlist, comedi_cmd *cmd)
+{
+	unsigned int *chanlist;
+	int ret;
+
+	cmd->chanlist = NULL;
+	chanlist = kmalloc_array(cmd->chanlist_len, sizeof(unsigned int),
+				 GFP_KERNEL);
+	if (!chanlist) {
+		DPRINTK("allocation failed\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(chanlist, user_chanlist,
+			   cmd->chanlist_len * sizeof(unsigned int))) {
+		DPRINTK("fault reading chanlist\n");
+		ret = -EFAULT;
+		goto cleanup;
+	}
+
+	/* make sure each element in channel/gain list is valid */
+	ret = check_chanlist(s, cmd->chanlist_len, chanlist);
+	if (ret < 0) {
+		DPRINTK("bad chanlist\n");
+		goto cleanup;
+	}
+
+	cmd->chanlist = chanlist;
+	return 0;
+
+cleanup:
+	kfree(chanlist);
+	return ret;
+}
+
 /*
 	COMEDI_CMD
 	command ioctl
@@ -1785,31 +1853,20 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 	comedi_subdevice *s;
 	comedi_async *async;
 	int ret = 0;
-	unsigned int *chanlist_saver = NULL;
+	unsigned int __user *user_chanlist = NULL;
 
 	*copy = 0;
 
-	// save user's chanlist pointer so it can be restored later
-	chanlist_saver = cmd->chanlist;
+	// do some simple cmd validation
+	ret = __comedi_check_cmd(dev, cmd);
+	if (ret)
+		return ret;
 
-	if (cmd->subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd->subdev);
-		return -ENODEV;
-	}
+	// save user's chanlist pointer so it can be restored later
+	user_chanlist = (unsigned int __user *)cmd->chanlist;
 
 	s = dev->subdevices + cmd->subdev;
 	async = s->async;
-
-	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd->subdev);
-		return -EIO;
-	}
-
-	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd->subdev);
-		return -EIO;
-	}
 
 	/* are we locked? (ioctl lock) */
 	if (s->lock && s->lock != file) {
@@ -1823,13 +1880,6 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 		return -EBUSY;
 	}
 
-	/* make sure channel/gain list isn't too long */
-	if (cmd->chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %u > %d\n",
-			cmd->chanlist_len, s->len_chanlist);
-		return -EINVAL;
-	}
-
 	/* make sure channel/gain list isn't too short */
 	if (cmd->chanlist_len < 1) {
 		DPRINTK("channel/gain list too short %u < 1\n",
@@ -1839,28 +1889,11 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 
 	async->cmd = *cmd;
 	async->cmd.data = NULL;
+
 	/* load channel/gain list */
-	async->cmd.chanlist =
-		kmalloc(async->cmd.chanlist_len * sizeof(int), GFP_KERNEL);
-	if (!async->cmd.chanlist) {
-		DPRINTK("allocation failed\n");
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(async->cmd.chanlist,
-			(unsigned int __user *)cmd->chanlist,
-			async->cmd.chanlist_len * sizeof(int))) {
-		DPRINTK("fault reading chanlist\n");
-		ret = -EFAULT;
+	ret = __comedi_get_user_chanlist(dev, s, user_chanlist, &async->cmd);
+	if (ret)
 		goto cleanup;
-	}
-
-	/* make sure each element in channel/gain list is valid */
-	if ((ret = check_chanlist(s, async->cmd.chanlist_len,
-				async->cmd.chanlist)) < 0) {
-		DPRINTK("bad chanlist\n");
-		goto cleanup;
-	}
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
@@ -1868,7 +1901,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 		DPRINTK("test returned %d\n", ret);
 		*cmd = async->cmd;
 		// restore chanlist pointer before copying back
-		cmd->chanlist = chanlist_saver;
+		cmd->chanlist = (unsigned int __force *)user_chanlist;
 		cmd->data = NULL;
 		*copy = 1;
 		ret = -EAGAIN;
@@ -1950,78 +1983,37 @@ static int do_cmdtest_i(comedi_device * dev, comedi_cmd *cmd, int *copy,
 {
 	comedi_subdevice *s;
 	int ret = 0;
-	unsigned int *chanlist = NULL;
-	unsigned int *chanlist_saver = NULL;
+	unsigned int __user *user_chanlist = NULL;
 
 	*copy = 0;
 
-	// save user's chanlist pointer so it can be restored later
-	chanlist_saver = cmd->chanlist;
+	// do some simple cmd validation
+	ret = __comedi_check_cmd(dev, cmd);
+	if (ret)
+		return ret;
 
-	if (cmd->subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd->subdev);
-		return -ENODEV;
-	}
+	// save user's chanlist pointer so it can be restored later
+	user_chanlist = (unsigned int __user *)cmd->chanlist;
 
 	s = dev->subdevices + cmd->subdev;
-	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd->subdev);
-		return -EIO;
-	}
 
-	if (!s->do_cmd || !s->do_cmdtest) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd->subdev);
-		return -EIO;
-	}
-
-	/* make sure channel/gain list isn't too long */
-	if (cmd->chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %d > %d\n",
-			cmd->chanlist_len, s->len_chanlist);
-		ret = -EINVAL;
-		goto cleanup;
-	}
-
-	/* load channel/gain list */
-	if (cmd->chanlist) {
-		chanlist =
-			kmalloc(cmd->chanlist_len * sizeof(int),
-			GFP_KERNEL);
-		if (!chanlist) {
-			DPRINTK("allocation failed\n");
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-
-		if (copy_from_user(chanlist,
-				(unsigned int __user *)cmd->chanlist,
-				cmd->chanlist_len * sizeof(int))) {
-			DPRINTK("fault reading chanlist\n");
-			ret = -EFAULT;
-			goto cleanup;
-		}
-
-		/* make sure each element in channel/gain list is valid */
-		if ((ret = check_chanlist(s, cmd->chanlist_len,
-					chanlist)) < 0) {
-			DPRINTK("bad chanlist\n");
-			goto cleanup;
-		}
-
-		cmd->chanlist = chanlist;
+	// user_chanlist can be NULL for COMEDI_CMDTEST ioctl
+	if (user_chanlist) {
+		/* load channel/gain list */
+		ret = __comedi_get_user_chanlist(dev, s, user_chanlist, cmd);
+		if (ret)
+			return ret;
 	}
 
 	ret = s->do_cmdtest(dev, s, cmd);
 
+	// free kernel copy of user chanlist
+	kfree(cmd->chanlist);
+
 	// restore chanlist pointer before copying back
-	cmd->chanlist = chanlist_saver;
+	cmd->chanlist = (unsigned int __force *)user_chanlist;
 
 	*copy = 1;
-
-      cleanup:
-	if (chanlist)
-		kfree(chanlist);
 
 	return ret;
 }
