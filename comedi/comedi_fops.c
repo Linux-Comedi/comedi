@@ -1931,9 +1931,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 
 	comedi_reset_async_buf(async);
 
-	async->cb_mask =
-		COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR |
-		COMEDI_CB_OVERFLOW;
+	async->cb_mask = COMEDI_CB_CANCEL_MASK | COMEDI_CB_BLOCK;
 	if (async->cmd.flags & TRIG_WAKE_EOS) {
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
@@ -3158,14 +3156,13 @@ void comedi_event(comedi_device * dev, comedi_subdevice * s)
 	if (!comedi_is_subdevice_running(s))
 		return;
 
-	if (s->async->
-		events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+	if (s->async->events & COMEDI_CB_CANCEL_MASK)
 	{
 		runflags_mask |= SRF_RUNNING;
 	}
 	/* remember if an error event has occured, so an error
 	 * can be returned the next time the user does a read() */
-	if (s->async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)) {
+	if (s->async->events & COMEDI_CB_ERROR_MASK) {
 		runflags_mask |= SRF_ERROR;
 		runflags |= SRF_ERROR;
 	}
