@@ -1776,6 +1776,21 @@ static int __comedi_check_cmd(comedi_device *dev, comedi_cmd *cmd)
 		return -EINVAL;
 	}
 
+	/*
+	 * Set the CMDF_WRITE flag to the correct state if the subdevice
+	 * supports only "read" commands or only "write" commands.
+	 */
+	switch(s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) {
+	case SDF_CMD_READ:
+		cmd->flags &= ~CMDF_WRITE;
+		break;
+	case SDF_CMD_WRITE:
+		cmd->flags |= CMDF_WRITE;
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
