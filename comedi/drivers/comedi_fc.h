@@ -57,23 +57,7 @@ static inline unsigned int cfc_handle_events(comedi_device * dev,
 
 static inline unsigned int cfc_bytes_per_scan(comedi_subdevice * subd)
 {
-	int num_samples;
-	int bits_per_sample;
-
-	switch (subd->type) {
-	case COMEDI_SUBD_DI:
-	case COMEDI_SUBD_DO:
-	case COMEDI_SUBD_DIO:
-		bits_per_sample = 8 * comedi_bytes_per_sample(subd);
-		num_samples =
-			(subd->async->cmd.chanlist_len + bits_per_sample -
-			1) / bits_per_sample;
-		break;
-	default:
-		num_samples = subd->async->cmd.chanlist_len;
-		break;
-	}
-	return num_samples * comedi_bytes_per_sample(subd);
+	return comedi_bytes_per_scan(subd);
 }
 
 #endif /* _COMEDI_FC_H */
