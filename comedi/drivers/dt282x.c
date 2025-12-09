@@ -633,7 +633,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 		if (devpriv->ad_2scomp) {
 			data ^= 1 << (boardtype.adbits - 1);
 		}
-		ret = comedi_buf_put(s->async, data);
+		ret = comedi_buf_put(s, data);
 		if (ret == 0) {
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}

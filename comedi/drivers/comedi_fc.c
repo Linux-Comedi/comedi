@@ -38,15 +38,15 @@ unsigned int cfc_write_array_to_buffer(comedi_subdevice * subd, void *data,
 	if (num_bytes == 0)
 		return 0;
 
-	retval = comedi_buf_write_alloc(async, num_bytes);
+	retval = comedi_buf_write_alloc(subd, num_bytes);
 	if (retval != num_bytes) {
 		rt_printk("comedi: buffer overrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
 
-	comedi_buf_memcpy_to(async, 0, data, num_bytes);
-	comedi_buf_write_free(async, num_bytes);
+	comedi_buf_memcpy_to(subd, 0, data, num_bytes);
+	comedi_buf_write_free(subd, num_bytes);
 	comedi_inc_scan_progress(subd, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
@@ -61,9 +61,9 @@ unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd, void *data,
 	if (num_bytes == 0)
 		return 0;
 
-	num_bytes = comedi_buf_read_alloc(async, num_bytes);
-	comedi_buf_memcpy_from(async, 0, data, num_bytes);
-	comedi_buf_read_free(async, num_bytes);
+	num_bytes = comedi_buf_read_alloc(subd, num_bytes);
+	comedi_buf_memcpy_from(subd, 0, data, num_bytes);
+	comedi_buf_read_free(subd, num_bytes);
 	comedi_inc_scan_progress(subd, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 

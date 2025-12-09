@@ -2638,7 +2638,7 @@ static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s->async, &data);
+		ret = comedi_buf_get(s, &data);
 		if (ret == 0) {
 			s->async->events |= COMEDI_CB_OVERFLOW;
 			pci230_ao_stop(dev, s);
@@ -2679,7 +2679,7 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 
 	/* Determine number of scans available in buffer. */
 	bytes_per_scan = cmd->chanlist_len * sizeof(sampl_t);
-	num_scans = comedi_buf_read_n_available(async) / bytes_per_scan;
+	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
 	if (!devpriv->ao_continuous) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_scan_count) {
@@ -2727,7 +2727,7 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				sampl_t datum;
 
-				comedi_buf_get(async, &datum);
+				comedi_buf_get(s, &datum);
 				pci230_ao_write_fifo(dev, datum,
 					CR_CHAN(cmd->chanlist[i]));
 			}
@@ -2830,7 +2830,7 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 		}
 
 		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
+		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
 			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 			comedi_error(dev, "AI buffer overflow");
 			break;

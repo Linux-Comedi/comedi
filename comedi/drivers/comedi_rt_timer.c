@@ -247,7 +247,7 @@ static int timer_data_read(comedi_device * dev, comedi_cmd * cmd,
 	if (s->flags & SDF_LSAMPL) {
 		cfc_write_long_to_buffer(s, data);
 	} else {
-		comedi_buf_put(s->async, data);
+		comedi_buf_put(s, data);
 	}
 
 	return 0;

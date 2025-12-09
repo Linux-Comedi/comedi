@@ -23,7 +23,7 @@ int insn_inval(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s, unsigned long
 	new_size);
-unsigned int comedi_buf_write_alloc_strict(comedi_async * async,
+unsigned int comedi_buf_write_alloc_strict(comedi_subdevice *s,
 	unsigned int nbytes);
 
 int do_rangeinfo_i(comedi_device * dev, comedi_rangeinfo * ri);

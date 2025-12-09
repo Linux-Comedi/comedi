@@ -1027,7 +1027,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 			readaddr++;
 
 			//put data into read buffer
-			// comedi_buf_put(s->async, tempdata);
+			// comedi_buf_put(s, tempdata);
 			if (cfc_write_to_buffer(s, tempdata) == 0)
 				printk("s626_irq_handler: cfc_write_to_buffer error!\n");
 

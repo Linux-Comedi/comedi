@@ -683,7 +683,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 			datap =
 			    (&(((uint8_t *) urb->transfer_buffer)[i * 2 + 1]));
 			/* get the data from comedi */
-			ret = comedi_buf_get(s->async, &temp);
+			ret = comedi_buf_get(s, &temp);
 			datap[0] = temp;
 			datap[1] = this_usbduxsub->dac_commands[i];
 			/* printk("data[0]=%x, data[1]=%x, data[2]=%x\n", */

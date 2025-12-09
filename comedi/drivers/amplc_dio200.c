@@ -984,7 +984,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 					}
 				}
 				/* Write the scan to the buffer. */
-				if (comedi_buf_put(s->async, val)) {
+				if (comedi_buf_put(s, val)) {
 					s->async->events |= (COMEDI_CB_BLOCK |
 						COMEDI_CB_EOS);
 				} else {

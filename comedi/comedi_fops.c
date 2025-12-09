@@ -1306,9 +1306,9 @@ static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg,
 	if (!(async->cmd.flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
 		if (bi.bytes_read) {
-			bi.bytes_read = comedi_buf_read_alloc(async,
+			bi.bytes_read = comedi_buf_read_alloc(s,
 					bi.bytes_read);
-			bi.bytes_read = comedi_buf_read_free(async,
+			bi.bytes_read = comedi_buf_read_free(s,
 					bi.bytes_read);
 		}
 		/*
@@ -1316,7 +1316,7 @@ static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg,
 		 * {"read" position not updated or command stopped normally},
 		 * then become non-busy.
 		 */
-		if (comedi_buf_read_n_available(async) == 0 &&
+		if (comedi_buf_read_n_available(s) == 0 &&
 			!comedi_is_runflags_running(runflags) &&
 			(bi.bytes_read == 0 ||
 			 !comedi_is_runflags_in_error(runflags))) {
@@ -1335,9 +1335,9 @@ static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg,
 				retval = -EPIPE;
 			}
 		} else if (bi.bytes_written) {
-			bi.bytes_written = comedi_buf_write_alloc(async,
+			bi.bytes_written = comedi_buf_write_alloc(s,
 					bi.bytes_written);
-			bi.bytes_written = comedi_buf_write_free(async,
+			bi.bytes_written = comedi_buf_write_free(s,
 					bi.bytes_written);
 		}
 		bi.bytes_read = 0;
@@ -1936,7 +1936,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 		goto cleanup;
 	}
 
-	comedi_reset_async_buf(async);
+	comedi_buf_reset(s);
 
 	async->cb_mask = COMEDI_CB_CANCEL_MASK | COMEDI_CB_BLOCK;
 	if (async->cmd.flags & TRIG_WAKE_EOS) {
@@ -2487,7 +2487,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		if (read_subdev->busy != file ||
 		    !comedi_is_subdevice_running(read_subdev) ||
 		    (read_subdev->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_read_n_available(read_subdev->async) > 0) {
+		    comedi_buf_read_n_available(read_subdev) > 0) {
 			mask |= COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM;
 		}
 	}
@@ -2499,7 +2499,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		if (write_subdev->busy != file ||
 		    !comedi_is_subdevice_running(write_subdev) ||
 		    !(read_subdev->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_write_n_allocated(write_subdev->async) >=
+		    comedi_buf_write_n_allocated(write_subdev) >=
 			comedi_bytes_per_sample(write_subdev->async->subdevice))
 		{
 			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
@@ -2511,9 +2511,10 @@ done:
 	return mask;
 }
 
-static unsigned int comedi_buf_copy_to_user(comedi_async * async,
+static unsigned int comedi_buf_copy_to_user(comedi_subdevice *s,
 	void __user *dest, unsigned int src_offset, unsigned int n)
 {
+	comedi_async *async = s->async;
 	unsigned int src_page = src_offset >> PAGE_SHIFT;
 	unsigned int src_page_offset = src_offset & ~PAGE_MASK;
 
@@ -2540,9 +2541,10 @@ static unsigned int comedi_buf_copy_to_user(comedi_async * async,
 	return n;
 }
 
-static unsigned int comedi_buf_copy_from_user(comedi_async * async,
+static unsigned int comedi_buf_copy_from_user(comedi_subdevice *s,
 	unsigned int dst_offset, const void __user *src, unsigned int n)
 {
+	comedi_async *async = s->async;
 	unsigned int dst_page = dst_offset >> PAGE_SHIFT;
 	unsigned int dst_page_offset = dst_offset & ~PAGE_MASK;
 
@@ -2638,9 +2640,9 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		if (async->buf_write_ptr + m > async->prealloc_bufsz) {
 			m = async->prealloc_bufsz - async->buf_write_ptr;
 		}
-		comedi_buf_write_alloc(async, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(async)) {
-			m = comedi_buf_write_n_allocated(async);
+		comedi_buf_write_alloc(s, async->prealloc_bufsz);
+		if (m > comedi_buf_write_n_allocated(s)) {
+			m = comedi_buf_write_n_allocated(s);
 		}
 		if (m < n)
 			n = m;
@@ -2666,13 +2668,13 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		}
 
 		set_current_state(TASK_RUNNING);
-		m = comedi_buf_copy_from_user(async, async->buf_write_ptr,
+		m = comedi_buf_copy_from_user(s, async->buf_write_ptr,
 			buf, n);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_write_free(async, n);
+		comedi_buf_write_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2764,7 +2766,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 		n = nbytes;
 
-		m = comedi_buf_read_n_available(async);
+		m = comedi_buf_read_n_available(s);
 //printk("%d available\n",m);
 		if (async->buf_read_ptr + m > async->prealloc_bufsz) {
 			m = async->prealloc_bufsz - async->buf_read_ptr;
@@ -2803,14 +2805,14 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			continue;
 		}
 		set_current_state(TASK_RUNNING);
-		m = comedi_buf_copy_to_user(async, buf, async->buf_read_ptr, n);
+		m = comedi_buf_copy_to_user(s, buf, async->buf_read_ptr, n);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
 		}
 
-		comedi_buf_read_alloc(async, n);
-		comedi_buf_read_free(async, n);
+		comedi_buf_read_alloc(s, n);
+		comedi_buf_read_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2869,7 +2871,7 @@ static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 	}
 #endif
 	if (async) {
-		comedi_reset_async_buf(async);
+		comedi_buf_reset(s);
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;

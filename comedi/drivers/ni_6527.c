@@ -224,7 +224,7 @@ static irqreturn_t ni6527_interrupt(int irq, void *d PT_REGS_ARG)
 	writeb(ClrEdge | ClrOverflow,
 		devpriv->mite->daq_io_addr + Clear_Register);
 
-	comedi_buf_put(s->async, 0);
+	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_EOS;
 	comedi_event(dev, s);
 	return IRQ_HANDLED;

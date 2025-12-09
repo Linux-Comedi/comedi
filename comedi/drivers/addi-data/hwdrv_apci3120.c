@@ -1665,7 +1665,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device * dev)
 	s->async->events = 0;
 
 	for (i = 0; i < n_chan; i++)
-		err &= comedi_buf_put(s->async, inw(dev->iobase + 0));
+		err &= comedi_buf_put(s, inw(dev->iobase + 0));
 
 	s->async->events |= COMEDI_CB_EOS;
 

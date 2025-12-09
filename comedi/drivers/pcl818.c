@@ -530,7 +530,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 
       conv_finish:
 	low = inb(dev->iobase + PCL818_AD_LO);
-	comedi_buf_put(s->async, ((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)));	// get one sample
+	comedi_buf_put(s, ((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)));	// get one sample
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
 	if ((low & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	// dropout!
@@ -615,7 +615,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 			return IRQ_HANDLED;
 		}
 
-		comedi_buf_put(s->async, ptr[bufptr++] >> 4);	// get one sample
+		comedi_buf_put(s, ptr[bufptr++] >> 4);	// get one sample
 
 		devpriv->act_chanlist_pos++;
 		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
@@ -710,7 +710,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 				return IRQ_HANDLED;
 			}
 
-			comedi_buf_put(s->async, dmabuf[bufptr++] >> 4);	// get one sample
+			comedi_buf_put(s, dmabuf[bufptr++] >> 4);	// get one sample
 			bufptr &= (devpriv->dmasamplsize - 1);
 
 			devpriv->act_chanlist_pos++;
@@ -798,7 +798,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			return IRQ_HANDLED;
 		}
 
-		comedi_buf_put(s->async, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	// get one sample
+		comedi_buf_put(s, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	// get one sample
 
 		devpriv->act_chanlist_pos++;
 		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {

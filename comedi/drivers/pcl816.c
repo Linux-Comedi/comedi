@@ -308,7 +308,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	low = inb(dev->iobase + PCL816_AD_LO);
 	hi = inb(dev->iobase + PCL816_AD_HI);
 
-	comedi_buf_put(s->async, (hi << 8) | low);
+	comedi_buf_put(s, (hi << 8) | low);
 
 	outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
@@ -344,7 +344,7 @@ static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
 
 	for (i = 0; i < len; i++) {
 
-		comedi_buf_put(s->async, ptr[bufptr++]);
+		comedi_buf_put(s, ptr[bufptr++]);
 
 		if (++devpriv->ai_act_chanlist_pos >=
 			devpriv->ai_act_chanlist_len) {

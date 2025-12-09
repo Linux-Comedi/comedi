@@ -290,7 +290,7 @@ static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
 		return IRQ_NONE;
 	}
 
-	comedi_buf_put(s->async, 0);
+	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 
 	comedi_event(dev, s);

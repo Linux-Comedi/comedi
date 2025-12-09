@@ -473,7 +473,7 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 
 	num_input_ports = ni_65xx_num_input_ports(board(dev));
 	if (num_input_ports == 0) {
-		comedi_buf_put(s->async, 0);
+		comedi_buf_put(s, 0);
 	} else {
 		for (i = 0; i < num_input_ports; i++) {
 			unsigned d = readb(private(dev)->mite->daq_io_addr +
@@ -481,13 +481,13 @@ static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 
 			if (i & 1) {
 				data |= (d << 8);
-				comedi_buf_put(s->async, data);
+				comedi_buf_put(s, data);
 			} else {
 				data = d;
 			}
 		}
 		if (i & 1)
-			comedi_buf_put(s->async, data);
+			comedi_buf_put(s, data);
 	}
 	s->async->events |= COMEDI_CB_EOS;
 	comedi_event(dev, s);

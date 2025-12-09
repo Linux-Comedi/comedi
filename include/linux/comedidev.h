@@ -426,31 +426,40 @@ static inline unsigned int comedi_samples_to_bytes(const comedi_subdevice *subd,
 into comedi's buffer */
 int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev);
 
-int comedi_buf_put(comedi_async * async, sampl_t x);
-int comedi_buf_putl(comedi_async * async, lsampl_t x);
-int comedi_buf_get(comedi_async * async, sampl_t * x);
-int comedi_buf_getl(comedi_async * async, lsampl_t * x);
+int comedi_buf_put(comedi_subdevice *subd, sampl_t x);
+int comedi_buf_putl(comedi_subdevice *subd, lsampl_t x);
+int comedi_buf_get(comedi_subdevice *subd, sampl_t *x);
+int comedi_buf_getl(comedi_subdevice *subd, lsampl_t *x);
 
-unsigned int comedi_buf_write_n_available(comedi_async * async);
-unsigned int comedi_buf_write_alloc(comedi_async * async, unsigned int nbytes);
-unsigned comedi_buf_write_free(comedi_async * async, unsigned int nbytes);
-unsigned comedi_buf_read_alloc(comedi_async * async, unsigned nbytes);
-unsigned comedi_buf_read_free(comedi_async * async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(comedi_async * async);
-void comedi_buf_memcpy_to(comedi_async * async, unsigned int offset,
+unsigned int comedi_buf_write_n_available(const comedi_subdevice *subd);
+unsigned int comedi_buf_write_alloc(comedi_subdevice *subd,
+	unsigned int nbytes);
+unsigned comedi_buf_write_free(comedi_subdevice *subd, unsigned int nbytes);
+unsigned comedi_buf_read_alloc(comedi_subdevice *subd, unsigned nbytes);
+unsigned comedi_buf_read_free(comedi_subdevice *subd, unsigned int nbytes);
+unsigned int comedi_buf_read_n_available(const comedi_subdevice *subd);
+void comedi_buf_memcpy_to(comedi_subdevice *subd, unsigned int offset,
 	const void *source, unsigned int num_bytes);
-void comedi_buf_memcpy_from(comedi_async * async, unsigned int offset,
+void comedi_buf_memcpy_from(comedi_subdevice *subd, unsigned int offset,
 	void *destination, unsigned int num_bytes);
-static inline unsigned comedi_buf_write_n_allocated(comedi_async * async)
+
+static inline unsigned int
+comedi_buf_write_n_allocated(const comedi_subdevice *subd)
 {
+	const comedi_async *async = subd->async;
+
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
-static inline unsigned comedi_buf_read_n_allocated(comedi_async * async)
+
+static inline unsigned int
+comedi_buf_read_n_allocated(comedi_subdevice *subd)
 {
+	const comedi_async *async = subd->async;
+
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-void comedi_reset_async_buf(comedi_async * async);
+void comedi_buf_reset(comedi_subdevice *subd);
 
 static inline void *comedi_aux_data(int options[], int n)
 {

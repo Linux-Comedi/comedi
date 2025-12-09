@@ -955,7 +955,7 @@ static int ni_660x_input_poll(comedi_device * dev, comedi_subdevice * s)
 	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
 	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
-	return comedi_buf_read_n_available(s->async);
+	return comedi_buf_read_n_available(s);
 }
 
 static int ni_660x_buf_change(comedi_device * dev, comedi_subdevice * s,

@@ -126,7 +126,7 @@ void subdev_8255_interrupt(comedi_device * dev, comedi_subdevice * s)
 	d = CALLBACK_FUNC(0, _8255_DATA, 0, CALLBACK_ARG);
 	d |= (CALLBACK_FUNC(0, _8255_DATA + 1, 0, CALLBACK_ARG) << 8);
 
-	comedi_buf_put(s->async, d);
+	comedi_buf_put(s, d);
 	s->async->events |= COMEDI_CB_EOS;
 
 	comedi_event(dev, s);

@@ -200,7 +200,7 @@ static void das6402_ai_fifo_dregs(comedi_device * dev, comedi_subdevice * s)
 	while (1) {
 		if (!(inb(dev->iobase + 8) & 0x01))
 			return;
-		comedi_buf_put(s->async, inw(dev->iobase));
+		comedi_buf_put(s, inw(dev->iobase));
 	}
 }
 

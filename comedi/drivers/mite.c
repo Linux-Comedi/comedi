@@ -533,11 +533,12 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
 {
 	int count;
 	unsigned int nbytes, old_alloc_count;
-	const unsigned bytes_per_scan = cfc_bytes_per_scan(async->subdevice);
+	comedi_subdevice *s = async->subdevice;
+	const unsigned bytes_per_scan = cfc_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_write_alloc_count;
 	// write alloc as much as we can
-	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 
 	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
 	if ((int)(mite_bytes_written_to_memory_ub(mite_chan) -
@@ -553,7 +554,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
 	if (count <= 0) {
 		return 0;
 	}
-	comedi_buf_write_free(async, count);
+	comedi_buf_write_free(s, count);
 
 	async->scan_progress += count;
 	if (async->scan_progress >= bytes_per_scan) {
@@ -569,12 +570,13 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async)
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
+	comedi_subdevice *s = async->subdevice;
 	u32 stop_count =
-		async->cmd.stop_arg * cfc_bytes_per_scan(async->subdevice);
+		async->cmd.stop_arg * cfc_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_read_alloc_count;
 	// read alloc as much as we can
-	comedi_buf_read_alloc(async, async->prealloc_bufsz);
+	comedi_buf_read_alloc(s, async->prealloc_bufsz);
 	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
 	if (async->cmd.stop_src == TRIG_COUNT &&
 		(int)(nbytes_lb - stop_count) > 0)
@@ -593,7 +595,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async)
 		return 0;
 	}
 	if (count) {
-		comedi_buf_read_free(async, count);
+		comedi_buf_read_free(s, count);
 		async->events |= COMEDI_CB_BLOCK;
 	}
 	return 0;

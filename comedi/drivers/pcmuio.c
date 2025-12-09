@@ -780,7 +780,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 									}
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_putl(s->async, val)) {
+								if (comedi_buf_putl(s, val)) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */

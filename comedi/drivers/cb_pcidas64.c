@@ -3353,7 +3353,7 @@ static unsigned int load_ao_dma_buffer(comedi_device * dev,
 	DEBUG_PRINT("attempting to load ao buffer %i (0x%x)\n", buffer_index,
 		priv(dev)->ao_buffer_bus_addr[buffer_index]);
 
-	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
+	num_bytes = comedi_buf_read_n_available(dev->write_subdev);
 	if (num_bytes > DMA_BUFFER_SIZE)
 		num_bytes = DMA_BUFFER_SIZE;
 	if (cmd->stop_src == TRIG_COUNT && num_bytes > priv(dev)->ao_count)

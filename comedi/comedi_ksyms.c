@@ -78,7 +78,7 @@ EXPORT_SYMBOL(comedi_buf_read_free);
 EXPORT_SYMBOL(comedi_buf_read_alloc);
 EXPORT_SYMBOL(comedi_buf_memcpy_to);
 EXPORT_SYMBOL(comedi_buf_memcpy_from);
-EXPORT_SYMBOL(comedi_reset_async_buf);
+EXPORT_SYMBOL(comedi_buf_reset);
 
 /* utility functions for drivers, based on Frank Mori Hess's "comedi_fc" */
 EXPORT_SYMBOL(comedi_handle_events);

@@ -248,7 +248,7 @@ int comedi_command(comedi_t * d, comedi_cmd * cmd)
 #endif
 	comedi_update_subdevice_runflags(s, ~0, runflags);
 
-	comedi_reset_async_buf(async);
+	comedi_buf_reset(s);
 
 	return s->do_cmd(dev, s);
 }

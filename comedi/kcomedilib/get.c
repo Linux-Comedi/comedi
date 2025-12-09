@@ -175,7 +175,7 @@ int comedi_get_buffer_contents(comedi_t * d, unsigned int subdevice)
 	async = s->async;
 	if (async == NULL)
 		return 0;
-	num_bytes = comedi_buf_read_n_available(s->async);
+	num_bytes = comedi_buf_read_n_available(s);
 	return num_bytes;
 }
 
@@ -197,8 +197,8 @@ int comedi_set_user_int_count(comedi_t * d, unsigned int subdevice,
 	num_bytes = buf_user_count - async->buf_read_count;
 	if (num_bytes < 0)
 		return -1;
-	comedi_buf_read_alloc(async, num_bytes);
-	comedi_buf_read_free(async, num_bytes);
+	comedi_buf_read_alloc(s, num_bytes);
+	comedi_buf_read_free(s, num_bytes);
 
 	return 0;
 }
@@ -216,8 +216,8 @@ int comedi_mark_buffer_read(comedi_t * d, unsigned int subdevice,
 	if (async == NULL)
 		return -1;
 
-	comedi_buf_read_alloc(async, num_bytes);
-	comedi_buf_read_free(async, num_bytes);
+	comedi_buf_read_alloc(s, num_bytes);
+	comedi_buf_read_free(s, num_bytes);
 
 	return 0;
 }
@@ -235,8 +235,8 @@ int comedi_mark_buffer_written(comedi_t * d, unsigned int subdevice,
 	async = s->async;
 	if (async == NULL)
 		return -1;
-	bytes_written = comedi_buf_write_alloc(async, num_bytes);
-	comedi_buf_write_free(async, bytes_written);
+	bytes_written = comedi_buf_write_alloc(s, num_bytes);
+	comedi_buf_write_free(s, bytes_written);
 	if (bytes_written != num_bytes)
 		return -1;
 	return 0;

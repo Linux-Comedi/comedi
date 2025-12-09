@@ -3601,8 +3601,8 @@ int i_APCI3200_InterruptHandleEos(comedi_device * dev)
 			s->async->events |= COMEDI_CB_EOS;
 
 			// Test if enougth memory is available and allocate it for 7 values
-			//n = comedi_buf_write_alloc(s->async, 7*sizeof(lsampl_t));
-			n = comedi_buf_write_alloc(s->async,
+			//n = comedi_buf_write_alloc(s, 7*sizeof(lsampl_t));
+			n = comedi_buf_write_alloc(s,
 				(7 + 12) * sizeof(lsampl_t));
 
 			// If not enougth memory available, event is set to Comedi Buffer Errror         
@@ -3611,12 +3611,12 @@ int i_APCI3200_InterruptHandleEos(comedi_device * dev)
 				s->async->events |= COMEDI_CB_ERROR;
 			}
 			// Write all 7 scan values in the comedi buffer   
-			comedi_buf_memcpy_to(s->async, 0,
+			comedi_buf_memcpy_to(s, 0,
 				(lsampl_t *) s_BoardInfos[dev->minor].
 				ui_ScanValueArray, (7 + 12) * sizeof(lsampl_t));
 
 			// Update comedi buffer pinters indexes
-			comedi_buf_write_free(s->async,
+			comedi_buf_write_free(s,
 				(7 + 12) * sizeof(lsampl_t));
 
 			// Send events

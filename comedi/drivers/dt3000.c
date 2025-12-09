@@ -415,7 +415,7 @@ static void dt3k_ai_empty_fifo(comedi_device * dev, comedi_subdevice * s)
 
 	for (i = 0; i < count; i++) {
 		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
-		comedi_buf_put(s->async, data);
+		comedi_buf_put(s, data);
 		rear++;
 		if (rear >= AI_FIFO_DEPTH)
 			rear = 0;

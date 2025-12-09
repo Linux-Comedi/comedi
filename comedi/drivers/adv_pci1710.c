@@ -761,7 +761,7 @@ static void interrupt_pci1710_every_sample(void *d)
 		DPRINTK(KERN_CONT "%8d %2d %8d~", s->async->buf_int_ptr,
 			s->async->cur_chan, s->async->buf_int_count);
 #endif
-		comedi_buf_put(s->async, sampl & maxdata);
+		comedi_buf_put(s, sampl & maxdata);
 		++s->async->cur_chan;
 
 		if (s->async->cur_chan >= devpriv->ai_n_chan) {
@@ -822,7 +822,7 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 			}
 		}
 #endif
-		comedi_buf_put(s->async, sampl & maxdata);
+		comedi_buf_put(s, sampl & maxdata);
 		j++;
 		if (j >= devpriv->ai_n_chan) {
 			j = 0;

@@ -828,7 +828,7 @@ static int contec_ao_sampling_thread(void * context_dev)
 	}
 
 	for(i = 0; i < cmd->chanlist_len; i++){
-		if(!comedi_buf_get(async, &data)){
+		if(!comedi_buf_get(s, &data)){
 			async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			comedi_event(dev, s);
 
@@ -861,7 +861,7 @@ static int contec_ao_sampling_thread(void * context_dev)
 				}
 			}
 			for(i = 0; i < cmd->chanlist_len; i++){
-				if(!comedi_buf_get(async, &data)){
+				if(!comedi_buf_get(s, &data)){
 					async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 					break;
 				}

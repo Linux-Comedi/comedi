@@ -1836,7 +1836,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 			lval = inl(ai_context->data_reg) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				/* Buffer overflow, so stop conversion and disable all interrupts */
 				tmp |= ME4000_AI_CTRL_BIT_IMMEDIATE_STOP;
 				tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
@@ -1881,7 +1881,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 			lval = inl(ai_context->data_reg) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s->async, lval)) {
+			if (!comedi_buf_put(s, lval)) {
 				printk(KERN_ERR
 					"comedi%d: me4000: me4000_ai_isr(): Buffer overflow\n",
 					dev->minor);

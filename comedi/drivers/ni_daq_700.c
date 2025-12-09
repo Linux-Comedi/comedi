@@ -140,7 +140,7 @@ static void subdev_700_interrupt(comedi_device * dev, comedi_subdevice * s)
 
 	d = CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG);
 
-	comedi_buf_put(s->async, d);
+	comedi_buf_put(s, d);
 	s->async->events |= COMEDI_CB_EOS;
 
 	comedi_event(dev, s);

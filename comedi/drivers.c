@@ -510,7 +510,7 @@ static unsigned int __comedi_nscans_left(const comedi_subdevice *s,
 unsigned int comedi_nscans_left(const comedi_subdevice *s, unsigned int nscans)
 {
 	if (nscans == 0) {
-		unsigned int nbytes = comedi_buf_read_n_available(s->async);
+		unsigned int nbytes = comedi_buf_read_n_available(s);
 
 		nscans = nbytes / comedi_bytes_per_scan(s);
 	}

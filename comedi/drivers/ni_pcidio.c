@@ -588,7 +588,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 				AuxData =
 					readl(devpriv->mite->daq_io_addr +
 					Group_1_FIFO);
-				comedi_buf_putl(async, AuxData);
+				comedi_buf_putl(s, AuxData);
 				//DPRINTK("read:0x%x\n",AuxData);
 				flags = readb(devpriv->mite->daq_io_addr +
 					Group_1_Flags);
@@ -1029,7 +1029,7 @@ static int setup_mite_dma(comedi_device * dev, comedi_subdevice * s)
 	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {

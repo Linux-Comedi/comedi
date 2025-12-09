@@ -949,7 +949,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	comedi_buf_put(s->async,
+	comedi_buf_put(s,
 		((inb(dev->iobase + PCL812_AD_HI) << 8) | inb(dev->iobase +
 				PCL812_AD_LO)) & mask);
 
@@ -987,7 +987,7 @@ static void transfer_from_dma_buf(comedi_device * dev, comedi_subdevice * s,
 
 	s->async->events = 0;
 	for (i = len; i; i--) {
-		comedi_buf_put(s->async, ptr[bufptr++]);	// get one sample
+		comedi_buf_put(s, ptr[bufptr++]);	// get one sample
 
 		s->async->cur_chan++;
 		if (s->async->cur_chan >= devpriv->ai_n_chan) {

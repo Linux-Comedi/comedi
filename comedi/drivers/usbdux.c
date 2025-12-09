@@ -553,12 +553,12 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		// transfer data
 		if (CR_RANGE(s->async->cmd.chanlist[i]) <= 1) {
 			err = comedi_buf_put
-				(s->async,
+				(s,
 				 le16_to_cpu(this_usbduxsub->
 					     inBuffer[i]) ^ 0x800);
 		} else {
 			err = comedi_buf_put
-				(s->async,
+				(s,
 				 le16_to_cpu(this_usbduxsub->inBuffer[i]));
 		}
 		if (unlikely(err == 0)) {
@@ -731,7 +731,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 			// pointer to the DA
 			datap = (&(((int8_t *) urb->transfer_buffer)[i * 3 + 1]));
 			// get the data from comedi
-			ret = comedi_buf_get(s->async, &temp);
+			ret = comedi_buf_get(s, &temp);
 			datap[0] = temp;
 			datap[1] = temp >> 8;
 			datap[2] = this_usbduxsub->dac_commands[i];

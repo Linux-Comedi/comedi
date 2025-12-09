@@ -1334,7 +1334,7 @@ static int ai_read_n(comedi_device * dev, comedi_subdevice * s, int count)
 		} else {
 			sample = d;
 		}
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s, sample))
 			return -1;
 
 		if (devpriv->aiCount > 0)	/* < 0, means read forever */
@@ -1362,7 +1362,7 @@ static int ai_read_dregs(comedi_device * dev, comedi_subdevice * s)
 		} else {
 			sample = d;
 		}
-		if (!comedi_buf_put(s->async, sample))
+		if (!comedi_buf_put(s, sample))
 			return -1;
 
 		if (devpriv->aiCount > 0)	/* < 0, means read forever */
@@ -1467,15 +1467,15 @@ static int ai_process_dma(comedi_device * dev, comedi_subdevice * s)
 
 	/* now pass the whole array to the comedi buffer */
 	dp = devpriv->dma0Buff[devpriv->dma0Offset];
-	n = comedi_buf_write_alloc(s->async, ii * sizeof(s16));
+	n = comedi_buf_write_alloc(s, ii * sizeof(s16));
 	if (n < (ii * sizeof(s16))) {	/* any residual is an error */
 		DPRINTK("rtd520:ai_process_dma buffer overflow %d samples!\n",
 			ii - (n / sizeof(s16)));
 		s->async->events |= COMEDI_CB_ERROR;
 		return -1;
 	}
-	comedi_buf_memcpy_to(s->async, 0, dp, n);
-	comedi_buf_write_free(s->async, n);
+	comedi_buf_memcpy_to(s, 0, dp, n);
+	comedi_buf_write_free(s, n);
 
 	/* always at least 1 scan -- 1/2 FIFO is larger than our max scan list */
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
