@@ -878,7 +878,7 @@ static int ni_660x_cmd(comedi_device * dev, comedi_subdevice * s)
 		return retval;
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
-	retval = ni_tio_cmd(counter, s->async);
+	retval = ni_tio_cmd(counter, s);
 
 	return retval;
 }

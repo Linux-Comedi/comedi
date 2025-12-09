@@ -122,14 +122,15 @@ static int ni_tio_input_inttrig(comedi_device * dev, comedi_subdevice * s,
 	return retval;
 }
 
-static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
+static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_subdevice *s)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int retval = 0;
 
 	/* write alloc the entire buffer */
-	comedi_buf_write_alloc(async->subdevice, async->prealloc_bufsz);
+	comedi_buf_write_alloc(s, async->prealloc_bufsz);
 	counter->mite_chan->dir = COMEDI_INPUT;
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_m_series:
@@ -171,7 +172,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
 	return retval;
 }
 
-static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async * async)
+static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_subdevice *s)
 {
 	rt_printk("ni_tio: output commands not yet implemented.\n");
 	return -ENOTSUPP;
@@ -209,8 +210,9 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
 	return retval;
 }
 
-int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async)
+int ni_tio_cmd(struct ni_gpct *counter, comedi_subdevice *s)
 {
+	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int retval = 0;
 	unsigned long flags;
@@ -224,9 +226,9 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async)
 		retval = ni_tio_cmd_setup(counter, async);
 		if (retval == 0) {
 			if (cmd->flags & CMDF_WRITE) {
-				retval = ni_tio_output_cmd(counter, async);
+				retval = ni_tio_output_cmd(counter, s);
 			} else {
-				retval = ni_tio_input_cmd(counter, async);
+				retval = ni_tio_input_cmd(counter, s);
 			}
 		}
 	}

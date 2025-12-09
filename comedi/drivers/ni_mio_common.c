@@ -5189,7 +5189,7 @@ static int ni_gpct_cmd(comedi_device * dev, comedi_subdevice * s)
 	}
 	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
-	retval = ni_tio_cmd(counter, s->async);
+	retval = ni_tio_cmd(counter, s);
 #else
 	retval = -ENOTSUPP;
 #endif
