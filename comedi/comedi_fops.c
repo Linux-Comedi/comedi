@@ -410,20 +410,6 @@ static bool __comedi_is_subdevice_running(comedi_subdevice *s)
 	return comedi_is_runflags_running(runflags);
 }
 
-static bool comedi_is_subdevice_in_error(comedi_subdevice *s)
-{
-	unsigned int runflags = comedi_get_subdevice_runflags(s);
-
-	return !!(runflags & SRF_ERROR);
-}
-
-static bool comedi_is_subdevice_idle(comedi_subdevice *s)
-{
-	unsigned int runflags = comedi_get_subdevice_runflags(s);
-
-	return !(runflags & (SRF_ERROR | SRF_RUNNING));
-}
-
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
@@ -2333,42 +2319,51 @@ void comedi_device_cancel_all(comedi_device *dev)
 
 static void comedi_vm_open(struct vm_area_struct *area)
 {
-	comedi_async *async;
-	comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count++;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_get(bm);
 }
 
 static void comedi_vm_close(struct vm_area_struct *area)
 {
-	comedi_async *async;
-	comedi_device *dev;
+	struct comedi_buf_map *bm;
 
-	async = area->vm_private_data;
-	dev = async->subdevice->device;
-
-	mutex_lock(&dev->mutex);
-	async->mmap_count--;
-	mutex_unlock(&dev->mutex);
+	bm = area->vm_private_data;
+	comedi_buf_map_put(bm);
 }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+static int comedi_vm_access(struct vm_area_struct *vma, unsigned long addr,
+	void *buf, int len, int write)
+{
+	struct comedi_buf_map *bm = vma->vm_private_data;
+	unsigned long offset =
+		addr - vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT);
+
+	if (len < 0)
+		return -EINVAL;
+	if (len > vma->vm_end - addr)
+		len = vma->vm_end - addr;
+	return comedi_buf_map_access(bm, offset, buf, len, write);
+}
+#endif
 
 static struct vm_operations_struct comedi_vm_ops = {
 	.open = comedi_vm_open,
 	.close = comedi_vm_close,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+	.access = comedi_vm_access,
+#endif
 };
 
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct comedi_file *cfp = file->private_data;
 	comedi_async *async = NULL;
-	unsigned long vm_start = vma->vm_start;
-	unsigned long vm_end = vma->vm_end;
-	unsigned long start = vm_start;
+	struct comedi_buf_map *bm = NULL;
+	struct comedi_buf_page *buf;
+	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
@@ -2422,48 +2417,61 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	n_pages = size >> PAGE_SHIFT;
-	for (i = 0; i < n_pages; ++i) {
-		if (s->async_dma_dir != DMA_NONE) {
-			/*
-			 * Temporarily modify VMA start and end addresses
-			 * for calling dma_mmap_coherent()
-			 */
-			vma->vm_start = start;
-			vma->vm_end = start + PAGE_SIZE;
-			if (dma_mmap_coherent(dev->hw_dev, vma,
-					async->buf_page_list[i].virt_addr,
-					async->buf_page_list[i].dma_addr,
-					PAGE_SIZE)) {
-				break;
-			}
-		} else {
-			if (remap_pfn_range(vma, start,
-					page_to_pfn(virt_to_page(async->
-							buf_page_list[i].
-							virt_addr)),
-					PAGE_SIZE, PAGE_SHARED)) {
-				break;
-			}
-		}
-		start += PAGE_SIZE;
-	}
-	/* Restore VMA start and end address */
-	vma->vm_start = vm_start;
-	vma->vm_end = vm_end;
-	if (i < n_pages) {
-		/* Mapping failed (at least partially) */
-		retval = -EAGAIN;
+
+	/* get reference to current buf map (if any) */
+	bm = comedi_buf_map_from_subdev_get(s);
+	if (!bm || n_pages > bm->n_pages) {
+		retval = -EINVAL;
 		goto done;
 	}
 
-	vma->vm_ops = &comedi_vm_ops;
-	vma->vm_private_data = async;
+	if (bm->dma_dir != DMA_NONE) {
+		unsigned long vm_start = vma->vm_start;
+		unsigned long vm_end = vma->vm_end;
 
-	async->mmap_count++;
+		/*
+		 * Buffer pages are not contiguous, so temporarily modify VMA
+		 * start and end addresses for each buffer page.
+		 */
+		for (i = 0; i < n_pages; ++i) {
+			buf = &bm->page_list[i];
+			vma->vm_start = start;
+			vma->vm_end = start + PAGE_SIZE;
+			retval = dma_mmap_coherent(bm->dma_hw_dev, vma,
+					buf->virt_addr, buf->dma_addr,
+					PAGE_SIZE);
+			if (retval)
+				break;
 
-	retval = 0;
-      done:
+			start += PAGE_SIZE;
+		}
+		vma->vm_start = vm_start;
+		vma->vm_end = vm_end;
+	} else {
+		for (i = 0; i < n_pages; ++i) {
+			unsigned long pfn;
+
+			buf = &bm->page_list[i];
+			pfn = page_to_pfn(virt_to_page(buf->virt_addr));
+			retval = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
+					PAGE_SHARED);
+			if (retval)
+				break;
+
+			start += PAGE_SIZE;
+		}
+	}
+
+	if (retval == 0) {
+		vma->vm_ops = &comedi_vm_ops;
+		vma->vm_private_data = bm;
+
+		vma->vm_ops->open(vma);
+	}
+
+done:
 	up_read(&dev->attach_lock);
+	comedi_buf_map_put(bm);	/* put reference to buf map - okay if NULL */
 	return retval;
 }
 
@@ -2514,7 +2522,8 @@ done:
 static unsigned int comedi_buf_copy_to_user(comedi_subdevice *s,
 	void __user *dest, unsigned int src_offset, unsigned int n)
 {
-	comedi_async *async = s->async;
+	struct comedi_buf_map *bm = s->async->buf_map;
+	struct comedi_buf_page *buf_page_list = bm->page_list;
 	unsigned int src_page = src_offset >> PAGE_SHIFT;
 	unsigned int src_page_offset = src_offset & ~PAGE_MASK;
 
@@ -2526,7 +2535,7 @@ static unsigned int comedi_buf_copy_to_user(comedi_subdevice *s,
 			copy_amount = n;
 
 		uncopied = copy_to_user(dest,
-				async->buf_page_list[src_page].virt_addr +
+				buf_page_list[src_page].virt_addr +
 					src_page_offset, copy_amount);
 		copy_amount -= uncopied;
 		n -= copy_amount;
@@ -2536,6 +2545,8 @@ static unsigned int comedi_buf_copy_to_user(comedi_subdevice *s,
 
 		dest += copy_amount;
 		src_page++;
+		if (src_page == bm->n_pages)
+			src_page = 0;	/* buffer wraparound */
 		src_page_offset = 0;
 	}
 	return n;
@@ -2544,7 +2555,8 @@ static unsigned int comedi_buf_copy_to_user(comedi_subdevice *s,
 static unsigned int comedi_buf_copy_from_user(comedi_subdevice *s,
 	unsigned int dst_offset, const void __user *src, unsigned int n)
 {
-	comedi_async *async = s->async;
+	struct comedi_buf_map *bm = s->async->buf_map;
+	struct comedi_buf_page *buf_page_list = bm->page_list;
 	unsigned int dst_page = dst_offset >> PAGE_SHIFT;
 	unsigned int dst_page_offset = dst_offset & ~PAGE_MASK;
 
@@ -2555,7 +2567,7 @@ static unsigned int comedi_buf_copy_from_user(comedi_subdevice *s,
 		if (copy_amount > n)
 			copy_amount = n;
 
-		uncopied = copy_from_user(async->buf_page_list[dst_page].
+		uncopied = copy_from_user(buf_page_list[dst_page].
 				virt_addr + dst_page_offset, src, copy_amount);
 		copy_amount -= uncopied;
 		n -= copy_amount;
@@ -2565,6 +2577,8 @@ static unsigned int comedi_buf_copy_from_user(comedi_subdevice *s,
 
 		src += copy_amount;
 		dst_page++;
+		if (dst_page == bm->n_pages)
+			dst_page = 0;	/* buffer wraparound */
 		dst_page_offset = 0;
 	}
 	return n;
@@ -2575,7 +2589,9 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 {
 	comedi_subdevice *s;
 	comedi_async *async;
-	int n, m, count = 0, retval = 0;
+	unsigned int n, m;
+	ssize_t count = 0;
+	int retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	comedi_device *dev = cfp->dev;
@@ -2605,16 +2621,8 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		goto done;
 	}
 
-	if (!nbytes) {
-		retval = 0;
-		goto done;
-	}
-	if (!s->busy) {
-		retval = 0;
-		goto done;
-	}
-	if (s->busy != file) {
-		retval = -EACCES;
+	if (s->busy != file || !(async->cmd.flags & CMDF_WRITE)) {
+		retval = -EINVAL;
 		goto done;
 	}
 	add_wait_queue(&async->wait_head, &wait);
@@ -2634,18 +2642,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		if (nbytes == 0)
 			break;
 
-		n = nbytes;
-
-		m = n;
-		if (async->buf_write_ptr + m > async->prealloc_bufsz) {
-			m = async->prealloc_bufsz - async->buf_write_ptr;
-		}
+		/* Allocate all free buffer space. */
 		comedi_buf_write_alloc(s, async->prealloc_bufsz);
-		if (m > comedi_buf_write_n_allocated(s)) {
-			m = comedi_buf_write_n_allocated(s);
-		}
-		if (m < n)
-			n = m;
+		m = comedi_buf_write_n_allocated(s);
+		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
 			if (file->f_flags & O_NONBLOCK) {
@@ -2699,10 +2699,15 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		 * sufficient (unless there have been 2**32 detaches in the
 		 * meantime!), but check the subdevice pointer as well just in
 		 * case.
+		 *
+		 * Also check the subdevice is still in a suitable state to
+		 * become non-busy in case it changed behind our back.
 		 */
 		new_s = comedi_file_write_subdevice(file);
 		if (dev->attached && old_detach_count == dev->detach_count &&
-		    s == new_s && async == new_s->async)
+		    s == new_s && async == new_s->async && s->busy == file &&
+		    (async->cmd.flags & CMDF_WRITE) &&
+		    !comedi_is_subdevice_running(s))
 			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
@@ -2718,7 +2723,9 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 {
 	comedi_subdevice *s;
 	comedi_async *async;
-	int n, m, count = 0, retval = 0;
+	unsigned int n, m;
+	ssize_t count = 0;
+	int retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	comedi_device *dev = cfp->dev;
@@ -2747,44 +2754,31 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		retval = -EIO;
 		goto done;
 	}
-	if (!nbytes) {
-		retval = 0;
-		goto done;
-	}
-	if (!s->busy) {
-		retval = 0;
-		goto done;
-	}
-	if (s->busy != file) {
-		retval = -EACCES;
+	if (s->busy != file || (async->cmd.flags & CMDF_WRITE)) {
+		retval = -EINVAL;
 		goto done;
 	}
 
 	add_wait_queue(&async->wait_head, &wait);
-	while (nbytes > 0 && !retval) {
+	while (count == 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		n = nbytes;
-
 		m = comedi_buf_read_n_available(s);
-//printk("%d available\n",m);
-		if (async->buf_read_ptr + m > async->prealloc_bufsz) {
-			m = async->prealloc_bufsz - async->buf_read_ptr;
-		}
-//printk("%d contiguous\n",m);
-		if (m < n)
-			n = m;
+		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
-			if (!comedi_is_subdevice_running(s)) {
-				if (comedi_is_subdevice_in_error(s)) {
+			unsigned int runflags =
+				comedi_get_subdevice_runflags(s);
+
+			if (!comedi_is_runflags_running(runflags)) {
+				if (comedi_is_runflags_in_error(runflags))
 					retval = -EPIPE;
-				} else {
-					retval = 0;
-				}
-				become_nonbusy = true;
+				if (retval || nbytes)
+					become_nonbusy = true;
 				break;
 			}
+			if (nbytes == 0)
+				break;
 			if (file->f_flags & O_NONBLOCK) {
 				retval = -EAGAIN;
 				break;
@@ -2794,12 +2788,9 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			if (!s->busy) {
-				retval = 0;
-				break;
-			}
-			if (s->busy != file) {
-				retval = -EACCES;
+			if (s->busy != file ||
+			    (async->cmd.flags & CMDF_WRITE)) {
+				retval = -EINVAL;
 				break;
 			}
 			continue;
@@ -2820,9 +2811,9 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		buf += n;
 		break;		/* makes device work like a pipe */
 	}
-	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
-	if (become_nonbusy || comedi_is_subdevice_idle(s)) {
+	set_current_state(TASK_RUNNING);
+	if (become_nonbusy && count == 0) {
 		comedi_subdevice *new_s;
 
 		/*
@@ -2838,14 +2829,17 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		 * sufficient (unless there have been 2**32 detaches in the
 		 * meantime!), but check the subdevice pointer as well just in
 		 * case.
+		 *
+		 * Also check the subdevice is still in a suitable state to
+		 * become non-busy in case it changed behind our back.
 		 */
 		new_s = comedi_file_read_subdevice(file);
 		if (dev->attached && old_detach_count == dev->detach_count &&
-		    s == new_s && async == new_s->async) {
-			if (become_nonbusy ||
-			    async->buf_read_count - async->buf_write_count == 0)
-				do_become_nonbusy(dev, s);
-		}
+		    s == new_s && async == new_s->async && s->busy == file &&
+		    !(async->cmd.flags & CMDF_WRITE) &&
+		    !comedi_is_subdevice_running(s) &&
+		    comedi_buf_read_n_available(s) == 0)
+			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
 
@@ -3259,7 +3253,9 @@ static int is_device_busy(comedi_device * dev)
 		s = dev->subdevices + i;
 		if (s->busy)
 			return 1;
-		if (s->async && s->async->mmap_count)
+		if (!s->async)
+			continue;
+		if (comedi_buf_is_mmapped(s))
 			return 1;
 	}
 
@@ -3497,7 +3493,7 @@ static int resize_async_buffer(comedi_device *dev,
 		DPRINTK("subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
-	if (async->mmap_count) {
+	if (comedi_buf_is_mmapped(s)) {
 		DPRINTK("subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
 	}

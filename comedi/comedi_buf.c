@@ -37,11 +37,189 @@
 #include "comedi_internal.h"
 
 
+static void comedi_buf_map_kref_release(struct kref *kref)
+{
+	struct comedi_buf_map *bm =
+		container_of(kref, struct comedi_buf_map, refcount);
+	struct comedi_buf_page *buf;
+	unsigned int i;
+
+	if (bm->page_list) {
+		if (bm->dma_dir != DMA_NONE) {
+			for (i =0; i < bm->n_pages; i++) {
+				buf = &bm->page_list[i];
+				dma_free_coherent(bm->dma_hw_dev, PAGE_SIZE,
+					buf->virt_addr, buf->dma_addr);
+			}
+		} else {
+			for (i = 0; i < bm->n_pages; i++) {
+				buf = &bm->page_list[i];
+				ClearPageReserved(virt_to_page(buf->virt_addr));
+				free_page((unsigned long)buf->virt_addr);
+			}
+		}
+		vfree(bm->page_list);
+	}
+	if (bm->dma_dir != DMA_NONE)
+		put_device(bm->dma_hw_dev);
+	kfree(bm);
+}
+
+static void __comedi_buf_free(comedi_device *dev, comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	struct comedi_buf_map *bm;
+	unsigned long flags;
+
+	async->prealloc_bufsz = 0;
+	spin_lock_irqsave(&s->spin_lock, flags);
+	bm = async->buf_map;
+	async->buf_map = NULL;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	comedi_buf_map_put(bm);
+}
+
+static struct comedi_buf_map *
+comedi_buf_map_alloc(comedi_device *dev, enum dma_data_direction dma_dir,
+	unsigned int n_pages)
+{
+	struct comedi_buf_map *bm;
+	struct comedi_buf_page *buf;
+	unsigned int i;
+
+	bm = kzalloc(sizeof(*bm), GFP_KERNEL);
+	if (!bm)
+		return NULL;
+
+	kref_init(&bm->refcount);
+	bm->dma_dir = dma_dir;
+	if (bm->dma_dir != DMA_NONE) {
+		/* Need ref to hardware device to free buffer later. */
+		bm->dma_hw_dev = get_device(dev->hw_dev);
+	}
+
+	bm->page_list = vzalloc(sizeof(*buf) * n_pages);
+	if (!bm->page_list)
+		goto err;
+
+	if (bm->dma_dir != DMA_NONE) {
+		for (i = 0; i < n_pages; i++) {
+			buf = &bm->page_list[i];
+			buf->virt_addr =
+				dma_alloc_coherent(bm->dma_hw_dev, PAGE_SIZE,
+					&buf->dma_addr, GFP_KERNEL);
+			if (!buf->virt_addr)
+				break;
+		}
+	} else {
+		for (i = 0; i < n_pages; i++) {
+			buf = &bm->page_list[i];
+			buf->virt_addr = (void *)get_zeroed_page(GFP_KERNEL);
+			if (!buf->virt_addr)
+				break;
+
+			SetPageReserved(virt_to_page(buf->virt_addr));
+		}
+	}
+	bm->n_pages = i;
+	if (i < n_pages)
+		goto err;
+
+	return bm;
+
+err:
+	comedi_buf_map_put(bm);
+	return NULL;
+}
+
+static void __comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned int n_pages)
+{
+	comedi_async *async = s->async;
+	struct comedi_buf_map *bm;
+	unsigned long flags;
+
+	bm = comedi_buf_map_alloc(dev, s->async_dma_dir, n_pages);
+	if (!bm)
+		return;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	async->buf_map = bm;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	async->prealloc_bufsz = n_pages << PAGE_SHIFT;
+}
+
+void comedi_buf_map_get(struct comedi_buf_map *bm)
+{
+	if (bm)
+		kref_get(&bm->refcount);
+}
+
+int comedi_buf_map_put(struct comedi_buf_map *bm)
+{
+	if (bm)
+		return kref_put(&bm->refcount, comedi_buf_map_kref_release);
+	return 1;
+}
+
+/* helper for "access" vm operation */
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+	void *buf, int len, int write)
+{
+	unsigned int pgoff = offset_in_page(offset);
+	unsigned long pg = offset >> PAGE_SHIFT;
+	int done = 0;
+
+	while (done < len && pg < bm->n_pages) {
+		int l = min_t(int, len - done, PAGE_SIZE - pgoff);
+		void *b = bm->page_list[pg].virt_addr + pgoff;
+
+		if (write)
+			memcpy(b, buf, l);
+		else
+			memcpy(buf, b, l);
+		buf += l;
+		done += l;
+		pg++;
+		pgoff = 0;
+	}
+	return done;
+}
+
+/* returns s->async->buf_map and increments its kref refcount */
+struct comedi_buf_map *
+comedi_buf_map_from_subdev_get(comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	struct comedi_buf_map *bm = NULL;
+	unsigned long flags;
+
+	if (!async)
+		return NULL;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	bm = async->buf_map;
+	/* only want it if buffer pages allocated */
+	if (bm && bm->n_pages)
+		comedi_buf_map_get(bm);
+	else
+		bm = NULL;
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+
+	return bm;
+}
+
+bool comedi_buf_is_mmapped(comedi_subdevice *s)
+{
+	struct comedi_buf_map *bm = s->async->buf_map;
+
+	return bm && (kref_read(&bm->refcount) > 1);
+}
+
 int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;
-	struct comedi_buf_page *buf;
 
 	/* Round up new_size to multiple of PAGE_SIZE */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
@@ -50,89 +228,17 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	if (async->prealloc_bufsz == new_size) {
 		return 0;
 	}
-	// deallocate old buffer
-	async->prealloc_bufsz = 0;
-	if (async->buf_page_list) {
-		unsigned i;
-		for (i = 0; i < async->n_buf_pages; ++i) {
-			buf = async->buf_page_list + i;
-			if (buf->virt_addr) {
-				if (s->async_dma_dir != DMA_NONE) {
-					dma_free_coherent(dev->hw_dev,
-						PAGE_SIZE, buf->virt_addr,
-						buf->dma_addr);
-				} else {
-					ClearPageReserved(
-						virt_to_page(buf->virt_addr));
-					free_page((unsigned long)buf->
-						virt_addr);
-				}
-			}
-		}
-		vfree(async->buf_page_list);
-		async->buf_page_list = NULL;
-		async->n_buf_pages = 0;
-	}
-	// allocate new buffer
-	if (new_size) {
-		unsigned i = 0;
-		unsigned n_pages = new_size >> PAGE_SHIFT;
+	/* deallocate old buffer */
+	__comedi_buf_free(dev, s);
 
-		async->buf_page_list =
-			vmalloc(sizeof(struct comedi_buf_page) * n_pages);
-		if (async->buf_page_list) {
-			memset(async->buf_page_list, 0,
-				sizeof(struct comedi_buf_page) * n_pages);
-			for (i = 0; i < n_pages; i++) {
-				buf = async->buf_page_list + i;
-				if (s->async_dma_dir != DMA_NONE) {
-					buf->virt_addr =
-						dma_alloc_coherent(dev->hw_dev,
-							PAGE_SIZE,
-							&buf->dma_addr,
-							GFP_KERNEL);
-				} else {
-					buf->virt_addr =
-						(void *)
-						get_zeroed_page(GFP_KERNEL);
-				}
-				if (buf->virt_addr == NULL) {
-					break;
-				}
-				if (s->async_dma_dir == DMA_NONE) {
-					SetPageReserved(
-						virt_to_page(buf->virt_addr));
-				}
-			}
-		}
-		if (i < n_pages) {
-			/* Some allocation failed above. */
-			if (async->buf_page_list) {
-				for (i = 0; i < n_pages; i++) {
-					buf = async->buf_page_list + i;
-					if (buf->virt_addr == NULL) {
-						break;
-					}
-					if (s->async_dma_dir != DMA_NONE) {
-						dma_free_coherent(dev->hw_dev,
-							PAGE_SIZE,
-							buf->virt_addr,
-							buf->dma_addr);
-					} else {
-						ClearPageReserved(virt_to_page(
-							buf->virt_addr));
-						free_page((unsigned long)buf->
-							virt_addr);
-					}
-				}
-				vfree(async->buf_page_list);
-				async->buf_page_list = NULL;
-			}
+	/* allocate new buffer */
+	if (new_size) {
+		unsigned int n_pages = new_size >> PAGE_SHIFT;
+
+		__comedi_buf_alloc(dev, s, n_pages);
+		if (!async->prealloc_bufsz)
 			return -ENOMEM;
-		}
-		async->n_buf_pages = n_pages;
 	}
-	async->prealloc_bufsz = new_size;
 
 	return 0;
 }
@@ -143,6 +249,7 @@ static unsigned int comedi_buf_munge(comedi_subdevice *s,
 	unsigned int num_bytes)
 {
 	comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int count = 0;
 	const unsigned num_sample_bytes = comedi_bytes_per_sample(s);
 
@@ -169,7 +276,7 @@ static unsigned int comedi_buf_munge(comedi_subdevice *s,
 			block_size = block_page_left;
 		}
 		s->munge(s->device, s,
-			async->buf_page_list[block_page].virt_addr +
+			buf_page_list[block_page].virt_addr +
 				block_page_offset, block_size,
 			async->munge_chan);
 
@@ -298,6 +405,7 @@ void comedi_buf_memcpy_to(comedi_subdevice *s, unsigned int offset,
 	const void *data, unsigned int num_bytes)
 {
 	comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int write_ptr = async->buf_write_ptr + offset;
 
 	if (write_ptr >= async->prealloc_bufsz)
@@ -314,7 +422,7 @@ void comedi_buf_memcpy_to(comedi_subdevice *s, unsigned int offset,
 		else
 			block_size = num_bytes;
 
-		memcpy(async->buf_page_list[block_page].virt_addr +
+		memcpy(buf_page_list[block_page].virt_addr +
 				block_page_offset, data, block_size);
 
 		data += block_size;
@@ -329,6 +437,7 @@ void comedi_buf_memcpy_from(comedi_subdevice *s, unsigned int offset,
 	void *dest, unsigned int nbytes)
 {
 	comedi_async *async = s->async;
+	struct comedi_buf_page *buf_page_list = async->buf_map->page_list;
 	unsigned int read_ptr = async->buf_read_ptr + offset;
 
 	if (read_ptr >= async->prealloc_bufsz)
@@ -345,7 +454,7 @@ void comedi_buf_memcpy_from(comedi_subdevice *s, unsigned int offset,
 		else
 			block_size = nbytes;
 
-		memcpy(dest, async->buf_page_list[block_page].virt_addr +
+		memcpy(dest, buf_page_list[block_page].virt_addr +
 				block_page_offset, block_size);
 		nbytes -= block_size;
 		dest += block_size;
@@ -383,7 +492,7 @@ int comedi_buf_get(comedi_subdevice *s, sampl_t *x)
 	comedi_buf_read_alloc(s, sizeof(sampl_t));
 	buf_page = async->buf_read_ptr >> PAGE_SHIFT;
 	buf_page_offset = async->buf_read_ptr & ~PAGE_MASK;
-	*x = *(sampl_t *) (async->buf_page_list[buf_page].virt_addr +
+	*x = *(sampl_t *) (async->buf_map->page_list[buf_page].virt_addr +
 			buf_page_offset);
 	comedi_buf_read_free(s, sizeof(sampl_t));
 	return 1;
@@ -401,7 +510,7 @@ int comedi_buf_getl(comedi_subdevice *s, lsampl_t *x)
 	comedi_buf_read_alloc(s, sizeof(lsampl_t));
 	buf_page = async->buf_read_ptr >> PAGE_SHIFT;
 	buf_page_offset = async->buf_read_ptr & ~PAGE_MASK;
-	*x = *(lsampl_t *) (async->buf_page_list[buf_page].virt_addr +
+	*x = *(lsampl_t *) (async->buf_map->page_list[buf_page].virt_addr +
 			buf_page_offset);
 	comedi_buf_read_free(s, sizeof(lsampl_t));
 	return 1;
@@ -420,7 +529,7 @@ int comedi_buf_put(comedi_subdevice *s, sampl_t x)
 	}
 	buf_page = async->buf_write_ptr >> PAGE_SHIFT;
 	buf_page_offset = async->buf_write_ptr & ~PAGE_MASK;
-	*(sampl_t *) (async->buf_page_list[buf_page].virt_addr +
+	*(sampl_t *) (async->buf_map->page_list[buf_page].virt_addr +
 			buf_page_offset) = x;
 	comedi_buf_write_free(s, sizeof(sampl_t));
 	return 1;
@@ -439,7 +548,7 @@ int comedi_buf_putl(comedi_subdevice *s, lsampl_t x)
 	}
 	buf_page = async->buf_write_ptr >> PAGE_SHIFT;
 	buf_page_offset = async->buf_write_ptr & ~PAGE_MASK;
-	*(lsampl_t *) (async->buf_page_list[buf_page].virt_addr +
+	*(lsampl_t *) (async->buf_map->page_list[buf_page].virt_addr +
 			buf_page_offset) = x;
 	comedi_buf_write_free(s, sizeof(lsampl_t));
 	return 1;

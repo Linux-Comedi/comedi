@@ -26,6 +26,14 @@ int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s, unsigned long
 unsigned int comedi_buf_write_alloc_strict(comedi_subdevice *s,
 	unsigned int nbytes);
 
+bool comedi_buf_is_mmapped(comedi_subdevice *s);
+void comedi_buf_map_get(struct comedi_buf_map *bm);
+int comedi_buf_map_put(struct comedi_buf_map *bm);
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+	void *buf, int len, int write);
+struct comedi_buf_map *
+comedi_buf_map_from_subdev_get(comedi_subdevice *s);
+
 int do_rangeinfo_i(comedi_device * dev, comedi_rangeinfo * ri);
 
 #ifdef CONFIG_PROC_FS
