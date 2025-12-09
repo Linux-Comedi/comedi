@@ -82,3 +82,8 @@ EXPORT_SYMBOL(comedi_reset_async_buf);
 
 /* utility functions for drivers, based on Frank Mori Hess's "comedi_fc" */
 EXPORT_SYMBOL(comedi_handle_events);
+EXPORT_SYMBOL(comedi_bytes_per_scan_cmd);
+EXPORT_SYMBOL(comedi_bytes_per_scan);
+EXPORT_SYMBOL(comedi_inc_scan_progress);
+EXPORT_SYMBOL(comedi_nscans_left);
+EXPORT_SYMBOL(comedi_nsamples_left);

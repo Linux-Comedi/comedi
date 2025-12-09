@@ -441,6 +441,7 @@ void comedi_reset_async_buf(comedi_async * async)
 	async->buf_read_ptr = 0;
 
 	async->cur_chan = 0;
+	async->scans_done = 0;
 	async->scan_progress = 0;
 	async->munge_chan = 0;
 	async->munge_count = 0;

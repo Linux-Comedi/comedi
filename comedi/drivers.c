@@ -457,6 +457,120 @@ unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd)
 	return events;
 }
 
+unsigned int comedi_bytes_per_scan_cmd(const comedi_subdevice *s,
+				       const comedi_cmd *cmd)
+{
+	unsigned int num_samples;
+	unsigned int bits_per_sample;
+
+	switch (s->type) {
+	case COMEDI_SUBD_DI:
+	case COMEDI_SUBD_DO:
+	case COMEDI_SUBD_DIO:
+		bits_per_sample = 8 * comedi_bytes_per_sample(s);
+		num_samples = DIV_ROUND_UP(cmd->scan_end_arg, bits_per_sample);
+		break;
+	default:
+		num_samples = cmd->scan_end_arg;
+		break;
+	}
+	return comedi_samples_to_bytes(s, num_samples);
+}
+
+unsigned int comedi_bytes_per_scan(const comedi_subdevice *s)
+{
+	return comedi_bytes_per_scan_cmd(s, &s->async->cmd);
+}
+
+static unsigned int __comedi_nscans_left(const comedi_subdevice *s,
+	unsigned int nscans)
+{
+	const comedi_async *async = s->async;
+	const comedi_cmd *cmd = &async->cmd;
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		unsigned int scans_left = 0;
+
+		if (async->scans_done < cmd->stop_arg)
+			scans_left = cmd->stop_arg - async->scans_done;
+
+		if (nscans > scans_left)
+			nscans = scans_left;
+	}
+	return nscans;
+}
+
+/*
+ * Return number of scans left in the command up to a limit.
+ *
+ * If nscans is 0, it is set to the number of scans available in the async
+ * buffer.  If nscans is non-zero, it is an upper limit on the number of scans
+ * available.
+ */
+unsigned int comedi_nscans_left(const comedi_subdevice *s, unsigned int nscans)
+{
+	if (nscans == 0) {
+		unsigned int nbytes = comedi_buf_read_n_available(s->async);
+
+		nscans = nbytes / comedi_bytes_per_scan(s);
+	}
+	return __comedi_nscans_left(s, nscans);
+}
+
+/*
+ * Return number of samples left in the command up to a limit.
+ *
+ * nsamples is an upper limit on the return value.
+ */
+unsigned int comedi_nsamples_left(const comedi_subdevice *s,
+	unsigned int nsamples)
+{
+	const comedi_async *async = s->async;
+	const comedi_cmd *cmd = &async->cmd;
+	unsigned long long scans_left;
+	unsigned long long samples_left;
+
+	if (cmd->stop_src != TRIG_COUNT)
+		return nsamples;
+
+	scans_left = __comedi_nscans_left(s, cmd->stop_arg);
+	if (!scans_left)
+		return 0;
+
+	samples_left = scans_left * cmd->scan_end_arg -
+		comedi_bytes_to_samples(s, async->scan_progress);
+
+	if (samples_left < nsamples)
+		return samples_left;
+	return nsamples;
+}
+
+void comedi_inc_scan_progress(comedi_subdevice *s, unsigned int num_bytes)
+{
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int scan_length = comedi_bytes_per_scan(s);
+
+	/* track the 'cur_chan' for non-SDF_PACKED subdevices */
+	if (!(s->subdev_flags & SDF_PACKED)) {
+		async->cur_chan += comedi_bytes_to_samples(s, num_bytes);
+		async->cur_chan %= cmd->chanlist_len;
+	}
+
+	async->scan_progress += num_bytes;
+	if (async->scan_progress >= scan_length) {
+		unsigned int nscans = async->scan_progress / scan_length;
+
+		if (async->scans_done < (UINT_MAX - nscans))
+			async->scans_done += nscans;
+		else
+			async->scans_done = UINT_MAX;
+
+		async->scan_progress %= scan_length;
+		async->events |= COMEDI_CB_EOS;
+	}
+}
+
 static int comedi_auto_config_helper(struct device *hardware_device,
 	comedi_driver *driv,
 	int (*attach_wrapper)(comedi_device *, comedi_driver *, void *),

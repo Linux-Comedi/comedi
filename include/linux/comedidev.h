@@ -222,7 +222,9 @@ struct comedi_async_struct {
 	unsigned int buf_write_ptr;	/* buffer marker for writer */
 	unsigned int buf_read_ptr;	/* buffer marker for reader */
 
-	unsigned int cur_chan;	/* useless channel marker for interrupt */
+	unsigned int cur_chan;	/* current channel for scan progress */
+	/* number of scans done, limited to UINT_MAX */
+	unsigned int scans_done;
 	/* number of bytes that have been received for current scan */
 	unsigned int scan_progress;
 	/* keeps track of where we are in chanlist as for munging */
@@ -476,6 +478,14 @@ static inline void *comedi_aux_data(int options[], int n)
 }
 
 unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd);
+unsigned int comedi_bytes_per_scan_cmd(const comedi_subdevice *subd,
+				       const comedi_cmd *cmd);
+unsigned int comedi_bytes_per_scan(const comedi_subdevice *subd);
+unsigned int comedi_nscans_left(const comedi_subdevice *subd,
+				unsigned int nscans);
+unsigned int comedi_nsamples_left(const comedi_subdevice *subd,
+				  unsigned int nsamples);
+void comedi_inc_scan_progress(comedi_subdevice *subd, unsigned int num_bytes);
 
 int comedi_auto_config(struct device *hardware_device, comedi_driver *driver,
 		       unsigned long context);
