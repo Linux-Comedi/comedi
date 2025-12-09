@@ -213,8 +213,6 @@ struct comedi_buf_map {
 };
 
 struct comedi_async_struct {
-	comedi_subdevice *subdevice;
-
 	unsigned int prealloc_bufsz;	/* buffer size, in bytes */
 	struct comedi_buf_map *buf_map;	/* buffer page mapping */
 	unsigned int max_bufsize;	/* maximum buffer size, bytes */

@@ -305,7 +305,6 @@ static int postconfig(comedi_device * dev)
 				return -ENOMEM;
 			}
 			init_waitqueue_head(&async->wait_head);
-			async->subdevice = s;
 			s->async = async;
 
 #define DEFAULT_BUF_MAXSIZE (64*1024)
