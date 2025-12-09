@@ -83,21 +83,6 @@ unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd, void *data,
 	return num_bytes;
 }
 
-unsigned int cfc_handle_events(comedi_device * dev, comedi_subdevice * subd)
-{
-	unsigned int events = subd->async->events;
-
-	if (events == 0)
-		return events;
-
-	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-		subd->cancel(dev, subd);
-
-	comedi_event(dev, subd);
-
-	return events;
-}
-
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");
 MODULE_LICENSE("GPL");
@@ -116,4 +101,3 @@ module_exit(comedi_fc_cleanup_module);
 
 EXPORT_SYMBOL(cfc_write_array_to_buffer);
 EXPORT_SYMBOL(cfc_read_array_from_buffer);
-EXPORT_SYMBOL(cfc_handle_events);
