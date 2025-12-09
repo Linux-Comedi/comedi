@@ -953,7 +953,7 @@ static int ni_660x_input_poll(comedi_device * dev, comedi_subdevice * s)
 	unsigned long flags;
 	// lock to avoid race with comedi_poll
 	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
-	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
+	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s);
 	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
 	return comedi_buf_read_n_available(s);
 }

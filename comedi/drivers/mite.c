@@ -529,11 +529,11 @@ void mite_dma_disarm(struct mite_channel *mite_chan)
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 }
 
-int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
+int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_subdevice *s)
 {
 	int count;
 	unsigned int nbytes, old_alloc_count;
-	comedi_subdevice *s = async->subdevice;
+	comedi_async *async = s->async;
 	const unsigned bytes_per_scan = cfc_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_write_alloc_count;
@@ -565,12 +565,12 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async)
 	return 0;
 }
 
-int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async)
+int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_subdevice *s)
 {
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
-	comedi_subdevice *s = async->subdevice;
+	comedi_async *async = s->async;
 	u32 stop_count =
 		async->cmd.stop_arg * cfc_bytes_per_scan(s);
 
