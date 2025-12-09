@@ -442,6 +442,21 @@ static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
+unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd)
+{
+	unsigned int events = subd->async->events;
+
+	if (events == 0)
+		return events;
+
+	if (events & COMEDI_CB_CANCEL_MASK)
+		subd->cancel(dev, subd);
+
+	comedi_event(dev, subd);
+
+	return events;
+}
+
 static int comedi_auto_config_helper(struct device *hardware_device,
 	comedi_driver *driv,
 	int (*attach_wrapper)(comedi_device *, comedi_driver *, void *),

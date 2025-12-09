@@ -65,6 +65,7 @@ EXPORT_SYMBOL(check_chanlist);
 EXPORT_SYMBOL_GPL(comedi_dev_get_from_minor);
 EXPORT_SYMBOL_GPL(comedi_dev_put);
 
+/* buffer-related */
 EXPORT_SYMBOL(comedi_buf_put);
 EXPORT_SYMBOL(comedi_buf_putl);
 EXPORT_SYMBOL(comedi_buf_get);
@@ -78,3 +79,6 @@ EXPORT_SYMBOL(comedi_buf_read_alloc);
 EXPORT_SYMBOL(comedi_buf_memcpy_to);
 EXPORT_SYMBOL(comedi_buf_memcpy_from);
 EXPORT_SYMBOL(comedi_reset_async_buf);
+
+/* utility functions for drivers, based on Frank Mori Hess's "comedi_fc" */
+EXPORT_SYMBOL(comedi_handle_events);

@@ -475,6 +475,8 @@ static inline void *comedi_aux_data(int options[], int n)
 	return (void *)address;
 }
 
+unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd);
+
 int comedi_auto_config(struct device *hardware_device, comedi_driver *driver,
 		       unsigned long context);
 void comedi_auto_unconfig(struct device *hardware_device);
