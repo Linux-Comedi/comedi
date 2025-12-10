@@ -294,6 +294,14 @@ static unsigned int comedi_buf_munge(comedi_subdevice *s,
 	return count;
 }
 
+static unsigned int comedi_buf_write_n_unalloc(const comedi_subdevice *s)
+{
+	const comedi_async *async = s->async;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	return free_end - async->buf_write_alloc_count;
+}
+
 unsigned int comedi_buf_write_n_available(const comedi_subdevice *s)
 {
 	const comedi_async *async = s->async;
@@ -313,49 +321,48 @@ unsigned int comedi_buf_write_n_available(const comedi_subdevice *s)
 	return nbytes;
 }
 
+static unsigned int __comedi_buf_write_alloc(comedi_subdevice *s,
+	unsigned int nbytes, bool strict)
+{
+	comedi_async *async = s->async;
+	unsigned int unalloc = comedi_buf_write_n_unalloc(s);
+
+	if (nbytes > unalloc)
+		nbytes = strict ? 0 : unalloc;
+
+	async->buf_write_alloc_count += nbytes;
+	/*
+	 * barrier ensures the async buffer 'counts' are read and updated
+	 * before we write data to the write-alloc'ed buffer space
+	 */
+	smp_mb();
+	return nbytes;
+}
+
 /* allocates chunk for the writer from free buffer space */
 unsigned int comedi_buf_write_alloc(comedi_subdevice *s, unsigned int nbytes)
 {
-	comedi_async *async = s->async;
-	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
-
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
-		nbytes = free_end - async->buf_write_alloc_count;
-	}
-	async->buf_write_alloc_count += nbytes;
-	/* barrier insures the read of buf_read_count above occurs before
-	   we write data to the write-alloc'ed buffer space */
-	smp_mb();
-	return nbytes;
+	return __comedi_buf_write_alloc(s, nbytes, false);
 }
 
 /* allocates nothing unless it can completely fulfill the request */
 unsigned int comedi_buf_write_alloc_strict(comedi_subdevice *s,
 	unsigned int nbytes)
 {
-	comedi_async *async = s->async;
-	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
-
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
-		nbytes = 0;
-	}
-	async->buf_write_alloc_count += nbytes;
-	/* barrier insures the read of buf_read_count above occurs before
-	   we write data to the write-alloc'ed buffer space */
-	smp_mb();
-	return nbytes;
+	return __comedi_buf_write_alloc(s, nbytes, true);
 }
 
 /* transfers a chunk from writer to filled buffer space */
 unsigned comedi_buf_write_free(comedi_subdevice *s, unsigned int nbytes)
 {
 	comedi_async *async = s->async;
-	if ((int)(async->buf_write_count + nbytes -
-			async->buf_write_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to write-free more bytes than have been write-allocated.\n");
-		nbytes = async->buf_write_alloc_count - async->buf_write_count;
+	unsigned int allocated = comedi_buf_write_n_allocated(s);
+
+	if (nbytes > allocated) {
+		rt_printk("comedi: attempted to write-free more bytes than have been write-allocated.\n");
+		nbytes = allocated;
 	}
+
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
 	comedi_buf_munge(s, async->buf_write_count - async->munge_count);
@@ -369,11 +376,12 @@ unsigned comedi_buf_write_free(comedi_subdevice *s, unsigned int nbytes)
 unsigned comedi_buf_read_alloc(comedi_subdevice *s, unsigned nbytes)
 {
 	comedi_async *async = s->async;
+	unsigned int available =
+		async->munge_count - async->buf_read_alloc_count;
 
-	if ((int)(async->buf_read_alloc_count + nbytes - async->munge_count) >
-		0) {
-		nbytes = async->munge_count - async->buf_read_alloc_count;
-	}
+	if (nbytes > available)
+		nbytes = available;
+
 	async->buf_read_alloc_count += nbytes;
 	/* barrier insures read of munge_count occurs before we actually read
 	   data out of buffer */
@@ -385,15 +393,17 @@ unsigned comedi_buf_read_alloc(comedi_subdevice *s, unsigned nbytes)
 unsigned comedi_buf_read_free(comedi_subdevice *s, unsigned int nbytes)
 {
 	comedi_async *async = s->async;
+	unsigned int allocated;
 
 	// barrier insures data has been read out of buffer before read count is incremented
 	smp_mb();
-	if ((int)(async->buf_read_count + nbytes -
-			async->buf_read_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to read-free more bytes than have been read-allocated.\n");
-		nbytes = async->buf_read_alloc_count - async->buf_read_count;
+
+	allocated = comedi_buf_read_n_allocated(s);
+	if (nbytes > allocated) {
+		rt_printk("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		nbytes = allocated;
 	}
+
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
 	async->buf_read_ptr %= async->prealloc_bufsz;
