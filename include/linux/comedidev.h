@@ -433,6 +433,10 @@ int comedi_buf_put(comedi_subdevice *subd, sampl_t x);
 int comedi_buf_putl(comedi_subdevice *subd, lsampl_t x);
 int comedi_buf_get(comedi_subdevice *subd, sampl_t *x);
 int comedi_buf_getl(comedi_subdevice *subd, lsampl_t *x);
+unsigned int comedi_buf_write_samples(comedi_subdevice *s, const void *data,
+	unsigned int nsamples);
+unsigned int comedi_buf_read_samples(comedi_subdevice *s, void *data,
+	unsigned int nsamples);
 
 unsigned int comedi_buf_write_n_available(const comedi_subdevice *subd);
 unsigned int comedi_buf_write_alloc(comedi_subdevice *subd,

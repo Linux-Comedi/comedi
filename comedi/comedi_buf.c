@@ -584,3 +584,90 @@ void comedi_buf_reset(comedi_subdevice *s)
 
 	async->events = 0;
 }
+
+/*
+ * comedi_buf_write_samples() - Write sample data to COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to source samples.
+ * @nsamples: Number of samples to write.
+ *
+ * Write up to @nsamples samples to the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as written and update the
+ * acquisition scan progress.  If there is not enough room for the specified
+ * number of samples, the number of samples written is limited to the number
+ * that will fit and the %COMEDI_CB_OVERFLOW event flag is set to cause the
+ * acquisition to terminate with an overrun error.  Set the %COMEDI_CB_BLOCK
+ * event flag if any samples are written to cause waiting tasks to be woken
+ * when the event flags are processed.
+ *
+ * Return: The amount of data written in bytes.
+ */
+unsigned int comedi_buf_write_samples(comedi_subdevice *s, const void *data,
+	unsigned int nsamples)
+{
+	unsigned int max_samples;
+	unsigned int nbytes;
+
+	/*
+	 * Make sure there is enough room in the buffer for all the samples.
+	 * If not, clamp the nsamples to the number that will fit, flag the
+	 * buffer overrun and add the samples that fit.
+	 */
+	max_samples = comedi_bytes_to_samples(s, comedi_buf_write_n_unalloc(s));
+	if (nsamples > max_samples) {
+		rt_printk("comedi: buffer overrun\n");
+		s->async->events |= COMEDI_CB_OVERFLOW;
+		nsamples = max_samples;
+	}
+
+	if (nsamples == 0)
+		return 0;
+
+	nbytes = comedi_buf_write_alloc(s,
+					comedi_samples_to_bytes(s, nsamples));
+	comedi_buf_memcpy_to(s, 0, data, nbytes);
+	comedi_buf_write_free(s, nbytes);
+	comedi_inc_scan_progress(s, nbytes);
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return nbytes;
+}
+
+/*
+ * comedi_buf_read_samples() - Read sample data from COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to destination.
+ * @nsamples: Maximum number of samples to read.
+ *
+ * Read up to @nsamples samples from the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as read and update the acquisition
+ * scan progress.  Limit the number of samples read to the number available.
+ * Set the %COMEDI_CB_BLOCK event flag if any samples are read to cause waiting
+ * tasks to be woken when the event flags are processed.
+ *
+ * Return: The amount of data read in bytes.
+ */
+unsigned int comedi_buf_read_samples(comedi_subdevice *s, void *data,
+	unsigned int nsamples)
+{
+	unsigned int max_samples;
+	unsigned int nbytes;
+
+	/* clamp nsamples to the number of full samples available */
+	max_samples = comedi_bytes_to_samples(s,
+					      comedi_buf_read_n_available(s));
+	if (nsamples > max_samples)
+		nsamples = max_samples;
+
+	if (nsamples == 0)
+		return 0;
+
+	nbytes = comedi_buf_read_alloc(s,
+				       comedi_samples_to_bytes(s, nsamples));
+	comedi_buf_memcpy_from(s, 0, data, nbytes);
+	comedi_buf_read_free(s, nbytes);
+	comedi_inc_scan_progress(s, nbytes);
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return nbytes;
+}
