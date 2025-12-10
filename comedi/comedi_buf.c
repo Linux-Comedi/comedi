@@ -304,8 +304,7 @@ unsigned int comedi_buf_write_n_available(const comedi_subdevice *s)
 		return 0;
 
 	free_end = async->buf_read_count + async->prealloc_bufsz;
-	nbytes = free_end - async->buf_write_alloc_count;
-	nbytes -= nbytes % comedi_bytes_per_sample(s);
+	nbytes = free_end - async->buf_write_count;
 	/* barrier insures the read of buf_read_count in this
 	   query occurs before any following writes to the buffer which
 	   might be based on the return value from this query.
