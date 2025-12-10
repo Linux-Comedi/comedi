@@ -2506,7 +2506,7 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		}
 		if (write_subdev->busy != file ||
 		    !comedi_is_subdevice_running(write_subdev) ||
-		    !(read_subdev->async->cmd.flags & CMDF_WRITE) ||
+		    !(write_subdev->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_write_n_allocated(write_subdev) >=
 			comedi_bytes_per_sample(write_subdev))
 		{
