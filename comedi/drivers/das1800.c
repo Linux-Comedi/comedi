@@ -106,7 +106,6 @@ TODO:
 #include <asm/dma.h>
 
 #include "8253.h"
-#include "comedi_fc.h"
 
 // misc. defines
 #define DAS1800_SIZE           16	//uses 16 io addresses
@@ -1044,7 +1043,7 @@ static void das1800_flush_dma_channel(comedi_device * dev, comedi_subdevice * s,
 		num_samples = devpriv->count;
 
 	munge_data(dev, buffer, num_samples);
-	cfc_write_array_to_buffer(s, buffer, num_bytes);
+	comedi_buf_write_samples(s, buffer, num_samples);
 	if (s->async->cmd.stop_src == TRIG_COUNT)
 		devpriv->count -= num_samples;
 
@@ -1095,8 +1094,7 @@ static void das1800_handle_fifo_half_full(comedi_device * dev,
 		numPoints = devpriv->count;
 	insw(dev->iobase + DAS1800_FIFO, devpriv->ai_buf0, numPoints);
 	munge_data(dev, devpriv->ai_buf0, numPoints);
-	cfc_write_array_to_buffer(s, devpriv->ai_buf0,
-		numPoints * sizeof(devpriv->ai_buf0[0]));
+	comedi_buf_write_samples(s, devpriv->ai_buf0, numPoints);
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= numPoints;
 	return;
@@ -1118,7 +1116,7 @@ static void das1800_handle_fifo_not_empty(comedi_device * dev,
 		/* convert to unsigned type if we are in a bipolar mode */
 		if (!unipolar)
 			dpnt = munge_bipolar_sample(dev, dpnt);
-		cfc_write_to_buffer(s, dpnt);
+		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT)
 			devpriv->count--;
 	}
