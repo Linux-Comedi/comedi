@@ -79,7 +79,6 @@ analog triggering on 1602 series
 #include "8255.h"
 #include "amcc_s5933.h"
 #include "comedi_pci.h"
-#include "comedi_fc.h"
 
 #undef CB_PCIDAS_DEBUG		// disable debugging code
 //#define CB_PCIDAS_DEBUG       // enable debugging code
@@ -1523,8 +1522,7 @@ static int cb_pcidas_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count < num_points)
 		num_points = devpriv->ao_count;
 
-	num_bytes = cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-		num_points * sizeof(sampl_t));
+	num_bytes = comedi_buf_read_samples(s, devpriv->ao_buffer, num_points);
 	num_points = num_bytes / sizeof(sampl_t);
 
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -1612,8 +1610,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 		}
 		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer,
 			num_samples);
-		cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-			num_samples * sizeof(sampl_t));
+		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 		devpriv->count -= num_samples;
 		if (async->cmd.stop_src == TRIG_COUNT && devpriv->count == 0) {
 			async->events |= COMEDI_CB_EOA;
@@ -1627,11 +1624,14 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 		// else if fifo not empty
 	} else if (status & (ADNEI | EOBI)) {
 		for (i = 0; i < timeout; i++) {
+			sampl_t sample;
+
 			// break if fifo is empty
 			if ((ADNE & inw(devpriv->control_status +
 						INT_ADCFIFO)) == 0)
 				break;
-			cfc_write_to_buffer(s, inw(devpriv->adc_fifo));
+			sample = inw(devpriv->adc_fifo);
+			comedi_buf_write_samples(s, &sample, 1);
 			if (async->cmd.stop_src == TRIG_COUNT && --devpriv->count == 0) {	/* end of acquisition */
 				cb_pcidas_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
@@ -1705,8 +1705,8 @@ static void handle_ao_interrupt(comedi_device * dev, unsigned int status)
 			devpriv->ao_count < num_points)
 			num_points = devpriv->ao_count;
 		num_bytes =
-			cfc_read_array_from_buffer(s, devpriv->ao_buffer,
-			num_points * sizeof(sampl_t));
+			comedi_buf_read_samples(s, devpriv->ao_buffer,
+			num_points);
 		num_points = num_bytes / sizeof(sampl_t);
 
 		if (async->cmd.stop_src == TRIG_COUNT) {
