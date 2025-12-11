@@ -106,8 +106,6 @@ Caveats:
 #include <linux/comedidev.h>
 
 #include "comedi_pci.h"
-
-#include "comedi_fc.h"
 #include "8253.h"
 
 #define DRIVER_NAME	"amplc_pci224"
@@ -667,8 +665,8 @@ static void pci224_ao_handle_fifo(comedi_device * dev, comedi_subdevice * s)
 	}
 	/* Process scans. */
 	for (n = 0; n < num_scans; n++) {
-		cfc_read_array_from_buffer(s, &devpriv->ao_scan_vals[0],
-			bytes_per_scan);
+		comedi_buf_read_samples(s, &devpriv->ao_scan_vals[0],
+			bytes_per_scan / sizeof(sampl_t));
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			outw(devpriv->ao_scan_vals[devpriv->
 					ao_scan_order[i]],
