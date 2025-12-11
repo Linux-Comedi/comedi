@@ -35,8 +35,6 @@ Configuration Options:
 #include <linux/kthread.h>
 #include <linux/comedidev.h>
 
-#include "comedi_fc.h"
-
 typedef struct {
 	struct task_struct *fit_kthread;
 } contec_fit_private;
@@ -760,7 +758,10 @@ static int contec_ai_sampling_thread(void * context_dev)
 		async->events = 0;
 		status = inb(dev->iobase + IO_ADI164_STATUS0);
 		if(status & STATUS_ADI164_DRE){
-			if(!cfc_write_to_buffer(s, (inb(dev->iobase + IO_ADI164_INPUTDATA_LOWER) + (inb(dev->iobase + IO_ADI164_INPUTDATA_UPPER) << 8)))){
+			sampl_t sample =
+				inb(dev->iobase + IO_ADI164_INPUTDATA_LOWER) +
+				(inb(dev->iobase + IO_ADI164_INPUTDATA_UPPER) << 8);
+			if(!comedi_buf_write_samples(s, &sample, 1)){
 				async->events = COMEDI_CB_ERROR | COMEDI_CB_EOA;
 				break;
 			}
