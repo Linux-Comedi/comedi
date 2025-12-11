@@ -50,7 +50,6 @@ support could be added to this driver.
 
 #include "comedi_pci.h"
 #include "plx9080.h"
-#include "comedi_fc.h"
 
 static int hpdi_attach(comedi_device * dev, comedi_devconfig * it);
 static int hpdi_detach(comedi_device * dev);
@@ -960,9 +959,9 @@ static void drain_dma_buffers(comedi_device * dev, unsigned int channel)
 				num_samples = priv(dev)->dio_count;
 			priv(dev)->dio_count -= num_samples;
 		}
-		cfc_write_array_to_buffer(dev->read_subdev,
+		comedi_buf_write_samples(dev->read_subdev,
 			priv(dev)->desc_dio_buffer[priv(dev)->dma_desc_index],
-			num_samples * sizeof(uint32_t));
+			num_samples);
 		priv(dev)->dma_desc_index++;
 		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
 
@@ -1059,7 +1058,7 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	if (async->events)
 		DEBUG_PRINT(" events 0x%x\n", async->events);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
