@@ -91,7 +91,6 @@ TODO:
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
-#include "comedi_fc.h"
 
 #undef PCIDAS64_DEBUG		// disable debugging code
 //#define PCIDAS64_DEBUG        // enable debugging code
@@ -2885,8 +2884,10 @@ static void pio_drain_ai_fifo_16(comedi_device * dev)
 		DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
 		for (i = 0; i < num_samples; i++) {
-			cfc_write_to_buffer(s,
-				readw(priv(dev)->main_iobase + ADC_FIFO_REG));
+			sampl_t sample =
+				readw(priv(dev)->main_iobase + ADC_FIFO_REG);
+
+			comedi_buf_write_samples(s, &sample, 1);
 		}
 
 	} while (read_segment != write_segment);
@@ -2916,13 +2917,15 @@ static void pio_drain_ai_fifo_32(comedi_device * dev)
 		}
 	}
 	for (i = 0; read_code != write_code && i < max_transfer;) {
+		sampl_t samples[2];
+		unsigned int nsamples =
+			min_t(unsigned int, max_transfer - i, 2);
+
 		fifo_data = readl(priv(dev)->dio_counter_iobase + ADC_FIFO_REG);
-		cfc_write_to_buffer(s, fifo_data & 0xffff);
-		i++;
-		if (i < max_transfer) {
-			cfc_write_to_buffer(s, (fifo_data >> 16) & 0xffff);
-			i++;
-		}
+		samples[0] = fifo_data & 0xffff;
+		samples[1] = (fifo_data >> 16) & 0xffff;
+		comedi_buf_write_samples(s, samples, nsamples);
+		i += nsamples;
 		read_code =
 			readw(priv(dev)->main_iobase +
 			ADC_READ_PNTR_REG) & 0x7fff;
@@ -2969,9 +2972,9 @@ static void drain_dma_buffers(comedi_device * dev, unsigned int channel)
 				num_samples = priv(dev)->ai_count;
 			priv(dev)->ai_count -= num_samples;
 		}
-		cfc_write_array_to_buffer(dev->read_subdev,
+		comedi_buf_write_samples(dev->read_subdev,
 			priv(dev)->ai_buffer[priv(dev)->ai_dma_index],
-			num_samples * sizeof(uint16_t));
+			num_samples);
 		priv(dev)->ai_dma_index =
 			(priv(dev)->ai_dma_index +
 			1) % ai_dma_ring_count(board(dev));
@@ -3036,7 +3039,7 @@ static void handle_ai_interrupt(comedi_device * dev, unsigned short status,
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static inline unsigned int prev_ao_dma_index(comedi_device * dev)
@@ -3156,7 +3159,7 @@ static void handle_ao_interrupt(comedi_device * dev, unsigned short status,
 			readl(priv(dev)->plx9080_iobase +
 				PLX_DMA0_PCI_ADDRESS_REG));
 	}
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
@@ -3366,8 +3369,9 @@ static unsigned int load_ao_dma_buffer(comedi_device * dev,
 
 	DEBUG_PRINT("loading %i bytes\n", num_bytes);
 
-	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
-		priv(dev)->ao_buffer[buffer_index], num_bytes);
+	num_bytes = comedi_buf_read_samples(dev->write_subdev,
+		priv(dev)->ao_buffer[buffer_index],
+		num_bytes / bytes_in_sample);
 	priv(dev)->ao_dma_desc[buffer_index].transfer_size =
 		cpu_to_le32(num_bytes);
 	/* set end of chain bit so we catch underruns */
@@ -3422,8 +3426,8 @@ static int prep_ao_dma(comedi_device * dev, const comedi_cmd * cmd)
 	if (cmd->stop_src == TRIG_COUNT &&
 		num_bytes / bytes_in_sample > priv(dev)->ao_count)
 		num_bytes = priv(dev)->ao_count * bytes_in_sample;
-	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
-		priv(dev)->ao_bounce_buffer, num_bytes);
+	num_bytes = comedi_buf_read_samples(dev->write_subdev,
+		priv(dev)->ao_bounce_buffer, num_bytes / bytes_in_sample);
 	for (i = 0; i < num_bytes / bytes_in_sample; i++) {
 		writew(priv(dev)->ao_bounce_buffer[i],
 			priv(dev)->main_iobase + DAC_FIFO_REG);
