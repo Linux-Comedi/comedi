@@ -61,7 +61,6 @@ Notes:
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>
-#include "comedi_fc.h"
 
 #define DEBUG
 
@@ -461,7 +460,8 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_index = 1 - i;
 
-	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
+	size = comedi_buf_read_samples(s, ptr,
+		devpriv->dma_maxsize / sizeof(sampl_t));
 	if (size == 0) {
 		rt_printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev, s);
@@ -496,7 +496,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 	devpriv->current_dma_index = 1 - i;
 
 	dt282x_munge(dev, ptr, size);
-	ret = cfc_write_array_to_buffer(s, ptr, size);
+	ret = comedi_buf_write_samples(s, ptr, size / sizeof(sampl_t));
 	if (ret != size) {
 		dt282x_ai_cancel(dev, s);
 		return;
@@ -1084,16 +1084,16 @@ static int dt282x_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	if (x != 0)
 		return -EINVAL;
 
-	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
-		devpriv->dma_maxsize);
+	size = comedi_buf_read_samples(s, devpriv->dma[0].buf,
+		devpriv->dma_maxsize / sizeof(sampl_t));
 	if (size == 0) {
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 0, size);
 
-	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
-		devpriv->dma_maxsize);
+	size = comedi_buf_read_samples(s, devpriv->dma[1].buf,
+		devpriv->dma_maxsize / sizeof(sampl_t));
 	if (size == 0) {
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
