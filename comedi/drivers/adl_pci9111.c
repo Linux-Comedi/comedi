@@ -80,7 +80,6 @@ TODO:
 
 #include "8253.h"
 #include "comedi_pci.h"
-#include "comedi_fc.h"
 
 #define PCI9111_DRIVER_NAME 	"adl_pci9111"
 #define PCI9111_HR_DEVICE_ID 	0x9111
@@ -984,9 +983,9 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 
 			if (dev_private->scan_delay < 1) {
 				bytes_written =
-					cfc_write_array_to_buffer(subdevice,
+					comedi_buf_write_samples(subdevice,
 					dev_private->ai_bounce_buffer,
-					num_samples * sizeof(sampl_t));
+					num_samples);
 			} else {
 				int position = 0;
 				int to_read;
@@ -1007,13 +1006,12 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device PT_REGS_ARG)
 								position;
 
 						bytes_written +=
-							cfc_write_array_to_buffer
+							comedi_buf_write_samples
 							(subdevice,
 							dev_private->
 							ai_bounce_buffer +
 							position,
-							to_read *
-							sizeof(sampl_t));
+							to_read);
 					} else {
 						to_read =
 							dev_private->
