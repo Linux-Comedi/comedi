@@ -54,8 +54,6 @@ zero volts).
 
 #include <asm/div64.h>
 
-#include "comedi_fc.h"
-
 /* Board descriptions */
 typedef struct waveform_board_struct {
 	const char *name;
@@ -167,12 +165,14 @@ static void waveform_ai_interrupt(struct timer_list *t)
 
 	for (i = 0; i < num_scans; i++) {
 		for (j = 0; j < cmd->chanlist_len; j++) {
-			cfc_write_to_buffer(dev->read_subdev,
+			sampl_t sample =
 				fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
 					CR_RANGE(cmd->chanlist[j]),
 					devpriv->usec_current +
 					i * devpriv->scan_period +
-					j * devpriv->convert_period));
+					j * devpriv->convert_period);
+
+			comedi_buf_write_samples(dev->read_subdev, &sample, 1);
 		}
 		devpriv->ai_count++;
 		if (cmd->stop_src == TRIG_COUNT
