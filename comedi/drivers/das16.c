@@ -84,7 +84,6 @@ Computer boards manuals also available from their website www.measurementcomputi
 
 #include "8253.h"
 #include "8255.h"
-#include "comedi_fc.h"
 
 #undef DEBUG
 //#define DEBUG
@@ -1276,10 +1275,10 @@ static void das16_interrupt(comedi_device * dev)
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
-	cfc_write_array_to_buffer(s,
-		devpriv->dma_buffer[buffer_index], num_bytes);
+	comedi_buf_write_samples(s, devpriv->dma_buffer[buffer_index],
+		num_bytes / sizeof(sampl_t));
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static unsigned int das16_set_pacer(comedi_device * dev, unsigned int ns,
