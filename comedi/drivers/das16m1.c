@@ -63,7 +63,6 @@ irq can be omitted, although the cmd interface will not work without it.
 
 #include "8255.h"
 #include "8253.h"
-#include "comedi_fc.h"
 
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
@@ -552,8 +551,7 @@ static void das16m1_handler(comedi_device * dev, unsigned int status)
 		num_samples = FIFO_SIZE;
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
 	munge_sample_array(devpriv->ai_buffer, num_samples);
-	cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-		num_samples * sizeof(sampl_t));
+	comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 	devpriv->adc_count += num_samples;
 
 	if (cmd->stop_src == TRIG_COUNT) {
