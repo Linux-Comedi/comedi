@@ -68,7 +68,6 @@ cmd triggers supported:
 #include <linux/delay.h>
 
 #include "8253.h"
-#include "comedi_fc.h"
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
@@ -401,7 +400,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 		/* if there are more data points to collect */
 		if (devpriv->count > 0 || devpriv->forever == 1) {
 			/* write data point to buffer */
-			cfc_write_to_buffer(s, dataPoint);
+			comedi_buf_write_samples(s, &dataPoint, 1);
 			if (devpriv->count > 0)
 				devpriv->count--;
 		}
