@@ -63,7 +63,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 #include<asm/i387.h>
 #endif
-#include "../comedi_fc.h"
 
 #include "addi_common.h"
 #include "addi_amcc_s5933.h"
