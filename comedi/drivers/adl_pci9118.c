@@ -69,7 +69,6 @@ Configuration options:
 #include "amcc_s5933.h"
 #include "8253.h"
 #include "comedi_pci.h"
-#include "comedi_fc.h"
 
 /* paranoid checks are broken */
 #undef PCI9118_PARANOIDCHECK	/* if defined, then is used code which control correct channel number on every 12 bit sample */
@@ -484,13 +483,9 @@ static unsigned int move_block_from_dma(comedi_device * dev,
 	unsigned int num_bytes;
 
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
-	devpriv->ai_act_scan +=
-		(s->async->cur_chan + num_samples) / devpriv->ai_n_scanlen;
-	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= devpriv->ai_n_scanlen;
-	num_bytes =
-		cfc_write_array_to_buffer(s, dma_buffer,
-		num_samples * sizeof(sampl_t));
+	/* comedi_buf_write_samples() updates cur_chan and scans_done */
+	num_bytes = comedi_buf_write_samples(s, dma_buffer, num_samples);
+	devpriv->ai_act_scan = s->async->scans_done;
 	if (num_bytes < num_samples * sizeof(sampl_t))
 		return -1;
 	return 0;
@@ -553,7 +548,7 @@ static void interrupt_pci9118_ai_onesample(comedi_device * dev,
 	comedi_subdevice * s, unsigned short int_adstat, unsigned int int_amcc,
 	unsigned short int_daq)
 {
-	register sampl_t sampl;
+	sampl_t sampl;
 
 	s->async->events = 0;
 
@@ -577,16 +572,14 @@ static void interrupt_pci9118_ai_onesample(comedi_device * dev,
 		}
 	}
 #endif
-	cfc_write_to_buffer(s, sampl);
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= devpriv->ai_n_scanlen) {	/* one scan done */
-		s->async->cur_chan %= devpriv->ai_n_scanlen;
-		devpriv->ai_act_scan++;
-		if (!(devpriv->ai_neverending))
-			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
-				pci9118_ai_cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
-			}
+	/* comedi_buf_write_samples() updates cur_chan and scans_done */
+	comedi_buf_write_samples(s, &sampl, 1);
+	devpriv->ai_act_scan = s->async->scans_done;
+	if (!(devpriv->ai_neverending)) {
+		if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
+			pci9118_ai_cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA;
+		}
 	}
 
 	if (s->async->events)
