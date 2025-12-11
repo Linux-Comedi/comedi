@@ -1930,10 +1930,8 @@ void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
 {
 	devpriv->ui_AiActualScan +=
 		(s->async->cur_chan + num_samples) / devpriv->ui_AiScanLength;
-	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= devpriv->ui_AiScanLength;
-
-	cfc_write_array_to_buffer(s, dma_buffer, num_samples * sizeof(sampl_t));
+	/* comedi_buf_write_samples() updates s->async->cur_chan too */
+	comedi_buf_write_samples(s, dma_buffer, num_samples);
 }
 
 /*
