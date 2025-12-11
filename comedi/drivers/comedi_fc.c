@@ -28,6 +28,19 @@
 
 #include "comedi_fc.h"
 
+static void increment_scan_progress(comedi_subdevice * subd,
+	unsigned int num_bytes)
+{
+	comedi_async *async = subd->async;
+	unsigned int scan_length = cfc_bytes_per_scan(subd);
+
+	async->scan_progress += num_bytes;
+	if (async->scan_progress >= scan_length) {
+		async->scan_progress %= scan_length;
+		async->events |= COMEDI_CB_EOS;
+	}
+}
+
 /* Writes an array of data points to comedi's buffer */
 unsigned int cfc_write_array_to_buffer(comedi_subdevice * subd, void *data,
 	unsigned int num_bytes)
@@ -47,7 +60,7 @@ unsigned int cfc_write_array_to_buffer(comedi_subdevice * subd, void *data,
 
 	comedi_buf_memcpy_to(subd, 0, data, num_bytes);
 	comedi_buf_write_free(subd, num_bytes);
-	comedi_inc_scan_progress(subd, num_bytes);
+	increment_scan_progress(subd, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
@@ -64,7 +77,7 @@ unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd, void *data,
 	num_bytes = comedi_buf_read_alloc(subd, num_bytes);
 	comedi_buf_memcpy_from(subd, 0, data, num_bytes);
 	comedi_buf_read_free(subd, num_bytes);
-	comedi_inc_scan_progress(subd, num_bytes);
+	increment_scan_progress(subd, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
 
 	return num_bytes;
