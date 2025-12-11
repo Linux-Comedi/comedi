@@ -54,8 +54,6 @@ TODO:
 #include <linux/comedidev.h>
 #include <linux/comedilib.h>
 
-#include "comedi_fc.h"
-
 #ifdef COMEDI_CONFIG_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>
@@ -234,21 +232,23 @@ static int timer_data_read(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->read_subdev;
 	int ret;
-	lsampl_t data;
+	union {
+		lsampl_t ls;
+		sampl_t s;
+	} data;
 
 	ret = comedi_data_read(devpriv->device, devpriv->subd,
 		CR_CHAN(cmd->chanlist[index]),
 		CR_RANGE(cmd->chanlist[index]),
-		CR_AREF(cmd->chanlist[index]), &data);
+		CR_AREF(cmd->chanlist[index]), &data.ls);
 	if (ret < 0) {
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
-	if (s->flags & SDF_LSAMPL) {
-		cfc_write_long_to_buffer(s, data);
-	} else {
-		comedi_buf_put(s, data);
+	if (!(s->flags & SDF_LSAMPL)) {
+		data.s = data.ls;
 	}
+	comedi_buf_write_samples(s, &data, 1);
 
 	return 0;
 }
@@ -259,27 +259,25 @@ static int timer_data_write(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->write_subdev;
 	unsigned int num_bytes;
-	sampl_t data;
-	lsampl_t long_data;
+	union {
+		lsampl_t ls;
+		sampl_t s;
+	} data;
 	int ret;
 
-	if (s->flags & SDF_LSAMPL) {
-		num_bytes =
-			cfc_read_array_from_buffer(s, &long_data,
-			sizeof(long_data));
-	} else {
-		num_bytes = cfc_read_array_from_buffer(s, &data, sizeof(data));
-		long_data = data;
-	}
-
+	num_bytes = comedi_buf_read_samples(s, &data, 1);
 	if (num_bytes == 0) {
 		comedi_error(dev, "buffer underrun");
 		return -EAGAIN;
 	}
+	if (!(s->flags & SDF_LSAMPL)) {
+		data.ls = data.s;
+	}
+
 	ret = comedi_data_write(devpriv->device, devpriv->subd,
 		CR_CHAN(cmd->chanlist[index]),
 		CR_RANGE(cmd->chanlist[index]),
-		CR_AREF(cmd->chanlist[index]), long_data);
+		CR_AREF(cmd->chanlist[index]), data.ls);
 	if (ret < 0) {
 		comedi_error(dev, "write error");
 		return -EIO;
@@ -294,18 +292,21 @@ static int timer_dio_read(comedi_device * dev, comedi_cmd * cmd,
 {
 	comedi_subdevice *s = dev->read_subdev;
 	int ret;
-	lsampl_t data;
+	union {
+		lsampl_t ls;
+		sampl_t s;
+	} data;
 
-	ret = comedi_dio_bitfield(devpriv->device, devpriv->subd, 0, &data);
+	ret = comedi_dio_bitfield(devpriv->device, devpriv->subd, 0, &data.ls);
 	if (ret < 0) {
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
 
-	if (s->flags & SDF_LSAMPL)
-		cfc_write_long_to_buffer(s, data);
-	else
-		cfc_write_to_buffer(s, data);
+	if (!(s->flags & SDF_LSAMPL)) {
+		data.s = data.ls;
+	}
+	comedi_buf_write_samples(s, &data, 1);
 
 	return 0;
 }
