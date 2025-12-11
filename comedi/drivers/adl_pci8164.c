@@ -36,7 +36,6 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include "comedi_fc.h"
 #include "comedi_pci.h"
 #include "8253.h"
 
