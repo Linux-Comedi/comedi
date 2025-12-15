@@ -69,7 +69,6 @@ NI manuals:
 
 #include "8253.h"
 #include "8255.h"
-#include "comedi_fc.h"
 #include "ni_labpc.h"
 
 #ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
