@@ -85,7 +85,6 @@ Configuration options:
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include "comedi_fc.h"
 #include <linux/comedidev.h>
 #include <linux/usb.h>
 
@@ -394,10 +393,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 			n = urb->actual_length / sizeof(uint16_t);
 			if (unlikely(this_usbduxfastsub->ai_sample_count < n)) {
 				// we have send only a fraction of the bytes received
-				cfc_write_array_to_buffer(s,
+				comedi_buf_write_samples(s,
 					urb->transfer_buffer,
-					this_usbduxfastsub->ai_sample_count *
-					sizeof(uint16_t));
+					this_usbduxfastsub->ai_sample_count);
 				usbduxfast_ai_stop(this_usbduxfastsub, 0);
 				// say comedi that the acquistion is over
 				s->async->events |= COMEDI_CB_EOA;
@@ -407,8 +405,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 			this_usbduxfastsub->ai_sample_count -= n;
 		}
 		// write the full buffer to comedi
-		err = cfc_write_array_to_buffer(s,
-						urb->transfer_buffer, urb->actual_length);
+		err = comedi_buf_write_samples(s,
+			urb->transfer_buffer,
+			urb->actual_length / sizeof(uint16_t));
 
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
