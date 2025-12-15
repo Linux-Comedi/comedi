@@ -84,7 +84,6 @@ NI manuals:
 #include "8253.h"
 #include "8255.h"
 #include "mite.h"
-#include "comedi_fc.h"
 #include "ni_labpc.h"
 
 #define DRV_NAME "ni_labpc"
@@ -1420,7 +1419,7 @@ static int labpc_drain_fifo(comedi_device * dev)
 		lsb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 		msb = devpriv->read_byte(dev->iobase + ADC_FIFO_REG);
 		data = (msb << 8) | lsb;
-		cfc_write_to_buffer(dev->read_subdev, data);
+		comedi_buf_write_samples(dev->read_subdev, &data, 1);
 		devpriv->status1_bits =
 			devpriv->read_byte(dev->iobase + STATUS1_REG);
 	}
@@ -1440,7 +1439,6 @@ static void labpc_drain_dma(comedi_device * dev)
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
-	int i;
 
 	status = devpriv->status1_bits;
 
@@ -1472,9 +1470,7 @@ static void labpc_drain_dma(comedi_device * dev)
 	}
 
 	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++) {
-		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
-	}
+	comedi_buf_write_samples(s, devpriv->dma_buffer, num_points);
 	if (async->cmd.stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 
