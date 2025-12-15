@@ -64,7 +64,6 @@
 #include <linux/sched.h>
 #include "8255.h"
 #include "mite.h"
-#include "comedi_fc.h"
 
 #ifndef MDPRINTK
 #define MDPRINTK(format,args...)	do {} while (0)
@@ -1326,13 +1325,13 @@ static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
 			/* This may get the hi/lo data in the wrong order */
 			data[0] = (dl >> 16) & 0xffff;
 			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			comedi_buf_write_samples(s, data, 2);
 		}
 		/* Check if there's a single sample stuck in the FIFO */
 		if (n % 2) {
 			dl = ni_readl(ADC_FIFO_Data_611x);
 			data[0] = dl & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
+			comedi_buf_write_samples(s, data, 1);
 		}
 	} else if (boardtype.reg_type == ni_reg_6143) {
 		sampl_t data[2];
@@ -1344,14 +1343,14 @@ static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
 
 			data[0] = (dl >> 16) & 0xffff;
 			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			comedi_buf_write_samples(s, data, 2);
 		}
 		if (n % 2) {
 			/* Assume there is a single sample stuck in the FIFO */
 			ni_writel(0x01, AIFIFO_Control_6143);	// Get stranded sample into FIFO
 			dl = ni_readl(AIFIFO_Data_6143);
 			data[0] = (dl >> 16) & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
+			comedi_buf_write_samples(s, data, 1);
 		}
 	} else {
 		if (n > sizeof(devpriv->ai_fifo_buffer.s) /
@@ -1364,8 +1363,7 @@ static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
 			devpriv->ai_fifo_buffer.s[i] =
 				ni_readw(ADC_FIFO_Data_Register);
 		}
-		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer.s,
-			n * sizeof(devpriv->ai_fifo_buffer.s[0]));
+		comedi_buf_write_samples(s, devpriv->ai_fifo_buffer.s, n);
 	}
 }
 
@@ -1441,7 +1439,7 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 			data[0] = (dl >> 16);
 			data[1] = (dl & 0xffff);
 #endif
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			comedi_buf_write_samples(s, data, 2);
 		}
 	} else if (boardtype.reg_type == ni_reg_6143) {
 		i = 0;
@@ -1456,7 +1454,7 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 			data[0] = (dl >> 16);
 			data[1] = (dl & 0xffff);
 #endif
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			comedi_buf_write_samples(s, data, 2);
 			i += 2;
 		}
 		// Check if stranded sample is present
@@ -1468,7 +1466,7 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 #else
 			data[0] = (dl >> 16);
 #endif
-			cfc_write_to_buffer(s, data[0]);
+			comedi_buf_write_samples(s, data, 1);
 		}
 
 	} else {
@@ -1517,8 +1515,8 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 #endif
 				}
 			}
-			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer.s,
-				i * sampsize);
+			comedi_buf_write_samples(s, &devpriv->ai_fifo_buffer,
+				i);
 		}
 	}
 }
@@ -1540,7 +1538,7 @@ static void get_last_sample_611x(comedi_device * dev)
 #else
 		data = (dl & 0xffff);
 #endif
-		cfc_write_to_buffer(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 	}
 }
 
@@ -1564,7 +1562,7 @@ static void get_last_sample_6143(comedi_device * dev)
 #else
 		data = (dl >> 16);
 #endif
-		cfc_write_to_buffer(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 	}
 }
 
