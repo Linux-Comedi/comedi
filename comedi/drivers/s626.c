@@ -75,7 +75,6 @@ INSN_CONFIG instructions:
 
 #include "comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "s626.h"
 
 MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
@@ -1028,8 +1027,8 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 
 			//put data into read buffer
 			// comedi_buf_put(s, tempdata);
-			if (cfc_write_to_buffer(s, tempdata) == 0)
-				printk("s626_irq_handler: cfc_write_to_buffer error!\n");
+			if (comedi_buf_write_samples(s, &tempdata, 1) == 0)
+				printk("s626_irq_handler: comedi_buf_write_samples error!\n");
 
 			DEBUG("s626_irq_handler: ai channel %d acquired: %d\n",
 				i, tempdata);
