@@ -70,7 +70,6 @@ TRIG_WAKE_EOS
 #include <asm/dma.h>
 
 #include "8253.h"
-#include "comedi_fc.h"
 
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	// size in bytes of dma buffer
@@ -288,7 +287,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 		dpnt = devpriv->dma_buffer[i];
 		// convert from 2's complement to unsigned coding
 		dpnt ^= 0x8000;
-		cfc_write_to_buffer(s, dpnt);
+		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
 				a2150_cancel(dev, s);
