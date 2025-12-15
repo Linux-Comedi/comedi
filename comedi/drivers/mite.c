@@ -51,7 +51,6 @@
 
 #include "mite.h"
 
-#include "comedi_fc.h"
 #include "comedi_pci.h"
 #include <linux/comedidev.h>
 
@@ -534,7 +533,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_subdevice *s)
 	int count;
 	unsigned int nbytes, old_alloc_count;
 	comedi_async *async = s->async;
-	const unsigned bytes_per_scan = cfc_bytes_per_scan(s);
+	const unsigned bytes_per_scan = comedi_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_write_alloc_count;
 	// write alloc as much as we can
@@ -572,7 +571,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_subdevice *s)
 	unsigned int old_alloc_count;
 	comedi_async *async = s->async;
 	u32 stop_count =
-		async->cmd.stop_arg * cfc_bytes_per_scan(s);
+		async->cmd.stop_arg * comedi_bytes_per_scan(s);
 
 	old_alloc_count = async->buf_read_alloc_count;
 	// read alloc as much as we can
