@@ -106,7 +106,6 @@ Configuration options:
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include <linux/firmware.h>
-#include "comedi_fc.h"
 #include <linux/comedidev.h>
 #include <linux/usb.h>
 #include <linux/unaligned.h>
@@ -529,7 +528,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		/* convert to unsigned */
 		v = v ^ 0x00800000;
 		/* write the byte to the buffer */
-		err = cfc_write_array_to_buffer(s, &v, sizeof(uint32_t));
+		err = comedi_buf_write_samples(s, &v, 1);
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
 			usbdux_ai_stop(this_usbduxsub, 0);
