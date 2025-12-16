@@ -1658,19 +1658,19 @@ int i_APCI3120_InterruptHandleEos(comedi_device * dev)
 {
 	int n_chan, i;
 	comedi_subdevice *s = dev->subdevices + 0;
-	int err = 1;
 
 	n_chan = devpriv->ui_AiNbrofChannels;
 
 	s->async->events = 0;
 
-	for (i = 0; i < n_chan; i++)
-		err &= comedi_buf_put(s, inw(dev->iobase + 0));
+	for (i = 0; i < n_chan; i++) {
+		sampl_t data = inw(dev->iobase + 0);
+
+		/* comedi_buf_write_samples() may set COMEDI_CB_OVERFLOW */
+		comedi_buf_write_samples(s, &data, 1);
+	}
 
 	s->async->events |= COMEDI_CB_EOS;
-
-	if (err == 0)
-		s->async->events |= COMEDI_CB_OVERFLOW;
 
 	comedi_event(dev, s);
 
