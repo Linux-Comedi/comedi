@@ -705,9 +705,8 @@ static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static void interrupt_pci1710_every_sample(void *d)
+static void interrupt_pci1710_every_sample(comedi_device *dev)
 {
-	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int m;
 	sampl_t sampl;
@@ -837,9 +836,8 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static void interrupt_pci1710_half_fifo(void *d)
+static void interrupt_pci1710_half_fifo(comedi_device *dev)
 {
-	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int m, samplesinbuf;
 
@@ -922,9 +920,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 		return IRQ_HANDLED;
 	}
 	if (devpriv->ai_eos) {	// We use FIFO half full INT or not?
-		interrupt_pci1710_every_sample(d);
+		interrupt_pci1710_every_sample(dev);
 	} else {
-		interrupt_pci1710_half_fifo(d);
+		interrupt_pci1710_half_fifo(dev);
 	}
 	DPRINTK("adv_pci1710 EDBG: END: interrupt_service_pci1710(...)\n");
 	return IRQ_HANDLED;
