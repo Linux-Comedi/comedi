@@ -633,7 +633,7 @@ static void interrupt_pci9118_ai_dma(comedi_device * dev, comedi_subdevice * s,
 
 	if (samplesinbuf) {
 		m = devpriv->ai_data_len >> 1;	// how many samples is to end of buffer
-//              DPRINTK("samps=%d m=%d %d %d\n",samplesinbuf,m,s->async->buf_int_count,s->async->buf_int_ptr);
+//              DPRINTK("samps=%d m=%d\n",samplesinbuf,m);
 		sampls = m;
 		move_block_from_dma(dev, s,
 			devpriv->dmabuf_virt[devpriv->dma_actbuf],
@@ -1587,7 +1587,7 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 		DPRINTK(KERN_CONT "\n");
 	}
 
-	DPRINTK("SL: ", ssh);
+	DPRINTK("SL: %04x: ", ssh);
 	for (i = 0; i < n_chan; i++) {	// store range list to card
 		scanquad = CR_CHAN(chanlist[i]);	// get channel number;
 #ifdef PCI9118_PARANOIDCHECK
