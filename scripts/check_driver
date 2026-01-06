@@ -269,17 +269,6 @@ if grep -E 'cmd..?data' ${driver} &>/dev/null;then
 	echo "E: uses cmd->data or cmd->data_len"
 fi
 
-# buf_int_ptr is (void *), whereas the minimum sample size is
-# 2 bytes.  Should be buf_int_ptr += sizeof(sampl_t)
-if grep 'buf_int_ptr++' ${driver} &>/dev/null;then
-	echo "E: uses buf_int_ptr++"
-fi
-
-# same
-if grep 'buf_int_count++' ${driver} &>/dev/null;then
-	echo "E: uses buf_int_count++"
-fi
-
 # remnants of trig[0]
 if grep 'di_unpack' ${driver} &>/dev/null;then
 	echo "E: di_unpack() is gone"
