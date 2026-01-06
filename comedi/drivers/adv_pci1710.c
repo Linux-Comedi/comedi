@@ -465,7 +465,7 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 	setup_channel_list(dev, s, &insn->chanspec, 1, 1);
 	maxdata = this_board->ai_maxdata;
 
-	DPRINTK("adv_pci1710 A ST=%4x IO=%x\n",
+	DPRINTK("adv_pci1710 A ST=%4x IO=%lx\n",
 		inw(dev->iobase + PCI171x_STATUS),
 		dev->iobase + PCI171x_STATUS);
 	for (n = 0; n < insn->n; n++) {
@@ -757,8 +757,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 				return;
 			}
 		}
-		DPRINTK(KERN_CONT "%8d %2d %8d~", s->async->buf_int_ptr,
-			s->async->cur_chan, s->async->buf_int_count);
+		DPRINTK(KERN_CONT "%2d~", s->async->cur_chan);
 #endif
 		comedi_buf_put(s, sampl & maxdata);
 		++s->async->cur_chan;
@@ -769,7 +768,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 
 		if (s->async->cur_chan == 0) {	// one scan done
 			devpriv->ai_act_scan++;
-			DPRINTK(KERN_CONT "adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n", s->async->buf_int_count, s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
+			DPRINTK(KERN_CONT "\n");
 			DPRINTK("adv_pci1710 EDBG: EOS2");
 			if ((!devpriv->neverending_ai) && (devpriv->ai_act_scan >= devpriv->ai_scans)) {	// all data sampled
 				DPRINTK(KERN_CONT "\n");
