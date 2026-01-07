@@ -370,7 +370,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		// tell this comedi
-		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(this_usbduxfastsub->comedidev, s);
 		// stop the transfer w/o unlink
@@ -379,7 +378,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 
 	default:
 		printk("comedi%d: usbduxfast: non-zero urb status received in ai intr context: %d\n", this_usbduxfastsub->comedidev->minor, urb->status);
-		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(this_usbduxfastsub->comedidev, s);
 		usbduxfast_ai_stop(this_usbduxfastsub, 0);
@@ -430,7 +428,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 	if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
 		printk("comedi%d: usbduxfast: urb resubm failed: %d\n",
 			this_usbduxfastsub->comedidev->minor, err);
-		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(this_usbduxfastsub->comedidev, s);
 		usbduxfast_ai_stop(this_usbduxfastsub, 0);
