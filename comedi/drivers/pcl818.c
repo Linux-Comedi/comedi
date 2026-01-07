@@ -1016,7 +1016,7 @@ static int pcl818_ai_cmd_mode(int mode, comedi_device * dev,
 
 	if (mode == 1) {
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-			&divisor2, &cmd->convert_arg, TRIG_ROUND_NEAREST);
+			&divisor2, &cmd->convert_arg, CMDF_ROUND_NEAREST);
 		if (divisor1 == 1) {	/* PCL718/818 crash if any divisor is set to 1 */
 			divisor1 = 2;
 			divisor2 /= 2;
@@ -1112,7 +1112,7 @@ static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 
 	if (mode == 1) {
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
-			&divisor2, &it->trigvar, TRIG_ROUND_NEAREST);
+			&divisor2, &it->trigvar, CMDF_ROUND_NEAREST);
 		if (divisor1 == 1) {	/* PCL818 crash if any divisor is set to 1 */
 			divisor1 = 2;
 			divisor2 /= 2;
@@ -1388,7 +1388,7 @@ static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8253_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (cmd->convert_arg < this_board->ns_min)
 			cmd->convert_arg = this_board->ns_min;
 		if (tmp != cmd->convert_arg)
