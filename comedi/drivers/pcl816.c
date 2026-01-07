@@ -583,7 +583,7 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(this_board->i8254_osc_base,
 			&divisor1, &divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -629,7 +629,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 		i8253_cascade_ns_to_timer(this_board->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (divisor1 == 1) {	// PCL816 crash if any divisor is set to 1
 			divisor1 = 2;
 			divisor2 /= 2;
@@ -663,7 +663,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		devpriv->ai_neverending = 1;
 	}
 
-	if ((cmd->flags & TRIG_WAKE_EOS)) {	// don't we want wake up every scan?
+	if ((cmd->flags & CMDF_WAKE_EOS)) {	// don't we want wake up every scan?
 		printk("pl816: You wankt WAKE_EOS but I dont want handle it\n");
 		//              devpriv->ai_eos=1;
 		//if (devpriv->ai_n_chan==1)
