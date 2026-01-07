@@ -1199,7 +1199,7 @@ static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 			&(devpriv->divisor1), &(devpriv->divisor2),
-			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->scan_begin_arg), cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -1207,7 +1207,7 @@ static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 			&(devpriv->divisor1), &(devpriv->divisor2),
-			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->convert_arg), cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -1278,10 +1278,10 @@ static int cb_pcidas_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	// load counters
 	if (cmd->convert_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 	else if (cmd->scan_begin_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 
 	// set number of conversions
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -1291,7 +1291,7 @@ static int cb_pcidas_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= INTE;
 	devpriv->adc_fifo_bits &= ~INT_MASK;
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		if (cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 			devpriv->adc_fifo_bits |= INT_EOS;	// interrupt end of burst
 		else
@@ -1420,7 +1420,7 @@ static int cb_pcidas_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 			&(devpriv->ao_divisor1), &(devpriv->ao_divisor2),
-			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->scan_begin_arg), cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -1766,7 +1766,7 @@ static void cb_pcidas_load_counters(comedi_device * dev, unsigned int *ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-		&(devpriv->divisor2), ns, rounding_flags & TRIG_ROUND_MASK);
+		&(devpriv->divisor2), ns, rounding_flags & CMDF_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1,
