@@ -201,7 +201,7 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
 	if (set_gate_source) {
 		retval = ni_tio_set_gate_src(counter, 0, gate_source);
 	}
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		ni_tio_set_bits(counter,
 			NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index),
 			Gi_Gate_Interrupt_Enable_Bit(counter->counter_index),
