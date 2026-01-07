@@ -238,13 +238,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	if (status & OVFL_BIT) {
 		comedi_error(dev, "fifo overflow");
 		a2150_cancel(dev, s);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
 		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
 		a2150_cancel(dev, s);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
