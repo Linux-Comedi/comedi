@@ -475,7 +475,6 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		if (this_usbduxsub->ai_cmd_running) {
 			// we are still running a command
 			// tell this comedi
-			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev, s);
 			// stop the transfer w/o unlink
@@ -488,7 +487,6 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		// pass error to comedi if we are really running a command
 		if (this_usbduxsub->ai_cmd_running) {
 			printk("Non-zero urb status received in ai intr context: %d\n", urb->status);
-			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev, s);
 			// don't do an unlink here
@@ -517,7 +515,6 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		} else {
 			printk(KERN_CONT "\n");
 		}
-		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(this_usbduxsub->comedidev, s);
 		// don't do an unlink here
@@ -689,7 +686,6 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 		if (this_usbduxsub->ao_cmd_running) {
 			printk("comedi_: usbdux_: Non-zero urb status received in ao intr context: %d\n", urb->status);
 			s->async->events |= COMEDI_CB_ERROR;
-			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(this_usbduxsub->comedidev, s);
 			// we do an unlink if we are in the high speed mode
 			usbdux_ao_stop(this_usbduxsub, 0);
@@ -770,7 +766,6 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 			} else {
 				printk(KERN_CONT "\n");
 			}
-			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev, s);
 			// don't do an unlink here
