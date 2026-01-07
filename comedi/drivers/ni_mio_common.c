@@ -2113,14 +2113,14 @@ static int ni_ns_to_timer(const comedi_device * dev, unsigned nanosec,
 {
 	int divider;
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (nanosec) / devpriv->clock_ns;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
 		break;
 	}
@@ -2331,7 +2331,7 @@ static int ni_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		cmd->scan_begin_arg =
 			ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 				cmd->scan_begin_arg,
-				cmd->flags & TRIG_ROUND_MASK));
+				cmd->flags & CMDF_ROUND_MASK));
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -2342,7 +2342,7 @@ static int ni_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			cmd->convert_arg =
 				ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 					cmd->convert_arg,
-					cmd->flags & TRIG_ROUND_MASK));
+					cmd->flags & CMDF_ROUND_MASK));
 			if (tmp != cmd->convert_arg)
 				err++;
 			if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -2498,7 +2498,7 @@ static int ni_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 		/* load SI */
 		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg,
-			TRIG_ROUND_NEAREST);
+			CMDF_ROUND_NEAREST);
 		devpriv->stc_writel(dev, timer, AI_SI_Load_A_Registers);
 		devpriv->stc_writew(dev, AI_SI_Load, AI_Command_1_Register);
 		break;
@@ -2526,7 +2526,7 @@ static int ni_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			timer = 1;
 		else
 			timer = ni_ns_to_timer(dev, cmd->convert_arg,
-				TRIG_ROUND_NEAREST);
+				CMDF_ROUND_NEAREST);
 		devpriv->stc_writew(dev, 1, AI_SI2_Load_A_Register);	/* 0,0 does not work. */
 		devpriv->stc_writew(dev, timer, AI_SI2_Load_B_Register);
 
@@ -2566,7 +2566,7 @@ static int ni_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		interrupt_a_enable |= AI_FIFO_Interrupt_Enable;
 #endif
 
-		if (cmd->flags & TRIG_WAKE_EOS
+		if (cmd->flags & CMDF_WAKE_EOS
 			|| (devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)) {
 			/* wake on end-of-scan */
 			devpriv->aimode = AIMODE_SCAN;
@@ -3233,7 +3233,7 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		devpriv->ao_cmd2 &= ~AO_BC_Gate_Enable;
 		trigvar =
 			ni_ns_to_timer(dev, cmd->scan_begin_arg,
-			TRIG_ROUND_NEAREST);
+			CMDF_ROUND_NEAREST);
 		devpriv->stc_writel(dev, 1, AO_UI_Load_A_Register);
 		devpriv->stc_writew(dev, AO_UI_Load, AO_Command_1_Register);
 		devpriv->stc_writel(dev, trigvar, AO_UI_Load_A_Register);
@@ -3431,7 +3431,7 @@ static int ni_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		cmd->scan_begin_arg =
 			ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 				cmd->scan_begin_arg,
-				cmd->flags & TRIG_ROUND_MASK));
+				cmd->flags & CMDF_ROUND_MASK));
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -4755,15 +4755,15 @@ static int ni_m_series_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	switch (data[0]) {
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			up_count =
 				(data[2] +
 				devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			up_count =
 				(data[2] + devpriv->clock_ns -
 				1) / devpriv->clock_ns;
@@ -4773,15 +4773,15 @@ static int ni_m_series_pwm_config(comedi_device * dev, comedi_subdevice * s,
 			break;
 		}
 		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			down_count =
 				(data[4] +
 				devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			down_count =
 				(data[4] + devpriv->clock_ns -
 				1) / devpriv->clock_ns;
@@ -4820,15 +4820,15 @@ static int ni_6143_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	switch (data[0]) {
 	case INSN_CONFIG_PWM_OUTPUT:
 		switch (data[1]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			up_count =
 				(data[2] +
 				devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			up_count = data[2] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			up_count =
 				(data[2] + devpriv->clock_ns -
 				1) / devpriv->clock_ns;
@@ -4838,15 +4838,15 @@ static int ni_6143_pwm_config(comedi_device * dev, comedi_subdevice * s,
 			break;
 		}
 		switch (data[3]) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			down_count =
 				(data[4] +
 				devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			down_count = data[4] / devpriv->clock_ns;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			down_count =
 				(data[4] + devpriv->clock_ns -
 				1) / devpriv->clock_ns;
