@@ -935,7 +935,7 @@ static void das1800_ai_handler(comedi_device * dev)
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
 		comedi_error(dev, "DAS1800 FIFO overflow");
 		das1800_cancel(dev, s);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
