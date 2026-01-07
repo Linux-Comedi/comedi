@@ -699,7 +699,7 @@ pci9112_ai_do_cmd_test(comedi_device * dev,
 		i8253_cascade_ns_to_timer_2div(PCI9112_8254_CLOCK_PERIOD_NS,
 			&(dev_private->timer_divisor_1),
 			&(dev_private->timer_divisor_2),
-			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->convert_arg), cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			error++;
 	}
@@ -840,7 +840,7 @@ static int pci9112_ai_do_cmd(comedi_device * dev, comedi_subdevice * subdevice)
 			&(dev_private->timer_divisor_1),
 			&(dev_private->timer_divisor_2),
 			&(async_cmd->convert_arg),
-			async_cmd->flags & TRIG_ROUND_MASK);
+			async_cmd->flags & CMDF_ROUND_MASK);
 #ifdef AI_DO_CMD_DEBUG
 		printk(PCI9112_DRIVER_NAME ": divisors = %d, %d\n",
 			dev_private->timer_divisor_1,
