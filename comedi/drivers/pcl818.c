@@ -524,7 +524,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	outb(0, dev->iobase + PCL818_STATUS);	/* clear INT request */
 	comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
 	pcl818_ai_cancel(dev, s);
-	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+	s->async->events |= COMEDI_CB_ERROR;
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 
@@ -539,7 +539,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 			(low & 0xf),
 			devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
@@ -610,7 +610,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 					act_chanlist_pos],
 				devpriv->act_chanlist_pos);
 			pcl818_ai_cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
@@ -688,7 +688,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 			comedi_error(dev, "A/D mode1/3 DMA buffer overflow!");
 			//rt_printk("I %d dmabuf[i] %d %d\n",i,dmabuf[i],devpriv->dmasamplsize);
 			pcl818_ai_cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
@@ -704,8 +704,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 					devpriv->act_chanlist[devpriv->
 						act_chanlist_pos]);
 				pcl818_ai_cancel(dev, s);
-				s->async->events |=
-					COMEDI_CB_EOA | COMEDI_CB_ERROR;
+				s->async->events |= COMEDI_CB_ERROR;
 				comedi_event(dev, s);
 				return IRQ_HANDLED;
 			}
@@ -765,7 +764,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	if (lo & 4) {
 		comedi_error(dev, "A/D mode1/3 FIFO overflow!");
 		pcl818_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
@@ -773,7 +772,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	if (lo & 1) {
 		comedi_error(dev, "A/D mode1/3 FIFO interrupt without data!");
 		pcl818_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
@@ -793,7 +792,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 				devpriv->act_chanlist[devpriv->
 					act_chanlist_pos]);
 			pcl818_ai_cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
