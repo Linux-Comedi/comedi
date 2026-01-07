@@ -1109,14 +1109,14 @@ static int labpc_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	// figure out what method we will use to transfer data
 	if (devpriv->dma_chan &&	// need a dma channel allocated
-		// dma unsafe at RT priority, and too much setup time for TRIG_WAKE_EOS for
-		(cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0 &&
+		// dma unsafe at RT priority, and too much setup time for CMDF_WAKE_EOS for
+		(cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY)) == 0 &&
 		// only available on the isa boards
 		thisboard->bustype == isa_bustype) {
 		xfer = isa_dma_transfer;
 	} else if (thisboard->register_layout == labpc_1200_layout &&	// pc-plus has no fifo-half full interrupt
 		// wake-end-of-scan should interrupt on fifo not empty
-		(cmd->flags & TRIG_WAKE_EOS) == 0 &&
+		(cmd->flags & CMDF_WAKE_EOS) == 0 &&
 		// make sure we are taking more than just a few points
 		(cmd->stop_src != TRIG_COUNT || devpriv->count > 256)) {
 		xfer = fifo_half_full_transfer;
@@ -1743,9 +1743,9 @@ static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
 		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
 
 		// set a0 for conversion frequency and b1 for scan frequency
-		switch (cmd->flags & TRIG_ROUND_MASK) {
+		switch (cmd->flags & CMDF_ROUND_MASK) {
 		default:
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 			devpriv->divisor_a0 =
 				(labpc_ai_convert_period(cmd) +
 				(base_period / 2)) / base_period;
@@ -1753,7 +1753,7 @@ static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
 				(labpc_ai_scan_period(cmd) +
 				(base_period / 2)) / base_period;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			devpriv->divisor_a0 =
 				(labpc_ai_convert_period(cmd) + (base_period -
 					1)) / base_period;
@@ -1761,7 +1761,7 @@ static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
 				(labpc_ai_scan_period(cmd) + (base_period -
 					1)) / base_period;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			devpriv->divisor_a0 =
 				labpc_ai_convert_period(cmd) / base_period;
 			devpriv->divisor_b1 =
@@ -1790,7 +1790,7 @@ static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
 		/* calculate cascaded counter values that give desired scan timing */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
 			&(devpriv->divisor_b1), &(devpriv->divisor_b0),
-			&scan_period, cmd->flags & TRIG_ROUND_MASK);
+			&scan_period, cmd->flags & CMDF_ROUND_MASK);
 		labpc_set_ai_scan_period(cmd, scan_period);
 	} else if (labpc_ai_convert_period(cmd)) {
 		unsigned int convert_period;
@@ -1799,7 +1799,7 @@ static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd)
 		/* calculate cascaded counter values that give desired conversion timing */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
 			&(devpriv->divisor_a0), &(devpriv->divisor_b0),
-			&convert_period, cmd->flags & TRIG_ROUND_MASK);
+			&convert_period, cmd->flags & CMDF_ROUND_MASK);
 		labpc_set_ai_convert_period(cmd, convert_period);
 	}
 }
