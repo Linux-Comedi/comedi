@@ -809,7 +809,7 @@ static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 4: fix up any arguments */
 
 	tmp = cmd->convert_arg;
-	dt282x_ns_to_timer(&cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
+	dt282x_ns_to_timer(&cmd->convert_arg, cmd->flags & CMDF_ROUND_MASK);
 	if (tmp != cmd->convert_arg)
 		err++;
 
@@ -834,7 +834,7 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	if (cmd->convert_arg < this_board->ai_speed)
 		cmd->convert_arg = this_board->ai_speed;
-	timer = dt282x_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_NEAREST);
+	timer = dt282x_ns_to_timer(&cmd->convert_arg, CMDF_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
@@ -910,14 +910,14 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
 			continue;
 		base = 250 * (1 << prescale);
 		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			divider = (*nanosec + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			divider = (*nanosec) / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			divider = (*nanosec + base - 1) / base;
 			break;
 		}
@@ -1065,7 +1065,7 @@ static int dt282x_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 4: fix up any arguments */
 
 	tmp = cmd->scan_begin_arg;
-	dt282x_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+	dt282x_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 	if (tmp != cmd->scan_begin_arg)
 		err++;
 
@@ -1128,7 +1128,7 @@ static int dt282x_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->dma_dir = DMA_MODE_WRITE;
 	devpriv->current_dma_index = 0;
 
-	timer = dt282x_ns_to_timer(&cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+	timer = dt282x_ns_to_timer(&cmd->scan_begin_arg, CMDF_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
 	/* preserve DIO direction bits when setting DACSR */
