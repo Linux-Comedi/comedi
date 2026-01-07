@@ -443,10 +443,12 @@ static int pci171x_ai_read_sample(comedi_device *dev, comedi_subdevice *s,
 	*val = idata & s->maxdata;
 #ifdef PCI171x_PARANOIDCHECK
 	if (this_board->cardtype != TYPE_PCI1713 && s->maxdata == 0x0fff) {
-		if ((idata & 0xf000) != devpriv->act_chanlist[cur_chan]) {
+		unsigned int chan = idata >> 12;
+
+		if (chan != devpriv->act_chanlist[cur_chan]) {
 			rt_printk("comedi%d: adv_pci1710: A/D data dropout: received from channel %u, expected %u\n",
-				dev->minor, idata >> 12,
-				devpriv->act_chanlist[cur_chan] >> 12);
+				dev->minor, chan,
+				devpriv->act_chanlist[cur_chan]);
 			return -ENODATA;
 		}
 	}
@@ -1256,17 +1258,15 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 			range |= 0x0020;
 		outw(range, dev->iobase + PCI171x_RANGE);	/* select gain */
 #ifdef PCI171x_PARANOIDCHECK
-		devpriv->act_chanlist[i] =
-			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
+		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 #endif
-		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
+		DPRINTK("GS: %2d. [%4x]=%4x %x\n", i, chanprog, range,
 			devpriv->act_chanlist[i]);
 	}
 #ifdef PCI171x_PARANOIDCHECK
 	/* remember channels for repeated segments of channel list */
 	for ( ; i < n_chan; i++) {
-		devpriv->act_chanlist[i] =
-			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
+		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 	}
 #endif
 
