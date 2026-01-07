@@ -1797,7 +1797,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 				ME4000_AI_CTRL_BIT_SC_IRQ);
 			me4000_outl(dev, tmp, ai_context->ctrl_reg);
 
-			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			s->async->events |= COMEDI_CB_ERROR;
 
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_isr(): FIFO overflow\n",
@@ -1822,7 +1822,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
 				ME4000_AI_CTRL_BIT_SC_IRQ);
 			me4000_outl(dev, tmp, ai_context->ctrl_reg);
 
-			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			s->async->events |= COMEDI_CB_ERROR;
 
 			printk(KERN_ERR
 				"comedi%d: me4000: me4000_ai_isr(): Undefined FIFO state\n",
