@@ -1022,7 +1022,7 @@ int i_APCI3120_CyclicAnalogInput(int mode, comedi_device * dev,
 					devpriv->ui_AiScanLength * 2 - dmalen0;
 		}
 
-		if (devpriv->ui_AiFlags & TRIG_WAKE_EOS) {
+		if (devpriv->ui_AiFlags & CMDF_WAKE_EOS) {
 			// don't we want wake up every scan?
 			if (dmalen0 > (devpriv->ui_AiScanLength * 2)) {
 				dmalen0 = devpriv->ui_AiScanLength * 2;
@@ -1792,7 +1792,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
                 
 		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
 		s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
-		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS)) 
+		if (!(devpriv->ui_AiFlags & CMDF_WAKE_EOS)) 
 		{
 			comedi_bufcheck(dev,s);
                 }
@@ -1813,7 +1813,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 			devpriv->ul_DmaBufferVirtual[devpriv->
 				ui_DmaActualBuffer], samplesinbuf);
 
-		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS)) {
+		if (!(devpriv->ui_AiFlags & CMDF_WAKE_EOS)) {
 			s->async->events |= COMEDI_CB_EOS;
 			comedi_event(dev, s);
 		}
@@ -1915,7 +1915,7 @@ void v_APCI3120_InterruptDma(int irq, void *d)
 			{
 				m=0;
 			        devpriv->ui_AiActualScan++;
-				if (devpriv->ui_AiFlags & TRIG_WAKE_EOS) 
+				if (devpriv->ui_AiFlags & CMDF_WAKE_EOS) 
 ;//UPDATE-0.7.57->0.7.68					comedi_eos(dev,s);  
 			}
 		}
