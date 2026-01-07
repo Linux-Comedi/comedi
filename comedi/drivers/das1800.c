@@ -1249,7 +1249,7 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 				&(devpriv->divisor1), &(devpriv->divisor2),
 				&(cmd->convert_arg),
-				cmd->flags & TRIG_ROUND_MASK);
+				cmd->flags & CMDF_ROUND_MASK);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 		}
@@ -1259,7 +1259,7 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			tmp_arg = cmd->convert_arg;
 			cmd->convert_arg =
 				burst_convert_arg(cmd->convert_arg,
-				cmd->flags & TRIG_ROUND_MASK);
+				cmd->flags & CMDF_ROUND_MASK);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 
@@ -1278,7 +1278,7 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 					&(devpriv->divisor1),
 					&(devpriv->divisor2),
 					&(cmd->scan_begin_arg),
-					cmd->flags & TRIG_ROUND_MASK);
+					cmd->flags & CMDF_ROUND_MASK);
 				if (tmp_arg != cmd->scan_begin_arg)
 					err++;
 			}
@@ -1393,7 +1393,7 @@ static int setup_counters(comedi_device * dev, comedi_cmd cmd)
 			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 				&(devpriv->divisor1), &(devpriv->divisor2),
 				&(cmd.convert_arg),
-				cmd.flags & TRIG_ROUND_MASK);
+				cmd.flags & CMDF_ROUND_MASK);
 			if (das1800_set_frequency(dev) < 0) {
 				return -1;
 			}
@@ -1403,7 +1403,7 @@ static int setup_counters(comedi_device * dev, comedi_cmd cmd)
 		/* set scan frequency */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(cmd.scan_begin_arg),
-			cmd.flags & TRIG_ROUND_MASK);
+			cmd.flags & CMDF_ROUND_MASK);
 		if (das1800_set_frequency(dev) < 0) {
 			return -1;
 		}
@@ -1500,15 +1500,15 @@ static int das1800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -1;
 	}
 
-	/* disable dma on TRIG_WAKE_EOS, or TRIG_RT
+	/* disable dma on CMDF_WAKE_EOS, or CMDF_PRIORITY
 	 * (because dma in handler is unsafe at hard real-time priority) */
-	if (cmd.flags & (TRIG_WAKE_EOS | TRIG_RT)) {
+	if (cmd.flags & (CMDF_WAKE_EOS | CMDF_PRIORITY)) {
 		devpriv->irq_dma_bits &= ~DMA_ENABLED;
 	} else {
 		devpriv->irq_dma_bits |= devpriv->dma_bits;
 	}
-	// interrupt on end of conversion for TRIG_WAKE_EOS
-	if (cmd.flags & TRIG_WAKE_EOS) {
+	// interrupt on end of conversion for CMDF_WAKE_EOS
+	if (cmd.flags & CMDF_WAKE_EOS) {
 		// interrupt fifo not empty
 		devpriv->irq_dma_bits &= ~FIMD;
 	} else {
@@ -1704,14 +1704,14 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 
 	// the conversion time must be an integral number of microseconds
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		micro_sec = (convert_arg + 500) / 1000;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		micro_sec = convert_arg / 1000;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		micro_sec = (convert_arg - 1) / 1000 + 1;
 		break;
 	}
