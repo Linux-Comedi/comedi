@@ -90,16 +90,16 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base,
 
 	for (div1 = 2; div1 <= (1 << 16); div1 <<= 1) {
 		base = i8253_osc_base * div1;
-		round_mode &= TRIG_ROUND_MASK;
+		round_mode &= CMDF_ROUND_MASK;
 		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			div2 = (*nanosec + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			div2 = (*nanosec) / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			div2 = (*nanosec + base - 1) / base;
 			break;
 		}
@@ -180,9 +180,9 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 		}
 	}
 
-	round_mode &= TRIG_ROUND_MASK;
+	round_mode &= CMDF_ROUND_MASK;
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		ns_high = div1_lub * div2_lub * i8253_osc_base;
 		ns_low = div1_glb * div2_glb * i8253_osc_base;
@@ -194,11 +194,11 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 			div2 = div2_glb;
 		}
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		div1 = div1_lub;
 		div2 = div2_lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		div1 = div1_glb;
 		div2 = div2_glb;
 		break;
