@@ -1039,7 +1039,7 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 
 	if (hpdi_board_status & RX_OVERRUN_BIT) {
 		comedi_error(dev, "rx fifo overrun");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		DEBUG_PRINT("dma0_status 0x%x\n",
 			(int)readb(priv(dev)->plx9080_iobase +
 				PLX_DMA0_CS_REG));
@@ -1047,7 +1047,7 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 
 	if (hpdi_board_status & RX_UNDERRUN_BIT) {
 		comedi_error(dev, "rx fifo underrun");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	if (priv(dev)->dio_count == 0)
