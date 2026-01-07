@@ -515,7 +515,7 @@ static char pci9118_decode_error_status(comedi_device * dev,
 		devpriv->ai_maskerr &= ~0x002L;
 	}
 	if (m & devpriv->ai_maskharderr) {
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		pci9118_ai_cancel(dev, s);
 		comedi_event(dev, s);
 		return 1;
@@ -565,7 +565,7 @@ static void interrupt_pci9118_ai_onesample(comedi_device * dev,
 				("comedi: A/D  SAMPL - data dropout: received channel %d, expected %d!\n",
 				sampl & 0x000f,
 				devpriv->chanlist[s->async->cur_chan]);
-			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			s->async->events |= COMEDI_CB_ERROR;
 			pci9118_ai_cancel(dev, s);
 			comedi_event(dev, s);
 			return;
@@ -597,7 +597,7 @@ static void interrupt_pci9118_ai_dma(comedi_device * dev, comedi_subdevice * s,
 
 	if (int_amcc & MASTER_ABORT_INT) {
 		comedi_error(dev, "AMCC IRQ - MASTER DMA ABORT!");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		pci9118_ai_cancel(dev, s);
 		comedi_event(dev, s);
 		return;
@@ -605,7 +605,7 @@ static void interrupt_pci9118_ai_dma(comedi_device * dev, comedi_subdevice * s,
 
 	if (int_amcc & TARGET_ABORT_INT) {
 		comedi_error(dev, "AMCC IRQ - TARGET DMA ABORT!");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_ERROR;
 		pci9118_ai_cancel(dev, s);
 		comedi_event(dev, s);
 		return;
