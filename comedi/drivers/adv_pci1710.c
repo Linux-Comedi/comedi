@@ -484,7 +484,7 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s,
 		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((idata & 0xf000) != devpriv->act_chanlist[0]) {
 				comedi_error(dev, "A/D insn data droput!");
-				return -ETIME;
+				return -ENODATA;
 			}
 		}
 #endif
