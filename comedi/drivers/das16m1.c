@@ -38,7 +38,7 @@ significantly different.
 
 I was _barely_ able to reach the full 1 MHz capability
 of this board, using a hard real-time interrupt
-(set the TRIG_RT flag in your comedi_cmd and use
+(set the CMDF_PRIORITY flag in your comedi_cmd and use
 rtlinux or RTAI).  The board can't do dma, so the bottleneck is
 pulling the data across the ISA bus.  I timed the interrupt
 handler, and it took my computer ~470 microseconds to pull 512
@@ -290,7 +290,7 @@ static int das16m1_cmd_test(comedi_device * dev, comedi_subdevice * s,
 		/* calculate counter values that give desired timing */
 		i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL,
 			&(devpriv->divisor1), &(devpriv->divisor2),
-			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->convert_arg), cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -358,7 +358,7 @@ static int das16m1_cmd_exec(comedi_device * dev, comedi_subdevice * s)
 	/* set counter mode and counts */
 	cmd->convert_arg =
 		das16m1_set_pacer(dev, cmd->convert_arg,
-		cmd->flags & TRIG_ROUND_MASK);
+		cmd->flags & CMDF_ROUND_MASK);
 
 	// set control & status register
 	byte = 0;
@@ -580,7 +580,7 @@ static unsigned int das16m1_set_pacer(comedi_device * dev, unsigned int ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
-		&(devpriv->divisor2), &ns, rounding_flags & TRIG_ROUND_MASK);
+		&(devpriv->divisor2), &ns, rounding_flags & CMDF_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,
