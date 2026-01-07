@@ -488,7 +488,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
-			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+			&cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -497,7 +497,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
-			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+			&cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
