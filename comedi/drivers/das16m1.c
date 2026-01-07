@@ -565,7 +565,7 @@ static void das16m1_handler(comedi_device * dev, unsigned int status)
 	 * overrun interrupts, but we might as well try */
 	if (status & OVRUN) {
 		das16m1_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_error(dev, "fifo overflow");
 	}
 
