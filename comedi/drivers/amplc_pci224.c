@@ -912,19 +912,19 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int div1, div2, round;
-		int round_mode = cmd->flags & TRIG_ROUND_MASK;
+		int round_mode = cmd->flags & CMDF_ROUND_MASK;
 
 		tmp = cmd->scan_begin_arg;
 		/* Check whether to use a single timer. */
 		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			round = TIMEBASE_10MHZ / 2;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			round = 0;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			round = TIMEBASE_10MHZ - 1;
 			break;
 		}
@@ -1067,18 +1067,18 @@ static int pci224_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int div1, div2, round;
 		unsigned int ns = cmd->scan_begin_arg;
-		int round_mode = cmd->flags & TRIG_ROUND_MASK;
+		int round_mode = cmd->flags & CMDF_ROUND_MASK;
 
 		/* Check whether to use a single timer. */
 		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			round = TIMEBASE_10MHZ / 2;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			round = 0;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			round = TIMEBASE_10MHZ - 1;
 			break;
 		}
