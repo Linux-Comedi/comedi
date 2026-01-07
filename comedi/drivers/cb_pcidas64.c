@@ -2426,8 +2426,8 @@ static void enable_ai_interrupts(comedi_device * dev, const comedi_cmd * cmd)
 
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
 		EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
-	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	// Use pio transfer and interrupt on end of conversion if CMDF_WAKE_EOS flag is set.
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		// 4020 doesn't support pio transfers except for fifo dregs
 		if (board(dev)->layout != LAYOUT_4020)
 			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
@@ -2768,7 +2768,7 @@ static int ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	// clear adc buffer
 	writew(0, priv(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
 
-	if ((cmd->flags & TRIG_WAKE_EOS) == 0 ||
+	if ((cmd->flags & CMDF_WAKE_EOS) == 0 ||
 		board(dev)->layout == LAYOUT_4020) {
 		priv(dev)->ai_dma_index = 0;
 
@@ -2801,7 +2801,7 @@ static int ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
-	if (cmd->flags & TRIG_WAKE_EOS)
+	if (cmd->flags & CMDF_WAKE_EOS)
 		bits |= ADC_DMA_DISABLE_BIT;
 	// set start trigger
 	if (cmd->start_src == TRIG_EXT) {
@@ -3022,7 +3022,7 @@ static void handle_ai_interrupt(comedi_device * dev, unsigned short status,
 
 	// drain fifo with pio
 	if ((status & ADC_DONE_BIT) ||
-		((cmd->flags & TRIG_WAKE_EOS) &&
+		((cmd->flags & CMDF_WAKE_EOS) &&
 			(status & ADC_INTR_PENDING_BIT) &&
 			(board(dev)->layout != LAYOUT_4020))) {
 		DEBUG_PRINT("pio fifo drain\n");
@@ -3962,14 +3962,14 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 {
 	unsigned int divisor;
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_UP:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_UP:
 		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divisor = ns / TIMER_BASE;
 		break;
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
 		break;
