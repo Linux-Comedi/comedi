@@ -1661,7 +1661,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 			devpriv->control_status + INT_ADCFIFO);
 		comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 		cb_pcidas_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	comedi_event(dev, s);
