@@ -723,7 +723,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 	if (m & Status_FE) {
 		rt_printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -732,7 +732,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 			("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -743,7 +743,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 		if (pci171x_ai_read_sample(dev, s, async->cur_chan, &sampl)) {
 #ifdef PCI171x_PARANOIDCHECK
 			pci171x_ai_cancel(dev, s);
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return;
 #endif
@@ -792,7 +792,7 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 		if (pci171x_ai_read_sample(dev, s, j, &sampl)) {
 #ifdef PCI171x_PARANOIDCHECK
 			pci171x_ai_cancel(dev, s);
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			return 1;
 #endif
@@ -825,7 +825,7 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 		rt_printk("comedi%d: A/D FIFO not half full! (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -834,7 +834,7 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 			("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
