@@ -867,7 +867,7 @@ static int ni_pcidio_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -885,14 +885,14 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
 	base = TIMER_BASE;
 
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
@@ -932,7 +932,7 @@ static int ni_pcidio_cmd(comedi_device * dev, comedi_subdevice * s)
 		writeb(3, devpriv->mite->daq_io_addr + LinePolarities);
 		writeb(0xc0, devpriv->mite->daq_io_addr + AckSer);
 		writel(ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
-				TRIG_ROUND_NEAREST),
+				CMDF_ROUND_NEAREST),
 			devpriv->mite->daq_io_addr + StartDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqNotDelay);
