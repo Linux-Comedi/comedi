@@ -983,7 +983,7 @@ static irqreturn_t pci9112_interrupt(int irq, void *p_device PT_REGS_ARG)
 			comedi_error(dev, PCI9112_DRIVER_NAME " fifo overflow");
 			pci9112_interrupt_clear();
 			pci9112_ai_cancel(dev, subdevice);
-			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, subdevice);
 
 			return IRQ_HANDLED;
