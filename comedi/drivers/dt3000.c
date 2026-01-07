@@ -523,7 +523,7 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	} else {
@@ -532,7 +532,7 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		dt3k_ns_to_timer(50, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -563,14 +563,14 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 	for (prescale = 0; prescale < 16; prescale++) {
 		base = timer_base * (prescale + 1);
 		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			divider = (*nanosec + base / 2) / base;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			divider = (*nanosec) / base;
 			break;
-		case TRIG_ROUND_UP:
+		case CMDF_ROUND_UP:
 			divider = (*nanosec + base - 1) / base;
 			break;
 		}
@@ -612,7 +612,7 @@ static int dt3k_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		divider = dt3k_ns_to_timer(50, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
 		printk("param[1]=0x%04x\n", divider >> 16);
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
@@ -623,7 +623,7 @@ static int dt3k_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tscandiv = dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		writew((tscandiv >> 16), devpriv->io_addr + DPR_Params(3));
 		printk("param[3]=0x%04x\n", tscandiv >> 16);
 		writew((tscandiv & 0xffff), devpriv->io_addr + DPR_Params(4));
