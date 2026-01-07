@@ -1737,26 +1737,26 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 			if (cmd->scan_begin_arg < RTD_MAX_SPEED_1) {
 				cmd->scan_begin_arg = RTD_MAX_SPEED_1;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_UP);
+					CMDF_ROUND_UP);
 				err++;
 			}
 			if (cmd->scan_begin_arg > RTD_MIN_SPEED_1) {
 				cmd->scan_begin_arg = RTD_MIN_SPEED_1;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_DOWN);
+					CMDF_ROUND_DOWN);
 				err++;
 			}
 		} else {
 			if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 				cmd->scan_begin_arg = RTD_MAX_SPEED;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_UP);
+					CMDF_ROUND_UP);
 				err++;
 			}
 			if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 				cmd->scan_begin_arg = RTD_MIN_SPEED;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_DOWN);
+					CMDF_ROUND_DOWN);
 				err++;
 			}
 		}
@@ -1774,26 +1774,26 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 			if (cmd->convert_arg < RTD_MAX_SPEED_1) {
 				cmd->convert_arg = RTD_MAX_SPEED_1;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_UP);
+					CMDF_ROUND_UP);
 				err++;
 			}
 			if (cmd->convert_arg > RTD_MIN_SPEED_1) {
 				cmd->convert_arg = RTD_MIN_SPEED_1;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_DOWN);
+					CMDF_ROUND_DOWN);
 				err++;
 			}
 		} else {
 			if (cmd->convert_arg < RTD_MAX_SPEED) {
 				cmd->convert_arg = RTD_MAX_SPEED;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_UP);
+					CMDF_ROUND_UP);
 				err++;
 			}
 			if (cmd->convert_arg > RTD_MIN_SPEED) {
 				cmd->convert_arg = RTD_MIN_SPEED;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_DOWN);
+					CMDF_ROUND_DOWN);
 				err++;
 			}
 		}
@@ -1836,7 +1836,7 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		rtd_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg) {
 			err++;
 		}
@@ -1844,7 +1844,7 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		rtd_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg) {
 			err++;
 		}
@@ -1921,7 +1921,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
 		/* find out how many samples to wait before transferring */
-		if (cmd->flags & TRIG_WAKE_EOS) {
+		if (cmd->flags & CMDF_WAKE_EOS) {
 			/* this may generate un-sustainable interrupt rates */
 			/* the application is responsible for doing the right thing */
 			devpriv->transCount = cmd->chanlist_len;
@@ -1986,7 +1986,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:	/* periodic scanning */
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
-			TRIG_ROUND_NEAREST);
+			CMDF_ROUND_NEAREST);
 		/* set PACER clock */
 		/*DPRINTK ("rtd520: loading %d into pacer\n", timer); */
 		RtdPacerCounter(dev, timer);
@@ -2007,7 +2007,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	case TRIG_TIMER:	/* periodic */
 		if (cmd->chanlist_len > 1) {	/* only needed for multi-channel */
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
-				TRIG_ROUND_NEAREST);
+				CMDF_ROUND_NEAREST);
 			/* setup BURST clock */
 			/*DPRINTK ("rtd520: loading %d into burst\n", timer); */
 			RtdBurstCounter(dev, timer);
@@ -2101,14 +2101,14 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,	/* desired period (in ns)
 	int divider;
 
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
