@@ -1241,7 +1241,7 @@ static void das16_interrupt(comedi_device * dev)
 	// figure out how many points to read
 	if (residue > devpriv->dma_transfer_size) {
 		comedi_error(dev, "residue > transfer size!\n");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		num_bytes = 0;
 	} else
 		num_bytes = devpriv->dma_transfer_size - residue;
