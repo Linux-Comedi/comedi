@@ -1905,7 +1905,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
-	if (async->cmd.flags & TRIG_BOGUS || ret) {
+	if (async->cmd.flags & CMDF_BOGUS || ret) {
 		DPRINTK("test returned %d\n", ret);
 		*cmd = async->cmd;
 		// restore chanlist pointer before copying back
@@ -1925,7 +1925,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 	comedi_buf_reset(s);
 
 	async->cb_mask = COMEDI_CB_CANCEL_MASK | COMEDI_CB_BLOCK;
-	if (async->cmd.flags & TRIG_WAKE_EOS) {
+	if (async->cmd.flags & CMDF_WAKE_EOS) {
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
@@ -1933,7 +1933,7 @@ static int do_cmd_i(comedi_device * dev, comedi_cmd *cmd, int *copy, void *file)
 					 SRF_USER | SRF_RUNNING);
 
 #ifdef COMEDI_CONFIG_RT
-	if (async->cmd.flags & TRIG_RT) {
+	if (async->cmd.flags & CMDF_PRIORITY) {
 		if (comedi_switch_to_rt(dev) == 0)
 			comedi_update_subdevice_runflags(s, SRF_RT, SRF_RT);
 	}
