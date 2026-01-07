@@ -36,7 +36,7 @@ b) DMA transfers must have the length aligned to two samples (32 bit),
    so there is some problems if cmd->chanlist_len is odd. This driver tries
    bypass this with adding one sample to the end of the every scan and discard
    it on output but this cann't be used if cmd->scan_begin_src=TRIG_FOLLOW
-   and is used flag TRIG_WAKE_EOS, then driver switch to interrupt driven mode
+   and is used flag CMDF_WAKE_EOS, then driver switch to interrupt driven mode
    with interrupt after every sample.
 c) If isn't used DMA then you can use only mode where
    cmd->scan_begin_src=TRIG_FOLLOW.
@@ -943,7 +943,7 @@ static int pci9118_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 //              rt_printk("S1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg);
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 //              rt_printk("S2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg);
 		if (cmd->scan_begin_arg < this_board->ai_ns_min)
 			cmd->scan_begin_arg = this_board->ai_ns_min;
@@ -955,7 +955,7 @@ static int pci9118_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 //              rt_printk("s1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
@@ -1019,12 +1019,12 @@ static int Compute_and_setup_dma(comedi_device * dev)
 	DPRINTK("2 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
 
 	// we want wake up every scan?
-	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
+	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
 		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
 			// uff, too short DMA buffer, disable EOS support!
-			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
+			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			rt_printk
-				("comedi%d: WAR: DMA0 buf too short, cann't support TRIG_WAKE_EOS (%d<%d)\n",
+				("comedi%d: WAR: DMA0 buf too short, cann't support CMDF_WAKE_EOS (%d<%d)\n",
 				dev->minor, dmalen0,
 				devpriv->ai_n_realscanlen << 1);
 		} else {
@@ -1041,12 +1041,12 @@ static int Compute_and_setup_dma(comedi_device * dev)
 			}
 		}
 	}
-	if (devpriv->ai_flags & TRIG_WAKE_EOS) {
+	if (devpriv->ai_flags & CMDF_WAKE_EOS) {
 		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
 			// uff, too short DMA buffer, disable EOS support!
-			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
+			devpriv->ai_flags &= (~CMDF_WAKE_EOS);
 			rt_printk
-				("comedi%d: WAR: DMA1 buf too short, cann't support TRIG_WAKE_EOS (%d<%d)\n",
+				("comedi%d: WAR: DMA1 buf too short, cann't support CMDF_WAKE_EOS (%d<%d)\n",
 				dev->minor, dmalen1,
 				devpriv->ai_n_realscanlen << 1);
 		} else {
@@ -1065,8 +1065,8 @@ static int Compute_and_setup_dma(comedi_device * dev)
 	}
 
 	DPRINTK("3 dmalen0=%d dmalen1=%d \n", dmalen0, dmalen1);
-	// transfer without TRIG_WAKE_EOS
-	if (!(devpriv->ai_flags & TRIG_WAKE_EOS)) {
+	// transfer without CMDF_WAKE_EOS
+	if (!(devpriv->ai_flags & CMDF_WAKE_EOS)) {
 		// if it's possible then allign DMA buffers to length of scan
 		i = dmalen0;
 		dmalen0 =
@@ -1342,7 +1342,7 @@ static int pci9118_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->useeoshandle = 0;
 	if (devpriv->master) {
 		devpriv->usedma = 1;
-		if ((cmd->flags & TRIG_WAKE_EOS) &&
+		if ((cmd->flags & CMDF_WAKE_EOS) &&
 			(devpriv->ai_n_scanlen == 1)) {
 			if (cmd->convert_src == TRIG_NOW) {
 				devpriv->ai_add_back = 1;
@@ -1351,7 +1351,7 @@ static int pci9118_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 				devpriv->usedma = 0;	// use INT transfer if scanlist have only one channel
 			}
 		}
-		if ((cmd->flags & TRIG_WAKE_EOS) &&
+		if ((cmd->flags & CMDF_WAKE_EOS) &&
 			(devpriv->ai_n_scanlen & 1) &&
 			(devpriv->ai_n_scanlen > 1)) {
 			if (cmd->scan_begin_src == TRIG_FOLLOW) {
@@ -1654,7 +1654,7 @@ static void pci9118_calc_divisors(char mode, comedi_device * dev,
 		if (*tim2 < this_board->ai_ns_min)
 			*tim2 = this_board->ai_ns_min;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, div1, div2,
-			tim2, flags & TRIG_ROUND_NEAREST);
+			tim2, flags & CMDF_ROUND_NEAREST);
 		DPRINTK("OSC base=%u div1=%u div2=%u timer1=%u\n",
 			devpriv->i8254_osc_base, *div1, *div2, *tim1);
 		break;
