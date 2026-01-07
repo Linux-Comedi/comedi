@@ -298,7 +298,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 		outb(0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 		comedi_error(dev, "A/D mode1/3 IRQ without DRDY!");
 		pcl816_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 
