@@ -396,27 +396,14 @@ static comedi_driver driver_pci1710 = {
 typedef struct {
 	struct pci_dev *pcidev;	// ptr to PCI device
 	char valid;		// card is usable
-	char neverending_ai;	// we do unlimited AI
 	unsigned int CntrlReg;	// Control register
 	unsigned int i8254_osc_base;	// frequence of onboard oscilator
-	unsigned int ai_do;	// what do AI? 0=nothing, 1 to 4 mode
-	unsigned int ai_act_scan;	// how many scans we finished
-	unsigned int ai_act_chan;	// actual position in actual scan
-	unsigned int ai_buf_ptr;	// data buffer ptr in samples
-	unsigned char ai_eos;	// 1=EOS wake up
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
 	unsigned int ai_et_div1, ai_et_div2;
 	unsigned int act_chanlist[32];	// list of scaned channel
-	unsigned char act_chanlist_len;	// len of scanlist
-	unsigned char act_chanlist_pos;	// actual position in MUX list
 	unsigned short da_ranges;	// copy of D/A output range register
-	unsigned int ai_scans;	// len of scanlist
-	unsigned int ai_n_chan;	// how many channels is measured
-	unsigned int *ai_chanlist;	// actaul chanlist
-	unsigned int ai_flags;	// flaglist
-	unsigned int ai_data_len;	// len of data buffer
 	unsigned int ai_timer1;	// timers
 	unsigned int ai_timer2;
 	sampl_t ao_data[4];	// data output buffer
@@ -708,6 +695,8 @@ static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 static void interrupt_pci1710_every_sample(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	int m;
 	sampl_t sampl;
 	sampl_t maxdata;
@@ -717,7 +706,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 	if (m & Status_FE) {
 		rt_printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -726,7 +715,7 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 			("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -742,38 +731,39 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 		DPRINTK("%04x:", sampl);
 		if (this_board->cardtype != TYPE_PCI1713 && maxdata == 0x0fff) {
 			if ((sampl & 0xf000) !=
-				devpriv->act_chanlist[s->async->cur_chan]) {
+				devpriv->act_chanlist[async->cur_chan]) {
 				DPRINTK(KERN_CONT "\n");
 				rt_printk
 					("comedi: A/D data dropout: received data from channel %d, expected %d!\n",
 					(sampl & 0xf000) >> 12,
-					(devpriv->act_chanlist[s->async->
+					(devpriv->act_chanlist[async->
 							cur_chan] & 0xf000) >>
 					12);
 				pci171x_ai_cancel(dev, s);
-				s->async->events |=
+				async->events |=
 					COMEDI_CB_EOA | COMEDI_CB_ERROR;
 				comedi_event(dev, s);
 				return;
 			}
 		}
-		DPRINTK(KERN_CONT "%2d~", s->async->cur_chan);
+		DPRINTK(KERN_CONT "%2d~", async->cur_chan);
 #endif
 		comedi_buf_put(s, sampl & maxdata);
-		++s->async->cur_chan;
+		++async->cur_chan;
 
-		if (s->async->cur_chan >= devpriv->ai_n_chan) {
-			s->async->cur_chan = 0;
+		if (async->cur_chan >= cmd->chanlist_len) {
+			async->cur_chan = 0;
 		}
 
-		if (s->async->cur_chan == 0) {	// one scan done
-			devpriv->ai_act_scan++;
+		if (async->cur_chan == 0) {	// one scan done
+			async->scans_done++;
 			DPRINTK(KERN_CONT "\n");
 			DPRINTK("adv_pci1710 EDBG: EOS2");
-			if ((!devpriv->neverending_ai) && (devpriv->ai_act_scan >= devpriv->ai_scans)) {	// all data sampled
+			if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
+				// all data sampled
 				DPRINTK(KERN_CONT "\n");
 				pci171x_ai_cancel(dev, s);
-				s->async->events |= COMEDI_CB_EOA;
+				async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
 				return;
 			}
@@ -793,12 +783,14 @@ static void interrupt_pci1710_every_sample(comedi_device *dev)
 static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 	int n, int turn)
 {
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	int i, j;
 	sampl_t sampl;
 	sampl_t maxdata;
 	DPRINTK("adv_pci1710 EDBG: BGN: move_block_from_fifo(...,%d,%d)\n", n,
 		turn);
-	j = s->async->cur_chan;
+	j = async->cur_chan;
 	maxdata = this_board->ai_maxdata;
 	for (i = 0; i < n; i++) {
 		sampl = inw(dev->iobase + PCI171x_AD_DATA);
@@ -810,10 +802,10 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 					dev->minor, (sampl & 0xf000) >> 12,
 					(devpriv->
 						act_chanlist[j] & 0xf000) >> 12,
-					i, j, devpriv->ai_act_scan, n, turn,
+					i, j, async->scans_done, n, turn,
 					sampl);
 				pci171x_ai_cancel(dev, s);
-				s->async->events |=
+				async->events |=
 					COMEDI_CB_EOA | COMEDI_CB_ERROR;
 				comedi_event(dev, s);
 				return 1;
@@ -822,12 +814,12 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 #endif
 		comedi_buf_put(s, sampl & maxdata);
 		j++;
-		if (j >= devpriv->ai_n_chan) {
+		if (j >= cmd->chanlist_len) {
 			j = 0;
-			devpriv->ai_act_scan++;
+			async->scans_done++;
 		}
 	}
-	s->async->cur_chan = j;
+	async->cur_chan = j;
 	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
@@ -838,6 +830,8 @@ static int move_block_from_fifo(comedi_device * dev, comedi_subdevice * s,
 static void interrupt_pci1710_half_fifo(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	int m, samplesinbuf;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_pci1710_half_fifo(...)\n");
@@ -846,7 +840,7 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 		rt_printk("comedi%d: A/D FIFO not half full! (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
@@ -855,14 +849,14 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 			("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n",
 			dev->minor, m);
 		pci171x_ai_cancel(dev, s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		return;
 	}
 
 	samplesinbuf = this_board->fifo_half_size;
-	if (samplesinbuf * sizeof(sampl_t) >= devpriv->ai_data_len) {
-		m = devpriv->ai_data_len / sizeof(sampl_t);
+	if (samplesinbuf * sizeof(sampl_t) >= async->prealloc_bufsz) {
+		m = async->prealloc_bufsz / sizeof(sampl_t);
 		if (move_block_from_fifo(dev, s, m, 0))
 			return;
 		samplesinbuf -= m;
@@ -873,13 +867,13 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 			return;
 	}
 
-	if (!devpriv->neverending_ai)
-		if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
-			pci171x_ai_cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-			return;
-		}
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
+		/* all data sampled */
+		pci171x_ai_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA;
+		comedi_event(dev, s);
+		return;
+	}
 	outb(0, dev->iobase + PCI171x_CLRINT);	// clear our INT request
 	DPRINTK("adv_pci1710 EDBG: END: interrupt_pci1710_half_fifo(...)\n");
 
@@ -892,6 +886,8 @@ static void interrupt_pci1710_half_fifo(comedi_device *dev)
 static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
+	comedi_subdevice *s;
+	comedi_cmd *cmd;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",
 		irq);
@@ -918,7 +914,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 		start_pacer(dev, 1, devpriv->ai_et_div1, devpriv->ai_et_div2);
 		return IRQ_HANDLED;
 	}
-	if (devpriv->ai_eos) {	// We use FIFO half full INT or not?
+	s = dev->subdevices + 0;
+	cmd = &s->async->cmd;
+	if (cmd->flags & TRIG_WAKE_EOS) {	// We use FIFO half full INT or not?
 		interrupt_pci1710_every_sample(dev);
 	} else {
 		interrupt_pci1710_half_fifo(dev);
@@ -933,6 +931,8 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 	comedi_subdevice * s)
 {
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	unsigned int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
@@ -940,37 +940,20 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 		mode);
 	start_pacer(dev, -1, 0, 0);	// stop pacer
 
-	seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
-		devpriv->ai_n_chan);
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
 	if (seglen < 1)
 		return -EINVAL;
-	setup_channel_list(dev, s, devpriv->ai_chanlist,
-		devpriv->ai_n_chan, seglen);
+	setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, seglen);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
-	devpriv->ai_do = mode;
-
-	devpriv->ai_act_scan = 0;
-	s->async->cur_chan = 0;
-	devpriv->ai_buf_ptr = 0;
-	devpriv->neverending_ai = 0;
-
 	devpriv->CntrlReg &= Control_CNT0;
-	if ((devpriv->ai_flags & TRIG_WAKE_EOS)) {	// don't we want wake up every scan?            devpriv->ai_eos=1;
-		devpriv->ai_eos = 1;
-	} else {
+	if (!(cmd->flags & TRIG_WAKE_EOS)) {
+		// don't want to wake up every scan
 		devpriv->CntrlReg |= Control_ONEFH;
-		devpriv->ai_eos = 0;
 	}
 
-	if ((devpriv->ai_scans == 0) || (devpriv->ai_scans == -1)) {
-		devpriv->neverending_ai = 1;
-	}			//well, user want neverending
-	else {
-		devpriv->neverending_ai = 0;
-	}
 	switch (mode) {
 	case 1:
 	case 2:
@@ -988,7 +971,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 		}
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &devpriv->ai_timer1,
-			devpriv->ai_flags & TRIG_ROUND_MASK);
+			cmd->flags & TRIG_ROUND_MASK);
 		DPRINTK("adv_pci1710 EDBG: OSC base=%u div1=%u div2=%u timer=%u\n", devpriv->i8254_osc_base, divisor1, divisor2, devpriv->ai_timer1);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
@@ -1191,18 +1174,8 @@ static int pci171x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd = &s->async->cmd;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmd(...)\n");
-	devpriv->ai_n_chan = cmd->chanlist_len;
-	devpriv->ai_chanlist = cmd->chanlist;
-	devpriv->ai_flags = cmd->flags;
-	devpriv->ai_data_len = s->async->prealloc_bufsz;
 	devpriv->ai_timer1 = 0;
 	devpriv->ai_timer2 = 0;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_scans = cmd->stop_arg;
-	} else {
-		devpriv->ai_scans = 0;
-	}
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {	// mode 1, 2, 3
 		if (cmd->convert_src == TRIG_TIMER) {	// mode 1 and 2
@@ -1290,8 +1263,6 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 
 	DPRINTK("adv_pci1710 EDBG:  setup_channel_list(...,%d,%d)\n", n_chan,
 		seglen);
-	devpriv->act_chanlist_len = seglen;
-	devpriv->act_chanlist_pos = 0;
 
 	DPRINTK("SegLen: %d\n", seglen);
 	for (i = 0; i < seglen; i++) {	// store range list to card
@@ -1362,12 +1333,6 @@ static int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 		outb(0, dev->iobase + PCI171x_CLRINT);
 		break;
 	}
-
-	devpriv->ai_do = 0;
-	devpriv->ai_act_scan = 0;
-	s->async->cur_chan = 0;
-	devpriv->ai_buf_ptr = 0;
-	devpriv->neverending_ai = 0;
 
 	DPRINTK("adv_pci1710 EDBG: END: pci171x_ai_cancel(...)\n");
 	return 0;
