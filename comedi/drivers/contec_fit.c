@@ -717,14 +717,14 @@ static void contec_check_sampling_clock(unsigned int *sampling_clock, unsigned i
 	
 	clock_tmp = *sampling_clock % 250;
 	if(clock_tmp != 0){
-		switch(flags & TRIG_ROUND_MASK){
-		case TRIG_ROUND_UP:
+		switch(flags & CMDF_ROUND_MASK){
+		case CMDF_ROUND_UP:
 			*sampling_clock += 250 - clock_tmp;
 			break;
-		case TRIG_ROUND_DOWN:
+		case CMDF_ROUND_DOWN:
 			*sampling_clock -= clock_tmp;
 			break;
-		case TRIG_ROUND_NEAREST:
+		case CMDF_ROUND_NEAREST:
 		default:
 			if(clock_tmp < 126){
 				*sampling_clock -= clock_tmp;
