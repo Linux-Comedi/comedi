@@ -1346,7 +1346,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 	if (devpriv->status1_bits & OVERRUN_BIT) {
 		// clear error interrupt
 		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		comedi_error(dev, "overrun");
 		return IRQ_HANDLED;
@@ -1371,7 +1371,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d PT_REGS_ARG)
 	if (devpriv->status1_bits & OVERFLOW_BIT) {
 		// clear error interrupt
 		devpriv->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		comedi_error(dev, "overflow");
 		return IRQ_HANDLED;
@@ -1425,7 +1425,7 @@ static int labpc_drain_fifo(comedi_device * dev)
 	}
 	if (i == timeout) {
 		comedi_error(dev, "ai timeout, fifo never empties");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		return -1;
 	}
 
