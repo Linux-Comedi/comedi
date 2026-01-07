@@ -1359,7 +1359,7 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -1618,7 +1618,7 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		outb(GAT_CONFIG(1, GAT_GND),
 			devpriv->iobase1 + PCI230_ZGAT_SCE);
 		pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
-			cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+			cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 	}
 
 	/* N.B. cmd->start_src == TRIG_INT */
@@ -1868,7 +1868,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		pci230_ns_to_single_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -1877,11 +1877,11 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		/* N.B. cmd->convert_arg is also TRIG_TIMER */
 		tmp = cmd->scan_begin_arg;
 		pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (!pci230_ai_check_scan_period(cmd)) {
 			/* Was below minimum required.  Round up. */
 			pci230_ns_to_single_timer(&cmd->scan_begin_arg,
-				TRIG_ROUND_UP);
+				CMDF_ROUND_UP);
 			pci230_ai_check_scan_period(cmd);
 		}
 		if (tmp != cmd->scan_begin_arg)
@@ -2046,7 +2046,7 @@ static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
 	unsigned short triglev;
 	unsigned short adccon;
 
-	if ((cmd->flags & TRIG_WAKE_EOS) != 0) {
+	if ((cmd->flags & CMDF_WAKE_EOS) != 0) {
 		/* Wake at end of scan. */
 		wake = scanlen - devpriv->ai_scan_pos;
 	} else {
@@ -2440,7 +2440,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 		/* Set counter/timer 2 to the specified conversion period. */
 		pci230_ct_setup_ns_mode(dev, 2, I8254_MODE3, cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (cmd->scan_begin_src != TRIG_FOLLOW) {
 			/*
 			 * Set up monostable on CT0 output for scan timing.  A
@@ -2458,7 +2458,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 			pci230_ct_setup_ns_mode(dev, 0, I8254_MODE1,
 				((uint64_t) cmd->convert_arg
-					* cmd->scan_end_arg), TRIG_ROUND_UP);
+					* cmd->scan_end_arg), CMDF_ROUND_UP);
 			if (cmd->scan_begin_src == TRIG_TIMER) {
 				/*
 				 * Monostable on CT0 will be triggered by
@@ -2470,7 +2470,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 				outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 				pci230_ct_setup_ns_mode(dev, 1, I8254_MODE3,
 					cmd->scan_begin_arg,
-					cmd->flags & TRIG_ROUND_MASK);
+					cmd->flags & CMDF_ROUND_MASK);
 			}
 		}
 	}
@@ -2493,15 +2493,15 @@ static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
 
 	div = ns;
 	rem = do_div(div, timebase);
-	round_mode &= TRIG_ROUND_MASK;
+	round_mode &= CMDF_ROUND_MASK;
 	switch (round_mode) {
 	default:
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 		div += (rem + (timebase / 2)) / timebase;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		div += (rem + timebase - 1) / timebase;
 		break;
 	}
