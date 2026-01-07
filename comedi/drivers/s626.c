@@ -1715,7 +1715,7 @@ static int s626_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		// set a conter to generate adc trigger at scan_begin_arg interval
 		k = &encpriv[5];
 		tick = s626_ns_to_timer((int *)&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 
 		//load timer value and enable interrupt
 		s626_timer_load(dev, k, tick);
@@ -1742,7 +1742,7 @@ static int s626_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		// set a conter to generate adc trigger at convert_arg interval
 		k = &encpriv[4];
 		tick = s626_ns_to_timer((int *)&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 
 		//load timer value and enable interrupt
 		s626_timer_load(dev, k, tick);
@@ -1968,14 +1968,14 @@ static int s626_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		s626_ns_to_timer((int *)&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		s626_ns_to_timer((int *)&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 		if (cmd->scan_begin_src == TRIG_TIMER &&
@@ -2018,14 +2018,14 @@ static int s626_ns_to_timer(int *nanosec, int round_mode)
 	base = 500;		//2MHz internal clock
 
 	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
