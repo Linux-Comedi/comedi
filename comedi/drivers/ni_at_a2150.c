@@ -60,7 +60,7 @@ References (from ftp://ftp.natinst.com/support/manuals):
 TODO:
 
 analog level triggering
-TRIG_WAKE_EOS
+CMDF_WAKE_EOS
 
 */
 
@@ -629,9 +629,9 @@ static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			" irq and dma required, cannot do hardware conversions");
 		return -1;
 	}
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		comedi_error(dev,
-			" dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
+			" dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting");
 		return -1;
 	}
 	// clear fifo and reset triggering circuitry
@@ -841,9 +841,9 @@ static int a2150_get_timing(comedi_device * dev, unsigned int *period,
 			}
 		}
 	}
-	flags &= TRIG_ROUND_MASK;
+	flags &= CMDF_ROUND_MASK;
 	switch (flags) {
-	case TRIG_ROUND_NEAREST:
+	case CMDF_ROUND_NEAREST:
 	default:
 		// if least upper bound is better approximation
 		if (lub - *period < *period - glb) {
@@ -852,10 +852,10 @@ static int a2150_get_timing(comedi_device * dev, unsigned int *period,
 			*period = glb;
 		}
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		*period = lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		*period = glb;
 		break;
 	}
