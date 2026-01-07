@@ -3000,7 +3000,7 @@ static void handle_ai_interrupt(comedi_device * dev, unsigned short status,
 	// check for fifo overrun
 	if (status & ADC_OVERRUN_BIT) {
 		comedi_error(dev, "fifo overrun");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 	// spin lock makes sure noone else changes plx dma control reg
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
