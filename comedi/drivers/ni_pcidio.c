@@ -556,7 +556,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 		if (m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY |
 				CHSR_DRQ1 | CHSR_MRDY)) {
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			disable_irq(dev->irq);
 		}
 	}
@@ -614,7 +614,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 			writeb(ClearWaited,
 				devpriv->mite->daq_io_addr +
 				Group_1_First_Clear);
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			break;
 		} else if (flags & PrimaryTC) {
 			DPRINTK("PrimaryTC\n");
@@ -632,7 +632,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 #if 0
 		else {
 			printk("ni_pcidio: unknown interrupt\n");
-			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			async->events |= COMEDI_CB_ERROR;
 			writeb(0x00,
 				devpriv->mite->daq_io_addr +
 				Master_DMA_And_Interrupt_Control);
