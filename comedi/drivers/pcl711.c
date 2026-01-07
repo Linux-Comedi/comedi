@@ -370,7 +370,7 @@ static int pcl711_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 			&devpriv->divisor1, &devpriv->divisor2,
-			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+			&cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -401,7 +401,7 @@ static int pcl711_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 		timer1 = timer2 = 0;
 		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
-			&cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+			&cmd->scan_begin_arg, CMDF_ROUND_NEAREST);
 
 		outb(0x74, dev->iobase + PCL711_CTRCTL);
 		outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
