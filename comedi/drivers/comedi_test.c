@@ -407,7 +407,7 @@ static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		comedi_error(dev,
 			"commands at RT priority not supported in this driver");
 		return -1;
