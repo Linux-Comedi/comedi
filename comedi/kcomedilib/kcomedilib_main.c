@@ -236,7 +236,7 @@ int comedi_command(comedi_t * d, comedi_cmd * cmd)
 	s->busy = d;
 
 	if (async->cb_mask & COMEDI_CB_EOS)
-		cmd->flags |= TRIG_WAKE_EOS;
+		cmd->flags |= CMDF_WAKE_EOS;
 
 	async->cmd = *cmd;
 
