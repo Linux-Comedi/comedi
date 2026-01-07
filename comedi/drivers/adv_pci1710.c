@@ -916,7 +916,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 	}
 	s = dev->subdevices + 0;
 	cmd = &s->async->cmd;
-	if (cmd->flags & TRIG_WAKE_EOS) {	// We use FIFO half full INT or not?
+	if (cmd->flags & CMDF_WAKE_EOS) {	// We use FIFO half full INT or not?
 		interrupt_pci1710_every_sample(dev);
 	} else {
 		interrupt_pci1710_half_fifo(dev);
@@ -949,7 +949,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
 	devpriv->CntrlReg &= Control_CNT0;
-	if (!(cmd->flags & TRIG_WAKE_EOS)) {
+	if (!(cmd->flags & CMDF_WAKE_EOS)) {
 		// don't want to wake up every scan
 		devpriv->CntrlReg |= Control_ONEFH;
 	}
@@ -971,7 +971,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 		}
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &devpriv->ai_timer1,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		DPRINTK("adv_pci1710 EDBG: OSC base=%u div1=%u div2=%u timer=%u\n", devpriv->i8254_osc_base, divisor1, divisor2, devpriv->ai_timer1);
 		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
 		if (mode != 2) {
@@ -1142,7 +1142,7 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
