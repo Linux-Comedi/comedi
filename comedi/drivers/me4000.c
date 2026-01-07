@@ -1162,11 +1162,11 @@ static int ai_round_cmd_args(comedi_device * dev,
 		*init_ticks = (cmd->start_arg * 33) / 1000;
 		rest = (cmd->start_arg * 33) % 1000;
 
-		if (cmd->flags & TRIG_ROUND_NEAREST) {
+		if (cmd->flags & CMDF_ROUND_NEAREST) {
 			if (rest > 33) {
 				(*init_ticks)++;
 			}
-		} else if (cmd->flags & TRIG_ROUND_UP) {
+		} else if (cmd->flags & CMDF_ROUND_UP) {
 			if (rest)
 				(*init_ticks)++;
 		}
@@ -1176,11 +1176,11 @@ static int ai_round_cmd_args(comedi_device * dev,
 		*scan_ticks = (cmd->scan_begin_arg * 33) / 1000;
 		rest = (cmd->scan_begin_arg * 33) % 1000;
 
-		if (cmd->flags & TRIG_ROUND_NEAREST) {
+		if (cmd->flags & CMDF_ROUND_NEAREST) {
 			if (rest > 33) {
 				(*scan_ticks)++;
 			}
-		} else if (cmd->flags & TRIG_ROUND_UP) {
+		} else if (cmd->flags & CMDF_ROUND_UP) {
 			if (rest)
 				(*scan_ticks)++;
 		}
@@ -1190,11 +1190,11 @@ static int ai_round_cmd_args(comedi_device * dev,
 		*chan_ticks = (cmd->convert_arg * 33) / 1000;
 		rest = (cmd->convert_arg * 33) % 1000;
 
-		if (cmd->flags & TRIG_ROUND_NEAREST) {
+		if (cmd->flags & CMDF_ROUND_NEAREST) {
 			if (rest > 33) {
 				(*chan_ticks)++;
 			}
-		} else if (cmd->flags & TRIG_ROUND_UP) {
+		} else if (cmd->flags & CMDF_ROUND_UP) {
 			if (rest)
 				(*chan_ticks)++;
 		}
@@ -1419,7 +1419,7 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 		cmd->chanlist_len);
 
 	/* Only rounding flags are implemented */
-	cmd->flags &= TRIG_ROUND_NEAREST | TRIG_ROUND_UP | TRIG_ROUND_DOWN;
+	cmd->flags &= CMDF_ROUND_NEAREST | CMDF_ROUND_UP | CMDF_ROUND_DOWN;
 
 	/* Round the timer arguments */
 	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
