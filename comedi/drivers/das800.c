@@ -675,7 +675,7 @@ static int das800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		/* calculate counter values that give desired timing */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(cmd->convert_arg),
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -766,7 +766,7 @@ static int das800_ai_do_cmd(comedi_device * dev, comedi_subdevice * s)
 		/* set conversion frequency */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(async->cmd.convert_arg),
-			async->cmd.flags & TRIG_ROUND_MASK);
+			async->cmd.flags & CMDF_ROUND_MASK);
 		if (das800_set_frequency(dev) < 0) {
 			comedi_error(dev, "Error setting up counters");
 			return -1;
