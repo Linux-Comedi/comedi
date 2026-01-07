@@ -855,7 +855,7 @@ static int das16_cmd_test(comedi_device * dev, comedi_subdevice * s,
 		// set divisors, correct timing arguments
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
 			&(devpriv->divisor1), &(devpriv->divisor2),
-			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->scan_begin_arg), cmd->flags & CMDF_ROUND_MASK);
 		err += (tmp != cmd->scan_begin_arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -863,7 +863,7 @@ static int das16_cmd_test(comedi_device * dev, comedi_subdevice * s,
 		// set divisors, correct timing arguments
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
 			&(devpriv->divisor1), &(devpriv->divisor2),
-			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+			&(cmd->convert_arg), cmd->flags & CMDF_ROUND_MASK);
 		err += (tmp != cmd->convert_arg);
 	}
 	if (err)
@@ -907,9 +907,9 @@ static int das16_cmd_exec(comedi_device * dev, comedi_subdevice * s)
 			"irq (or use of 'timer mode') dma required to execute comedi_cmd");
 		return -1;
 	}
-	if (cmd->flags & TRIG_RT) {
+	if (cmd->flags & CMDF_PRIORITY) {
 		comedi_error(dev,
-			"isa dma transfers cannot be performed with TRIG_RT, aborting");
+			"isa dma transfers cannot be performed with CMDF_PRIORITY, aborting");
 		return -1;
 	}
 
@@ -937,12 +937,12 @@ static int das16_cmd_exec(comedi_device * dev, comedi_subdevice * s)
 	if (cmd->convert_src == TRIG_TIMER) {
 		cmd->convert_arg =
 			das16_set_pacer(dev, cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		DEBUG_PRINT("convert pacer period: %d ns\n", cmd->convert_arg);
 	} else if (cmd->scan_begin_src == TRIG_TIMER) {
 		cmd->scan_begin_arg =
 			das16_set_pacer(dev, cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+			cmd->flags & CMDF_ROUND_MASK);
 		DEBUG_PRINT("scan pacer period: %d ns\n", cmd->scan_begin_arg);
 	}
 
@@ -1285,7 +1285,7 @@ static unsigned int das16_set_pacer(comedi_device * dev, unsigned int ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
-		&(devpriv->divisor2), &ns, rounding_flags & TRIG_ROUND_MASK);
+		&(devpriv->divisor2), &ns, rounding_flags & CMDF_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 0, 1, devpriv->divisor1, 2);
@@ -1717,7 +1717,7 @@ static unsigned int das16_suggest_transfer_size(comedi_device * dev,
 	else
 		freq = 0xffffffff;
 
-	if (cmd.flags & TRIG_WAKE_EOS) {
+	if (cmd.flags & CMDF_WAKE_EOS) {
 		size = sample_size * cmd.chanlist_len;
 	} else {
 		// make buffer fill in no more than 1/3 second
