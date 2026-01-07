@@ -214,7 +214,7 @@ static int dt2814_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 4: fix up any arguments */
 
 	tmp = cmd->scan_begin_arg;
-	dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+	dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & CMDF_ROUND_MASK);
 	if (tmp != cmd->scan_begin_arg)
 		err++;
 
@@ -232,7 +232,7 @@ static int dt2814_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	trigvar =
 		dt2814_ns_to_timer(&cmd->scan_begin_arg,
-		cmd->flags & TRIG_ROUND_MASK);
+		cmd->flags & CMDF_ROUND_MASK);
 
 	chan = CR_CHAN(cmd->chanlist[0]);
 
