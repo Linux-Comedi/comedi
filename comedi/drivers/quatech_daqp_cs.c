@@ -371,7 +371,7 @@ static my_irqreturn_t daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 			printk(KERN_WARNING
 				"loop_limit reached in daqp_interrupt()\n");
 			daqp_ai_cancel(dev, s);
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 		}
 
 		s->async->events |= COMEDI_CB_BLOCK;
