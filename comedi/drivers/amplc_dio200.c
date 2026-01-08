@@ -646,8 +646,6 @@ typedef struct {
 	int active;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
-	unsigned int stopcount;
-	int continuous;
 } dio200_subdev_intr;
 
 /*
@@ -850,7 +848,7 @@ static int dio200_start_intr(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd = &s->async->cmd;
 	int retval = 0;
 
-	if (!subpriv->continuous && subpriv->stopcount == 0) {
+	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
 		subpriv->active = 0;
@@ -917,11 +915,13 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 	unsigned int oldevents;
 	unsigned long flags;
 	unsigned int int_sce_ofs;
+	comedi_cmd *cmd;
 
 	int_sce_ofs = subpriv->ofs;
 	triggered = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	cmd = &s->async->cmd;
 	oldevents = s->async->events;
 	if (thislayout->has_int_sce) {
 		/*
@@ -996,16 +996,13 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 				}
 
 				/* Check for end of acquisition. */
-				if (!subpriv->continuous) {
-					/* stop_src == TRIG_COUNT */
-					if (subpriv->stopcount > 0) {
-						subpriv->stopcount--;
-						if (subpriv->stopcount == 0) {
-							s->async->events |=
-								COMEDI_CB_EOA;
-							dio200_stop_intr(dev,
-								s);
-						}
+				if (cmd->stop_src == TRIG_COUNT) {
+					s->async->scans_done++;
+					if (s->async->scans_done >=
+					    cmd->stop_arg) {
+						s->async->events |=
+							COMEDI_CB_EOA;
+						dio200_stop_intr(dev, s);
 					}
 				}
 			}
@@ -1156,19 +1153,6 @@ static int dio200_subdev_intr_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	subpriv->active = 1;
-
-	/* Set up end of acquisition. */
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		subpriv->continuous = 0;
-		subpriv->stopcount = cmd->stop_arg;
-		break;
-	default:
-		/* TRIG_NONE */
-		subpriv->continuous = 1;
-		subpriv->stopcount = 0;
-		break;
-	}
 
 	/* Set up start of acquisition. */
 	switch (cmd->start_src) {
