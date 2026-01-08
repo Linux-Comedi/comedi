@@ -1199,7 +1199,7 @@ dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
 	if (thislayout->has_int_sce) {
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
