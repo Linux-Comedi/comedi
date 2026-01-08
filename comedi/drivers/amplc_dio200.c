@@ -896,7 +896,7 @@ dio200_inttrig_start_intr(comedi_device * dev, comedi_subdevice * s,
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	}
 
 	return 1;
@@ -984,35 +984,19 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 					}
 				}
 				/* Write the scan to the buffer. */
-				if (comedi_buf_put(s, val)) {
-					s->async->events |= (COMEDI_CB_BLOCK |
-						COMEDI_CB_EOS);
-				} else {
-					/* Error!  Stop acquisition.  */
-					dio200_stop_intr(dev, s);
-					s->async->events |= COMEDI_CB_ERROR
-						| COMEDI_CB_OVERFLOW;
-					comedi_error(dev, "buffer overflow");
-				}
+				comedi_buf_write_samples(s, &val, 1);
 
 				/* Check for end of acquisition. */
-				if (cmd->stop_src == TRIG_COUNT) {
-					s->async->scans_done++;
-					if (s->async->scans_done >=
-					    cmd->stop_arg) {
-						s->async->events |=
-							COMEDI_CB_EOA;
-						dio200_stop_intr(dev, s);
-					}
+				if (cmd->stop_src == TRIG_COUNT &&
+				    s->async->scans_done >= cmd->stop_arg) {
+					s->async->events |= COMEDI_CB_EOA;
 				}
 			}
 		}
 	}
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events) {
-		comedi_event(dev, s);
-	}
+	comedi_handle_events(dev, s);
 
 	return (triggered != 0);
 }
@@ -1167,7 +1151,7 @@ static int dio200_subdev_intr_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	}
 
 	return 0;
