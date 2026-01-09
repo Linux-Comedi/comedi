@@ -2026,16 +2026,7 @@ static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
 		/* Wake at end of scan. */
 		wake = cmd->scan_end_arg - async->cur_chan;
 	} else {
-		unsigned int scans_left = cmd->stop_arg - async->scans_done;
-
-		if (cmd->stop_src != TRIG_COUNT
-			|| scans_left >= PCI230_ADC_FIFOLEVEL_HALFFULL
-			|| cmd->scan_end_arg >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
-			wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
-		} else {
-			wake = (scans_left * cmd->scan_end_arg)
-				- async->cur_chan;
-		}
+		wake = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
 	}
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		triglev = PCI230_ADC_INT_FIFO_HALF;
@@ -2636,27 +2627,20 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
-	unsigned int bytes_per_scan;
 	unsigned int events = 0;
 	int running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(dev->iobase + PCI230_DACCON);
 
-	/* Determine number of scans available in buffer. */
-	bytes_per_scan = cmd->chanlist_len * sizeof(sampl_t);
-	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* Fixed number of scans. */
-		unsigned int scans_left = cmd->stop_arg - async->scans_done;
-
-		if (num_scans > scans_left) {
-			num_scans = scans_left;
-		}
-		if (scans_left == 0) {
-			/* End of acquisition. */
-			events |= COMEDI_CB_EOA;
-		}
+	/*
+	 * Determine number of scans to do based on amount in buffer and
+	 * command stop_src and stop_arg.
+	 */
+	num_scans = comedi_nscans_left(s, 0);
+	if (cmd->stop_src == TRIG_COUNT && num_scans == 0) {
+		/* End of acquisition. */
+		events |= COMEDI_CB_EOA;
 	}
 	if (events == 0) {
 		/* Check for FIFO underrun. */
@@ -2742,23 +2726,9 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 	unsigned int fifoamount;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned int scans_left = cmd->stop_arg - async->scans_done;
 
 	/* Determine number of samples to read. */
-	if (cmd->stop_src != TRIG_COUNT) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else if (scans_left == 0) {
-		todo = 0;
-	} else if (scans_left > PCI230_ADC_FIFOLEVEL_HALFFULL
-		|| cmd->scan_end_arg > PCI230_ADC_FIFOLEVEL_HALFFULL) {
-		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else {
-		todo = (scans_left * cmd->scan_end_arg) - async->cur_chan;
-		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL) {
-			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-		}
-	}
-
+	todo = comedi_nsamples_left(s, PCI230_ADC_FIFOLEVEL_HALFFULL);
 	if (todo == 0) {
 		return;
 	}
