@@ -1418,7 +1418,7 @@ static int pci230_ao_inttrig_scan_begin(comedi_device * dev,
 			comedi_spin_unlock_irqrestore(&devpriv->
 				ao_stop_spinlock, irqflags);
 			pci230_handle_ao_nofifo(dev, s);
-			comedi_event(dev, s);
+			comedi_handle_events(dev, s);
 		} else {
 			/* Using DAC FIFO. */
 			/* Read DACSWTRIG register to trigger conversion. */
@@ -1447,8 +1447,7 @@ static void pci230_ao_start(comedi_device * dev, comedi_subdevice * s)
 	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
-		pci230_ao_stop(dev, s);
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	} else {
 		if (devpriv->hwver >= 2) {
 			/* Using DAC FIFO. */
@@ -1457,7 +1456,7 @@ static void pci230_ao_start(comedi_device * dev, comedi_subdevice * s)
 
 			/* Preload FIFO data. */
 			run = pci230_handle_ao_fifo(dev, s);
-			comedi_event(dev, s);
+			comedi_handle_events(dev, s);
 			if (!run) {
 				/* Stopped. */
 				return;
@@ -2125,8 +2124,7 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
-		pci230_ai_stop(dev, s);
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 	} else {
 		/* Enable ADC FIFO trigger level interrupt. */
 		comedi_spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
@@ -2555,19 +2553,16 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	if ((valid_status_int & PCI230_INT_ZCLK_CT1) != 0) {
 		s = dev->write_subdev;
 		pci230_handle_ao_nofifo(dev, s);
-		comedi_event(dev, s);
 	}
 
 	if ((valid_status_int & PCI230P2_INT_DAC) != 0) {
 		s = dev->write_subdev;
 		pci230_handle_ao_fifo(dev, s);
-		comedi_event(dev, s);
 	}
 
 	if ((valid_status_int & PCI230_INT_ADC) != 0) {
 		s = dev->read_subdev;
 		pci230_handle_ai(dev, s);
-		comedi_event(dev, s);
 	}
 
 	/* Reenable interrupts. */
@@ -2579,13 +2574,18 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	devpriv->intr_running = 0;
 	comedi_spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
+	if (dev->write_subdev) {
+		comedi_handle_events(dev, dev->write_subdev);
+	}
+	comedi_handle_events(dev, dev->read_subdev);
+
 	return IRQ_HANDLED;
 }
 
 static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 {
 	sampl_t data;
-	int i, ret;
+	int i;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
@@ -2595,10 +2595,8 @@ static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s, &data);
-		if (ret == 0) {
-			s->async->events |= COMEDI_CB_OVERFLOW;
-			pci230_ao_stop(dev, s);
+		if (!comedi_buf_read_samples(s, &data, 1)) {
+			async->events |= COMEDI_CB_OVERFLOW;
 			comedi_error(dev, "AO buffer underrun");
 			return;
 		}
@@ -2606,14 +2604,9 @@ static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 		pci230_ao_write_nofifo(dev, data, CR_CHAN(cmd->chanlist[i]));
 	}
 
-	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (cmd->stop_src == TRIG_COUNT) {
-		async->scans_done++;
-		if (async->scans_done >= cmd->stop_arg) {
-			/* End of acquisition. */
-			async->events |= COMEDI_CB_EOA;
-			pci230_ao_stop(dev, s);
-		}
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
+		/* End of acquisition. */
+		async->events |= COMEDI_CB_EOA;
 	}
 }
 
@@ -2628,7 +2621,6 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 	unsigned short dacstat;
 	unsigned int i, n;
 	unsigned int events = 0;
-	int running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(dev->iobase + PCI230_DACCON);
@@ -2679,24 +2671,21 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 			for (i = 0; i < cmd->chanlist_len; i++) {
 				sampl_t datum;
 
-				comedi_buf_get(s, &datum);
+				comedi_buf_read_samples(s, &datum, 1);
 				pci230_ao_write_fifo(dev, datum,
 					CR_CHAN(cmd->chanlist[i]));
 			}
 		}
-		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (cmd->stop_src == TRIG_COUNT) {
-			async->scans_done += num_scans;
-			if (async->scans_done >= cmd->stop_arg) {
-				/* All data for the command has been written
-				 * to FIFO.  Set FIFO interrupt trigger level
-				 * to 'empty'. */
-				devpriv->daccon = (devpriv->daccon
-					& ~PCI230P2_DAC_INT_FIFO_MASK)
-					| PCI230P2_DAC_INT_FIFO_EMPTY;
-				outw(devpriv->daccon,
-					dev->iobase + PCI230_DACCON);
-			}
+		if (cmd->stop_src == TRIG_COUNT
+			&& async->scans_done >= cmd->stop_arg) {
+			/*
+			 * All data for the command has been written to FIFO.
+			 * Set FIFO interrupt trigger level to 'empty'.
+			 */
+			devpriv->daccon = (devpriv->daccon
+				& ~PCI230P2_DAC_INT_FIFO_MASK)
+				| PCI230P2_DAC_INT_FIFO_EMPTY;
+			outw(devpriv->daccon, dev->iobase + PCI230_DACCON);
 		}
 		/* Check if FIFO underrun occurred while writing to FIFO. */
 		dacstat = inw(dev->iobase + PCI230_DACCON);
@@ -2705,16 +2694,8 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 	}
-	if ((events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-		!= 0) {
-		/* Stopping AO due to completion or error. */
-		pci230_ao_stop(dev, s);
-		running = 0;
-	} else {
-		running = 1;
-	}
 	async->events |= events;
-	return running;
+	return !(async->events & COMEDI_CB_CANCEL_MASK);
 }
 
 static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
@@ -2735,6 +2716,8 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 
 	fifoamount = 0;
 	for (i = 0; i < todo; i++) {
+		sampl_t val;
+
 		if (fifoamount == 0) {
 			/* Read FIFO state. */
 			status_fifo = inw(dev->iobase + PCI230_ADCCON);
@@ -2768,36 +2751,24 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 		}
 
 		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
-			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-			comedi_error(dev, "AI buffer overflow");
+		val = pci230_ai_read(dev);
+		if (!comedi_buf_write_samples(s, &val, 1)) {
 			break;
 		}
 		fifoamount--;
-		async->cur_chan++;
-		if (async->cur_chan == cmd->scan_end_arg) {
-			/* End of scan. */
-			async->cur_chan = 0;
-			async->scans_done++;
-			async->events |= COMEDI_CB_EOS;
+
+		if (cmd->stop_src == TRIG_COUNT
+			&& async->scans_done >= cmd->stop_arg) {
+			/* End of acquisition. */
+			events |= COMEDI_CB_EOA;
+			break;
 		}
 	}
 
-	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
-		/* End of acquisition. */
-		events |= COMEDI_CB_EOA;
-	} else {
-		/* More samples required, tell Comedi to block. */
-		events |= COMEDI_CB_BLOCK;
-	}
 	async->events |= events;
 
-	if ((async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-				COMEDI_CB_OVERFLOW)) != 0) {
-		/* disable hardware conversions */
-		pci230_ai_stop(dev, s);
-	} else {
-		/* update FIFO interrupt trigger level */
+	/* Update FIFO interrupt trigger level if still running. */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
 		pci230_ai_update_fifo_trigger_level(dev, s);
 	}
 }
