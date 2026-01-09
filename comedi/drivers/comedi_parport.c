@@ -284,16 +284,16 @@ static irqreturn_t parport_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 3;
+	sampl_t val = 0;
 
 	if (!devpriv->enable_irq) {
 		printk("comedi_parport: bogus irq, ignored\n");
 		return IRQ_NONE;
 	}
 
-	comedi_buf_put(s, 0);
-	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	comedi_buf_write_samples(s, &val, 1);
+	comedi_handle_events(dev, s);
 
-	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
