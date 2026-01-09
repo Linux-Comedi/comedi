@@ -525,12 +525,6 @@ struct pci230_private {
 	unsigned long state;	/* State flags */
 	unsigned long iobase1;	/* PCI230's I/O space 1 */
 	lsampl_t ao_readback[2];	/* Used for AO readback */
-	unsigned int ai_scan_count;	/* Number of analogue input scans
-					 * remaining.  */
-	unsigned int ai_scan_pos;	/* Current position within analogue
-					 * input scan */
-	unsigned int ao_scan_count;	/* Number of analogue output scans
-					 * remaining.  */
 	int intr_cpuid;		/* ID of CPU running interrupt routine. */
 	unsigned short hwver;	/* Hardware version (for '+' models). */
 	unsigned short adccon;	/* ADCCON register value. */
@@ -539,14 +533,6 @@ struct pci230_private {
 					 * level threshold (PCI230+/260+). */
 	unsigned short adcg;	/* ADCG register value. */
 	unsigned char int_en;	/* Interrupt enables bits. */
-	unsigned char ai_continuous;	/* Flag set when cmd->stop_src ==
-					 * TRIG_NONE - user chooses to stop
-					 * continuous conversion by
-					 * cancelation. */
-	unsigned char ao_continuous;	/* Flag set when cmd->stop_src ==
-					 * TRIG_NONE - user chooses to stop
-					 * continuous conversion by
-					 * cancelation. */
 	unsigned char ai_bipolar;	/* Set if bipolar input range so we
 					 * know to mangle it. */
 	unsigned char ao_bipolar;	/* Set if bipolar output range so we
@@ -1458,7 +1444,7 @@ static void pci230_ao_start(comedi_device * dev, comedi_subdevice * s)
 	unsigned long irqflags;
 
 	set_bit(AO_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ao_stop(dev, s);
@@ -1564,16 +1550,6 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		if (!get_one_resource(dev, RES_Z2CT1, OWNER_AOCMD)) {
 			return -EBUSY;
 		}
-	}
-
-	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ao_scan_count = cmd->stop_arg;
-		devpriv->ao_continuous = 0;
-	} else {
-		/* TRIG_NONE, user calls cancel. */
-		devpriv->ao_scan_count = 0;
-		devpriv->ao_continuous = 1;
 	}
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
@@ -2040,24 +2016,25 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
 	comedi_subdevice * s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
-	unsigned int scanlen = cmd->scan_end_arg;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	unsigned int wake;
 	unsigned short triglev;
 	unsigned short adccon;
 
 	if ((cmd->flags & CMDF_WAKE_EOS) != 0) {
 		/* Wake at end of scan. */
-		wake = scanlen - devpriv->ai_scan_pos;
+		wake = cmd->scan_end_arg - async->cur_chan;
 	} else {
-		if (devpriv->ai_continuous
-			|| (devpriv->ai_scan_count
-				>= PCI230_ADC_FIFOLEVEL_HALFFULL)
-			|| (scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+		unsigned int scans_left = cmd->stop_arg - async->scans_done;
+
+		if (cmd->stop_src != TRIG_COUNT
+			|| scans_left >= PCI230_ADC_FIFOLEVEL_HALFFULL
+			|| cmd->scan_end_arg >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 			wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
 		} else {
-			wake = (devpriv->ai_scan_count * scanlen)
-				- devpriv->ai_scan_pos;
+			wake = (scans_left * cmd->scan_end_arg)
+				- async->cur_chan;
 		}
 	}
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
@@ -2154,7 +2131,7 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd = &async->cmd;
 
 	set_bit(AI_CMD_STARTED, &devpriv->state);
-	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && cmd->stop_arg == 0) {
 		/* An empty acquisition! */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ai_stop(dev, s);
@@ -2325,17 +2302,6 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (!get_resources(dev, res_mask, OWNER_AICMD)) {
 		return -EBUSY;
 	}
-
-	/* Get number of scans required. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_scan_count = cmd->stop_arg;
-		devpriv->ai_continuous = 0;
-	} else {
-		/* TRIG_NONE, user calls cancel. */
-		devpriv->ai_scan_count = 0;
-		devpriv->ai_continuous = 1;
-	}
-	devpriv->ai_scan_pos = 0;	/* Position within scan. */
 
 	/* Steps;
 	 * - Set channel scan list.
@@ -2632,7 +2598,7 @@ static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
-	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
 		return;
 	}
 
@@ -2650,9 +2616,9 @@ static void pci230_handle_ao_nofifo(comedi_device * dev, comedi_subdevice * s)
 	}
 
 	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	if (!devpriv->ao_continuous) {
-		devpriv->ao_scan_count--;
-		if (devpriv->ao_scan_count == 0) {
+	if (cmd->stop_src == TRIG_COUNT) {
+		async->scans_done++;
+		if (async->scans_done >= cmd->stop_arg) {
 			/* End of acquisition. */
 			async->events |= COMEDI_CB_EOA;
 			pci230_ao_stop(dev, s);
@@ -2680,12 +2646,14 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 	/* Determine number of scans available in buffer. */
 	bytes_per_scan = cmd->chanlist_len * sizeof(sampl_t);
 	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
-	if (!devpriv->ao_continuous) {
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
-		if (num_scans > devpriv->ao_scan_count) {
-			num_scans = devpriv->ao_scan_count;
+		unsigned int scans_left = cmd->stop_arg - async->scans_done;
+
+		if (num_scans > scans_left) {
+			num_scans = scans_left;
 		}
-		if (devpriv->ao_scan_count == 0) {
+		if (scans_left == 0) {
 			/* End of acquisition. */
 			events |= COMEDI_CB_EOA;
 		}
@@ -2733,9 +2701,9 @@ static int pci230_handle_ao_fifo(comedi_device * dev, comedi_subdevice * s)
 			}
 		}
 		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
-		if (!devpriv->ao_continuous) {
-			devpriv->ao_scan_count -= num_scans;
-			if (devpriv->ao_scan_count == 0) {
+		if (cmd->stop_src == TRIG_COUNT) {
+			async->scans_done += num_scans;
+			if (async->scans_done >= cmd->stop_arg) {
 				/* All data for the command has been written
 				 * to FIFO.  Set FIFO interrupt trigger level
 				 * to 'empty'. */
@@ -2773,19 +2741,19 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 	unsigned int todo;
 	unsigned int fifoamount;
 	comedi_async *async = s->async;
-	unsigned int scanlen = async->cmd.scan_end_arg;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int scans_left = cmd->stop_arg - async->scans_done;
 
 	/* Determine number of samples to read. */
-	if (devpriv->ai_continuous) {
+	if (cmd->stop_src != TRIG_COUNT) {
 		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
-	} else if (devpriv->ai_scan_count == 0) {
+	} else if (scans_left == 0) {
 		todo = 0;
-	} else if ((devpriv->ai_scan_count > PCI230_ADC_FIFOLEVEL_HALFFULL)
-		|| (scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+	} else if (scans_left > PCI230_ADC_FIFOLEVEL_HALFFULL
+		|| cmd->scan_end_arg > PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	} else {
-		todo = (devpriv->ai_scan_count * scanlen)
-			- devpriv->ai_scan_pos;
+		todo = (scans_left * cmd->scan_end_arg) - async->cur_chan;
 		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL) {
 			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 		}
@@ -2836,16 +2804,16 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 			break;
 		}
 		fifoamount--;
-		devpriv->ai_scan_pos++;
-		if (devpriv->ai_scan_pos == scanlen) {
+		async->cur_chan++;
+		if (async->cur_chan == cmd->scan_end_arg) {
 			/* End of scan. */
-			devpriv->ai_scan_pos = 0;
-			devpriv->ai_scan_count--;
+			async->cur_chan = 0;
+			async->scans_done++;
 			async->events |= COMEDI_CB_EOS;
 		}
 	}
 
-	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
 		/* End of acquisition. */
 		events |= COMEDI_CB_EOA;
 	} else {
