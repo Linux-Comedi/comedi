@@ -321,7 +321,7 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int dmm32at_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
 static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG);
-void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec);
+static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -1103,7 +1103,7 @@ static int dmm32at_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
+static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
 {
 	unsigned char lo1, lo2, hi2;
 	unsigned short both2;
