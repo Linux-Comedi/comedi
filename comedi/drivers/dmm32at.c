@@ -832,14 +832,6 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		dmm_outb(dev, DMM32AT_CONV, 0xff);
 	}
 
-/* 	printk("dmmat32 in command\n"); */
-
-/* 	for(i=0;i<cmd->chanlist_len;i++) */
-/* 		comedi_buf_put(s->async,i*100); */
-
-/* 	s->async->events |= COMEDI_CB_EOA; */
-/* 	comedi_event(dev, s); */
-
 	return 0;
 
 }
@@ -854,7 +846,7 @@ static int dmm32at_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 {
 	unsigned char intstat;
-	unsigned int samp;
+	sampl_t samp;
 	int i;
 	comedi_device *dev = d;
 
@@ -873,21 +865,17 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			/* read and convert sample */
 			samp = dmm32at_ai_get_sample(dev);
-			comedi_buf_put(s, samp);
+			comedi_buf_write_samples(s, &samp, 1);
 		}
 
-		if (cmd->stop_src == TRIG_COUNT) {
-			async->scans_done++;
-			if (async->scans_done >= cmd->stop_arg) {
-				/* disable further interrupts and clocks */
-				dmm_outb(dev, DMM32AT_INTCLOCK, 0x0);
-				/* set the buffer to be flushed with an EOF */
-				s->async->events |= COMEDI_CB_EOA;
-			}
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			/* set the buffer to be flushed with an EOF */
+			s->async->events |= COMEDI_CB_EOA;
 
 		}
-		/* flush the buffer */
-		comedi_event(dev, s);
+		/* this will call dmm32at_ai_cancel() if all scans done */
+		comedi_handle_events(dev, s);
 	}
 
 	/* reset the interrupt */
