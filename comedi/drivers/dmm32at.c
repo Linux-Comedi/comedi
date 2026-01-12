@@ -251,10 +251,10 @@ static const dmm32at_board dmm32at_boards[] = {
  * feel free to suggest moving the variable to the comedi_device struct.
  */
 typedef struct {
+	spinlock_t regpage_spinlock;
 	/* Used for AO readback */
 	lsampl_t ao_readback[4];
 	unsigned char dio_config;
-
 } dmm32at_private;
 
 /*
@@ -422,6 +422,7 @@ static int dmm32at_attach(comedi_device * dev, comedi_devconfig * it)
  */
 	if (alloc_private(dev, sizeof(dmm32at_private)) < 0)
 		return -ENOMEM;
+	spin_lock_init(&devpriv->regpage_spinlock);
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -849,6 +850,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 	sampl_t samp;
 	int i;
 	comedi_device *dev = d;
+	unsigned long flags;
 
 	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
@@ -879,7 +881,9 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 	}
 
 	/* reset the interrupt */
+	comedi_spin_lock_irqsave(&devpriv->regpage_spinlock, flags);
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_INTRESET);
+	comedi_spin_unlock_irqrestore(&devpriv->regpage_spinlock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -964,6 +968,7 @@ static int dmm32at_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 static int dmm32at_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned long irqflags;
 	unsigned char diobits;
 
 	if (insn->n != 2)
@@ -977,6 +982,9 @@ static int dmm32at_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 		/* Write out the new digital output lines */
 		//outw(s->state,dev->iobase + DMM32AT_DIO);
 	}
+
+	/* serialize access to paged registers */
+	comedi_spin_lock_irqsave(&devpriv->regpage_spinlock, irqflags);
 
 	/* get access to the DIO regs */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_DIOACC);
@@ -1011,12 +1019,15 @@ static int dmm32at_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	 * it was a purely digital output subdevice */
 	//data[1]=s->state;
 
+	comedi_spin_unlock_irqrestore(&devpriv->regpage_spinlock, irqflags);
+
 	return 2;
 }
 
 static int dmm32at_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned long irqflags;
 	unsigned char chanbit;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -1051,16 +1062,22 @@ static int dmm32at_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 		return -EINVAL;
 	}
 
+	/* serialize access to paged registers */
+	comedi_spin_lock_irqsave(&devpriv->regpage_spinlock, irqflags);
+
 	/* get access to the DIO regs */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_DIOACC);
 	/* set the DIO's to the new configuration setting */
 	dmm_outb(dev, DMM32AT_DIOCONF, devpriv->dio_config);
+
+	comedi_spin_unlock_irqrestore(&devpriv->regpage_spinlock, irqflags);
 
 	return 1;
 }
 
 static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
 {
+	unsigned long irqflags;
 	unsigned char lo1, lo2, hi2;
 	unsigned short both2;
 
@@ -1072,6 +1089,9 @@ static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
 
 	/* set the counter frequency to 10mhz */
 	dmm_outb(dev, DMM32AT_CNTRDIO, 0);
+
+	/* serialize access to paged registers */
+	comedi_spin_lock_irqsave(&devpriv->regpage_spinlock, irqflags);
 
 	/* get access to the clock regs */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_CLKACC);
@@ -1088,6 +1108,7 @@ static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
 	/* enable the ai conversion interrupt and the clock to start scans */
 	dmm_outb(dev, DMM32AT_INTCLOCK, DMM32AT_ADINT | DMM32AT_CLKSEL);
 
+	comedi_spin_unlock_irqrestore(&devpriv->regpage_spinlock, irqflags);
 }
 
 static sampl_t dmm32at_ai_get_sample(comedi_device *dev)
