@@ -322,6 +322,7 @@ static int dmm32at_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
 static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG);
 static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec);
+static sampl_t dmm32at_ai_get_sample(comedi_device *dev);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -546,9 +547,7 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int n, i;
-	unsigned int d;
 	unsigned char status;
-	unsigned short msb, lsb;
 	unsigned char chan;
 	int range;
 
@@ -597,19 +596,8 @@ static int dmm32at_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 			return -ETIMEDOUT;
 		}
 
-		/* read data */
-		lsb = dmm_inb(dev, DMM32AT_AILSB);
-		msb = dmm_inb(dev, DMM32AT_AIMSB);
-
-		/* invert sign bit to make range unsigned, this is an
-		   idiosyncracy of the diamond board, it return
-		   conversions as a signed value, i.e. -32768 to
-		   32767, flipping the bit and interpreting it as
-		   signed gives you a range of 0 to 65535 which is
-		   used by comedi */
-		d = ((msb ^ 0x0080) << 8) + lsb;
-
-		data[n] = d;
+		/* read and convert sample */
+		data[n] = dmm32at_ai_get_sample(dev);
 	}
 
 	/* return the number of samples read/written */
@@ -883,7 +871,6 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 {
 	unsigned char intstat;
 	unsigned int samp;
-	unsigned short msb, lsb;
 	int i;
 	comedi_device *dev = d;
 
@@ -899,12 +886,8 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 		comedi_cmd *cmd = &s->async->cmd;
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
-			/* read data */
-			lsb = dmm_inb(dev, DMM32AT_AILSB);
-			msb = dmm_inb(dev, DMM32AT_AIMSB);
-
-			/* invert sign bit to make range unsigned */
-			samp = ((msb ^ 0x0080) << 8) + lsb;
+			/* read and convert sample */
+			samp = dmm32at_ai_get_sample(dev);
 			comedi_buf_put(s, samp);
 		}
 
@@ -1132,6 +1115,17 @@ static void dmm32at_setaitimer(comedi_device * dev, unsigned int nansec)
 	/* enable the ai conversion interrupt and the clock to start scans */
 	dmm_outb(dev, DMM32AT_INTCLOCK, DMM32AT_ADINT | DMM32AT_CLKSEL);
 
+}
+
+static sampl_t dmm32at_ai_get_sample(comedi_device *dev)
+{
+	comedi_subdevice *s = dev->subdevices + 0;	/* AI subdevice */
+	sampl_t val;
+
+	val = dmm_inb(dev, DMM32AT_AILSB);
+	val |= (sampl_t)dmm_inb(dev, DMM32AT_AIMSB) << 8;
+	/* convert raw, two's complement value to offset binary */
+	return comedi_offset_munge(s, val);
 }
 
 /*
