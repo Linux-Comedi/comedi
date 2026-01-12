@@ -251,11 +251,6 @@ static const dmm32at_board dmm32at_boards[] = {
  * feel free to suggest moving the variable to the comedi_device struct.
  */
 typedef struct {
-
-	int data;
-	int ai_inuse;
-	unsigned int ai_scans_left;
-
 	/* Used for AO readback */
 	lsampl_t ao_readback[4];
 	unsigned char dio_config;
@@ -715,10 +710,6 @@ static int dmm32at_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		err++;
 	}
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0xfffffff0) {
-			cmd->stop_arg = 0xfffffff0;
-			err++;
-		}
 		if (cmd->stop_arg == 0) {
 			cmd->stop_arg = 1;
 			err++;
@@ -820,12 +811,6 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	/* reset the interrupt just in case */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_INTRESET);
 
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_scans_left = cmd->stop_arg;
-	else {			/* TRIG_NONE */
-		devpriv->ai_scans_left = 0xffffffff;	/* indicates TRIG_NONE to isr */
-	}
-
 	/* wait for circuit to settle */
 	for (i = 0; i < NIOLOOPS; i++) {
 		status = dmm_inb(dev, DMM32AT_AIRBACK);
@@ -838,7 +823,7 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -ETIMEDOUT;
 	}
 
-	if (devpriv->ai_scans_left > 1) {
+	if (cmd->stop_src == TRIG_NONE || cmd->stop_arg > 1) {
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
@@ -861,7 +846,6 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 static int dmm32at_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	devpriv->ai_scans_left = 1;
 	/* disable further interrupts and clocks */
 	dmm_outb(dev, DMM32AT_INTCLOCK, 0x0);
 	return 0;
@@ -883,7 +867,8 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 
 	if (intstat & DMM32AT_ADINT) {
 		comedi_subdevice *s = dev->read_subdev;
-		comedi_cmd *cmd = &s->async->cmd;
+		comedi_async *async = s->async;
+		comedi_cmd *cmd = &async->cmd;
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			/* read and convert sample */
@@ -891,9 +876,9 @@ static irqreturn_t dmm32at_isr(int irq, void *d PT_REGS_ARG)
 			comedi_buf_put(s, samp);
 		}
 
-		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */
-			devpriv->ai_scans_left--;
-			if (devpriv->ai_scans_left == 0) {
+		if (cmd->stop_src == TRIG_COUNT) {
+			async->scans_done++;
+			if (async->scans_done >= cmd->stop_arg) {
 				/* disable further interrupts and clocks */
 				dmm_outb(dev, DMM32AT_INTCLOCK, 0x0);
 				/* set the buffer to be flushed with an EOF */
