@@ -874,6 +874,8 @@ static int dmm32at_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 static int dmm32at_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->ai_scans_left = 1;
+	/* disable further interrupts and clocks */
+	dmm_outb(dev, DMM32AT_INTCLOCK, 0x0);
 	return 0;
 }
 
