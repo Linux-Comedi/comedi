@@ -402,6 +402,21 @@ static inline int alloc_private(comedi_device * dev, int size)
 	return 0;
 }
 
+/*
+ * Converts between offset binary and 2's complement by togging the most
+ * significant bit of the sample data value.  If assumes that subd->maxdata is
+ * a power of 2 minus 1, so the number of sample bits is the number of 1 bits
+ * in subd->maxdata.
+ *
+ * It does not work for subdevices with channel-specific maxdata (indicated by
+ * having a non-null maxdata_list pointer).
+ */
+static inline unsigned int comedi_offset_munge(const comedi_subdevice *subd,
+	unsigned int val)
+{
+	return val ^ subd->maxdata ^ (subd->maxdata >> 1);
+}
+
 static inline unsigned int comedi_bytes_per_sample(const comedi_subdevice *subd)
 {
 	return subd->subdev_flags & SDF_LSAMPL ? sizeof(lsampl_t)
