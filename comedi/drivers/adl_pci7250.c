@@ -82,11 +82,13 @@ struct adl_pci7250_private {
 #define devpriv ((struct adl_pci7250_private *)dev->private)
 
 static int adl_pci7250_attach(comedi_device *dev, comedi_devconfig *it);
+static int adl_pci7250_auto_attach(comedi_device *dev, unsigned long context);
 static int adl_pci7250_detach(comedi_device *dev);
 static comedi_driver driver_adl_pci7250 = {
 	.driver_name = "adl_pci7250",
 	.module = THIS_MODULE,
 	.attach = adl_pci7250_attach,
+	.auto_attach = adl_pci7250_auto_attach,
 	.detach = adl_pci7250_detach,
 };
 
@@ -99,57 +101,26 @@ static unsigned char adl_pci7250_read8(comedi_device *dev,
 static void adl_pci7250_write8(comedi_device *dev, unsigned int offset,
 	unsigned char val);
 
-static int adl_pci7250_attach(comedi_device *dev, comedi_devconfig *it)
+static int adl_pci7250_attach_common(comedi_device *dev)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	comedi_subdevice *s;
-	int bus, slot;
 	unsigned int max_chans = 32;	/* Assume PCI-7251 modules fitted. */
 	unsigned int i;
 
-	printk(KERN_INFO "comedi%d: adl_pci7250\n", dev->minor);
-
 	dev->board_name = "pci7250";
-	bus = it->options[0];
-	slot = it->options[1];
-
-	if (alloc_private(dev, sizeof(struct adl_pci7250_private)) < 0)
-		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	devpriv->io.regtype = no_regtype;
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
-		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
-			pcidev->device == PCI_DEVICE_ID_PCI7250) {
-			if (bus || slot) {
-				/* requested particular bus/slot */
-				if (pcidev->bus->number != bus ||
-					PCI_SLOT(pcidev->devfn) != slot) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			if (pcidev->subsystem_device == 0x7000) {
-				/*
-				 * This is a newer LPCIe-7250 variant, and
-				 * neither the LPCI-7250 nor the LPCIe-7250
-				 * can have PCI-7251 modules fitted, so we
-				 * can limit the number of channels to 8.
-				 */
-				max_chans = 8;
-			}
-			break;
-		}
-	}
-	if (pcidev == NULL) {
-		printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-			dev->minor, bus, slot);
-		return -EIO;
+	if (pcidev->subsystem_device == 0x7000) {
+		/*
+		 * This is a newer LPCIe-7250 variant, and neither the
+		 * LPCI-7250 nor the LPCIe-7250 can have PCI-7251 modules
+		 * fitted, so we can limit the number of channels to 8.
+		 */
+		max_chans = 8;
 	}
 	if (comedi_pci_enable(pcidev, "adl_pci7250") < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and request regions\n",
@@ -218,6 +189,60 @@ static int adl_pci7250_attach(comedi_device *dev, comedi_devconfig *it)
 	printk(KERN_DEBUG "comedi: attached\n");
 
 	return 1;
+}
+
+static int adl_pci7250_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	int bus, slot;
+
+	printk(KERN_INFO "comedi%d: adl_pci7250\n", dev->minor);
+
+	bus = it->options[0];
+	slot = it->options[1];
+
+	if (alloc_private(dev, sizeof(struct adl_pci7250_private)) < 0)
+		return -ENOMEM;
+
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+
+		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
+			pcidev->device == PCI_DEVICE_ID_PCI7250) {
+			if (bus || slot) {
+				/* requested particular bus/slot */
+				if (pcidev->bus->number != bus ||
+					PCI_SLOT(pcidev->devfn) != slot) {
+					continue;
+				}
+			}
+			devpriv->pci_dev = pcidev;
+			break;
+		}
+	}
+	if (pcidev == NULL) {
+		printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+			dev->minor, bus, slot);
+		return -EIO;
+	}
+	return adl_pci7250_attach_common(dev);
+}
+
+static int adl_pci7250_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk(KERN_INFO "comedi%d: adl_pci7230: attach PCI %s\n", dev->minor,
+		pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(struct adl_pci7250_private)) < 0)
+		return -ENOMEM;
+
+	/* pci_dev_get() call matches pci_dev_put() in adl_pci7250_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return adl_pci7250_attach_common(dev);
 }
 
 static int adl_pci7250_detach(comedi_device *dev)
