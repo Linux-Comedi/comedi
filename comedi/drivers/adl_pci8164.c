@@ -70,12 +70,14 @@ typedef struct {
 #define devpriv ((adl_pci8164_private *)dev->private)
 
 static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it);
+static int adl_pci8164_auto_attach(comedi_device * dev, unsigned long context);
 static int adl_pci8164_detach(comedi_device * dev);
 static comedi_driver driver_adl_pci8164 = {
-      driver_name:"adl_pci8164",
-      module:THIS_MODULE,
-      attach:adl_pci8164_attach,
-      detach:adl_pci8164_detach,
+      .driver_name = "adl_pci8164",
+      .module = THIS_MODULE,
+      .attach = adl_pci8164_attach,
+      .auto_attach = adl_pci8164_auto_attach,
+      .detach = adl_pci8164_detach,
 };
 
 static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
@@ -102,23 +104,80 @@ static int adl_pci8164_insn_write_buf0(comedi_device * dev,
 static int adl_pci8164_insn_write_buf1(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
+static int adl_pci8164_attach_common(comedi_device * dev)
+{
+	struct pci_dev *pcidev = devpriv->pci_dev;
+	comedi_subdevice *s;
+
+	dev->board_name = "pci8164";
+
+	if (alloc_subdevices(dev, 4) < 0)
+		return -ENOMEM;
+
+	if (comedi_pci_enable(pcidev, "adl_pci8164") < 0) {
+		printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
+		return -EIO;
+	}
+	dev->iobase = pci_resource_start(pcidev, 2);
+	printk("comedi: base addr %4lx\n", dev->iobase);
+
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_PROC;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 4;
+	s->maxdata = 0xffff;
+	s->len_chanlist = 4;
+	//s->range_table = &range_axis;
+	s->insn_read = adl_pci8164_insn_read_msts;
+	s->insn_write = adl_pci8164_insn_write_cmd;
+
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_PROC;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 4;
+	s->maxdata = 0xffff;
+	s->len_chanlist = 4;
+	//s->range_table = &range_axis;
+	s->insn_read = adl_pci8164_insn_read_ssts;
+	s->insn_write = adl_pci8164_insn_write_otp;
+
+	s = dev->subdevices + 2;
+	s->type = COMEDI_SUBD_PROC;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 4;
+	s->maxdata = 0xffff;
+	s->len_chanlist = 4;
+	//s->range_table = &range_axis;
+	s->insn_read = adl_pci8164_insn_read_buf0;
+	s->insn_write = adl_pci8164_insn_write_buf0;
+
+	s = dev->subdevices + 3;
+	s->type = COMEDI_SUBD_PROC;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 4;
+	s->maxdata = 0xffff;
+	s->len_chanlist = 4;
+	//s->range_table = &range_axis;
+	s->insn_read = adl_pci8164_insn_read_buf1;
+	s->insn_write = adl_pci8164_insn_write_buf1;
+
+	printk("comedi: attached\n");
+
+	return 1;
+}
+
 static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
-	comedi_subdevice *s;
 	int bus, slot;
 
 	printk("comedi: attempt to attach...\n");
 	printk("comedi%d: adl_pci8164\n", dev->minor);
 
-	dev->board_name = "pci8164";
 	bus = it->options[0];
 	slot = it->options[1];
 
 	if (alloc_private(dev, sizeof(adl_pci8164_private)) < 0)
-		return -ENOMEM;
-
-	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -135,62 +194,29 @@ static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
 				}
 			}
 			devpriv->pci_dev = pcidev;
-			if (comedi_pci_enable(pcidev, "adl_pci8164") < 0) {
-				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
-				return -EIO;
-			}
-			dev->iobase = pci_resource_start(pcidev, 2);
-			printk("comedi: base addr %4lx\n", dev->iobase);
-
-			s = dev->subdevices + 0;
-			s->type = COMEDI_SUBD_PROC;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-			s->n_chan = 4;
-			s->maxdata = 0xffff;
-			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
-			s->insn_read = adl_pci8164_insn_read_msts;
-			s->insn_write = adl_pci8164_insn_write_cmd;
-
-			s = dev->subdevices + 1;
-			s->type = COMEDI_SUBD_PROC;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-			s->n_chan = 4;
-			s->maxdata = 0xffff;
-			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
-			s->insn_read = adl_pci8164_insn_read_ssts;
-			s->insn_write = adl_pci8164_insn_write_otp;
-
-			s = dev->subdevices + 2;
-			s->type = COMEDI_SUBD_PROC;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-			s->n_chan = 4;
-			s->maxdata = 0xffff;
-			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
-			s->insn_read = adl_pci8164_insn_read_buf0;
-			s->insn_write = adl_pci8164_insn_write_buf0;
-
-			s = dev->subdevices + 3;
-			s->type = COMEDI_SUBD_PROC;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-			s->n_chan = 4;
-			s->maxdata = 0xffff;
-			s->len_chanlist = 4;
-			//s->range_table = &range_axis;
-			s->insn_read = adl_pci8164_insn_read_buf1;
-			s->insn_write = adl_pci8164_insn_write_buf1;
-
-			printk("comedi: attached\n");
-
-			return 1;
+			return adl_pci8164_attach_common(dev);
 		}
 	}
 
 	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
 		dev->minor, bus, slot);
 	return -EIO;
+}
+
+static int adl_pci8164_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: adl_pci8164 attempting to attach pci %s\n",
+		dev->minor, pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(adl_pci8164_private)) < 0)
+		return -ENOMEM;
+
+	/* pci_dev_get() call matches pci_dev_put() in adl_pci8164_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return adl_pci8164_attach_common(dev);
 }
 
 static int adl_pci8164_detach(comedi_device * dev)
