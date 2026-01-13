@@ -59,12 +59,14 @@ typedef struct {
 #define devpriv ((adl_pci7432_private *)dev->private)
 
 static int adl_pci7432_attach(comedi_device * dev, comedi_devconfig * it);
+static int adl_pci7432_auto_attach(comedi_device * dev, unsigned long context);
 static int adl_pci7432_detach(comedi_device * dev);
 static comedi_driver driver_adl_pci7432 = {
-      driver_name:"adl_pci7432",
-      module:THIS_MODULE,
-      attach:adl_pci7432_attach,
-      detach:adl_pci7432_detach,
+      .driver_name = "adl_pci7432",
+      .module = THIS_MODULE,
+      .attach = adl_pci7432_attach,
+      .auto_attach = adl_pci7432_auto_attach,
+      .detach = adl_pci7432_detach,
 };
 
 /* Digital IO */
@@ -77,23 +79,62 @@ static int adl_pci7432_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 
 /*            */
 
+static int adl_pci7432_attach_common(comedi_device * dev)
+{
+	struct pci_dev *pcidev = devpriv->pci_dev;
+	comedi_subdevice *s;
+
+	dev->board_name = "pci7432";
+
+	if (alloc_subdevices(dev, 2) < 0)
+		return -ENOMEM;
+
+	if (comedi_pci_enable(pcidev, "adl_pci7432") < 0) {
+		printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
+		return -EIO;
+	}
+	dev->iobase = pci_resource_start(pcidev, 2);
+	printk("comedi: base addr %4lx\n", dev->iobase);
+
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags =
+		SDF_READABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 32;
+	s->maxdata = 1;
+	s->len_chanlist = 32;
+	s->io_bits = 0x00000000;
+	s->range_table = &range_digital;
+	s->insn_bits = adl_pci7432_di_insn_bits;
+
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags =
+		SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 32;
+	s->maxdata = 1;
+	s->len_chanlist = 32;
+	s->io_bits = 0xffffffff;
+	s->range_table = &range_digital;
+	s->insn_bits = adl_pci7432_do_insn_bits;
+
+	printk("comedi: attached\n");
+
+	return 1;
+}
+
 static int adl_pci7432_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
-	comedi_subdevice *s;
 	int bus, slot;
 
 	printk("comedi: attempt to attach...\n");
 	printk("comedi%d: adl_pci7432\n", dev->minor);
 
-	dev->board_name = "pci7432";
 	bus = it->options[0];
 	slot = it->options[1];
 
 	if (alloc_private(dev, sizeof(adl_pci7432_private)) < 0)
-		return -ENOMEM;
-
-	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -110,44 +151,29 @@ static int adl_pci7432_attach(comedi_device * dev, comedi_devconfig * it)
 				}
 			}
 			devpriv->pci_dev = pcidev;
-			if (comedi_pci_enable(pcidev, "adl_pci7432") < 0) {
-				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
-				return -EIO;
-			}
-			dev->iobase = pci_resource_start(pcidev, 2);
-			printk("comedi: base addr %4lx\n", dev->iobase);
-
-			s = dev->subdevices + 0;
-			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags =
-				SDF_READABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = 32;
-			s->maxdata = 1;
-			s->len_chanlist = 32;
-			s->io_bits = 0x00000000;
-			s->range_table = &range_digital;
-			s->insn_bits = adl_pci7432_di_insn_bits;
-
-			s = dev->subdevices + 1;
-			s->type = COMEDI_SUBD_DO;
-			s->subdev_flags =
-				SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = 32;
-			s->maxdata = 1;
-			s->len_chanlist = 32;
-			s->io_bits = 0xffffffff;
-			s->range_table = &range_digital;
-			s->insn_bits = adl_pci7432_do_insn_bits;
-
-			printk("comedi: attached\n");
-
-			return 1;
+			return adl_pci7432_attach_common(dev);
 		}
 	}
 
 	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
 		dev->minor, bus, slot);
 	return -EIO;
+}
+
+static int adl_pci7432_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: adl_pci7432 attempting to attach pci %s\n",
+		dev->minor, pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(adl_pci7432_private)) < 0)
+		return -ENOMEM;
+
+	/* pci_dev_get() call matches pci_dev_put() in adl_pci7432_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return adl_pci7432_attach_common(dev);
 }
 
 static int adl_pci7432_detach(comedi_device * dev)
