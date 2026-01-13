@@ -66,11 +66,13 @@ struct adl_pci7230_private {
 #define devpriv ((struct adl_pci7230_private *)dev->private)
 
 static int adl_pci7230_attach(comedi_device *dev, comedi_devconfig *it);
+static int adl_pci7230_auto_attach(comedi_device *dev, unsigned long context);
 static int adl_pci7230_detach(comedi_device *dev);
 static comedi_driver driver_adl_pci7230 = {
 	.driver_name = "adl_pci7230",
 	.module = THIS_MODULE,
 	.attach = adl_pci7230_attach,
+	.auto_attach = adl_pci7230_auto_attach,
 	.detach = adl_pci7230_detach,
 };
 
@@ -82,46 +84,16 @@ static int adl_pci7230_di_insn_bits(comedi_device *dev, comedi_subdevice *s,
 static int adl_pci7230_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
-static int adl_pci7230_attach(comedi_device *dev, comedi_devconfig *it)
+static int adl_pci7230_attach_common(comedi_device *dev)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	comedi_subdevice *s;
-	int bus, slot;
-
-	printk(KERN_INFO "comedi%d: adl_pci7230\n", dev->minor);
 
 	dev->board_name = "pci7230";
-	bus = it->options[0];
-	slot = it->options[1];
-
-	if (alloc_private(dev, sizeof(struct adl_pci7230_private)) < 0)
-		return -ENOMEM;
 
 	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
-		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
-			pcidev->device == PCI_DEVICE_ID_PCI7230) {
-			if (bus || slot) {
-				/* requested particular bus/slot */
-				if (pcidev->bus->number != bus ||
-					PCI_SLOT(pcidev->devfn) != slot) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			break;
-		}
-	}
-	if (pcidev == NULL) {
-		printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-			dev->minor, bus, slot);
-		return -EIO;
-	}
 	if (comedi_pci_enable(pcidev, "adl_pci7230") < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and request regions\n",
 			dev->minor);
@@ -151,6 +123,62 @@ static int adl_pci7230_attach(comedi_device *dev, comedi_devconfig *it)
 	printk(KERN_DEBUG "comedi: attached\n");
 
 	return 1;
+}
+
+static int adl_pci7230_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	int bus, slot;
+
+	printk(KERN_INFO "comedi%d: adl_pci7230\n", dev->minor);
+
+	dev->board_name = "pci7230";
+	bus = it->options[0];
+	slot = it->options[1];
+
+	if (alloc_private(dev, sizeof(struct adl_pci7230_private)) < 0)
+		return -ENOMEM;
+
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+
+		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
+			pcidev->device == PCI_DEVICE_ID_PCI7230) {
+			if (bus || slot) {
+				/* requested particular bus/slot */
+				if (pcidev->bus->number != bus ||
+					PCI_SLOT(pcidev->devfn) != slot) {
+					continue;
+				}
+			}
+			devpriv->pci_dev = pcidev;
+			break;
+		}
+	}
+	if (pcidev == NULL) {
+		printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+			dev->minor, bus, slot);
+		return -EIO;
+	}
+
+	return adl_pci7230_attach_common(dev);
+}
+
+static int adl_pci7230_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk(KERN_INFO "comedi%d: adl_pci7230: attach PCI %s\n", dev->minor,
+		pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(struct adl_pci7230_private)) < 0)
+		return -ENOMEM;
+
+	/* pci_dev_get() call matches pci_dev_put() in adl_pci7230_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return adl_pci7230_attach_common(dev);
 }
 
 static int adl_pci7230_detach(comedi_device *dev)
