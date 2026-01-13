@@ -289,6 +289,7 @@ typedef struct {
 //
 
 static int pci9112_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci9112_auto_attach(comedi_device * dev, unsigned long context);
 static int pci9112_detach(comedi_device * dev);
 static void pci9112_ai_munge(comedi_device * dev, comedi_subdevice * s,
 	void *data, unsigned int num_bytes, unsigned int start_chan_index);
@@ -304,10 +305,14 @@ static const comedi_lrange pci9112_hr_ai_range = {
 		}
 };
 
+enum pci9112_model {
+	pci9112_model,
+	//pci9112_hg_model,
+};
+
 static DEFINE_PCI_DEVICE_TABLE(pci9112_pci_table) = {
-	{PCI_VENDOR_ID_ADLINK_9112, PCI9112_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0,
-		0, 0},
-	//{ PCI_VENDOR_ID_ADLINK, PCI9112_HG_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(ADLINK_9112, PCI9112_DEVICE_ID), pci9112_model },
+	//{ PCI_VDEVICE(ADLINK, PCI9112_HG_DEVICE_ID), pci9112_hg_model },
 	{0}
 };
 
@@ -332,28 +337,30 @@ typedef struct {
 } pci9112_board_struct;
 
 static const pci9112_board_struct pci9112_boards[] = {
-	{
-	      name:	"pci9112",
-	      device_id:PCI9112_DEVICE_ID,
-	      ai_channel_nbr:PCI9112_AI_CHANNEL_NBR,
-	      ao_channel_nbr:PCI9112_AO_CHANNEL_NBR,
-	      ai_resolution:PCI9112_AI_RESOLUTION,
-	      ai_resolution_mask:PCI9112_AI_RESOLUTION_MASK,
-	      ao_resolution:PCI9112_AO_RESOLUTION,
-	      ao_resolution_mask:PCI9112_AO_RESOLUTION_MASK,
-	      ai_range_list:&pci9112_hr_ai_range, //pci9112_hr_ai_range
-	      ao_range_list:&range_bipolar10,
-      ai_acquisition_period_min_ns:PCI9112_AI_ACQUISITION_PERIOD_MIN_NS}
+	[pci9112_model] = {
+		.name =	"pci9112",
+		.device_id = PCI9112_DEVICE_ID,
+		.ai_channel_nbr = PCI9112_AI_CHANNEL_NBR,
+		.ao_channel_nbr = PCI9112_AO_CHANNEL_NBR,
+		.ai_resolution = PCI9112_AI_RESOLUTION,
+		.ai_resolution_mask = PCI9112_AI_RESOLUTION_MASK,
+		.ao_resolution = PCI9112_AO_RESOLUTION,
+		.ao_resolution_mask = PCI9112_AO_RESOLUTION_MASK,
+		.ai_range_list = &pci9112_hr_ai_range, //pci9112_hr_ai_range
+		.ao_range_list = &range_bipolar10,
+		.ai_acquisition_period_min_ns =
+			PCI9112_AI_ACQUISITION_PERIOD_MIN_NS,
+	},
 };
 
-#define pci9112_board_nbr \
-  (sizeof(pci9112_boards)/sizeof(pci9112_board_struct))
+#define pci9112_board_nbr ARRAY_SIZE(pci9112_boards)
 
 static comedi_driver pci9112_driver = {
-      driver_name:PCI9112_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci9112_attach,
-      detach:pci9112_detach,
+      .driver_name = PCI9112_DRIVER_NAME,
+      .module = THIS_MODULE,
+      .attach = pci9112_attach,
+      .auto_attach = pci9112_auto_attach,
+      .detach = pci9112_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(pci9112_driver, pci9112_pci_table);
@@ -1312,68 +1319,13 @@ static int pci9112_reset(comedi_device * dev)
 //      - Declare device driver capability
 //
 
-static int pci9112_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci9112_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *subdevice;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
-	struct pci_dev *pci_device;
-	int error, i;
-	const pci9112_board_struct *board;
-
-	if (alloc_private(dev, sizeof(pci9112_private_data_struct)) < 0) {
-		return -ENOMEM;
-	}
-	//
-	// Probe the device to determine what device in the series it is.
-	//
-
-	printk("comedi%d: " PCI9112_DRIVER_NAME " driver\n", dev->minor);
-
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_device != NULL;
-		pci_device =
-		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
-		//printk("Vendor id:%d %d\n",pci_device->vendor,PCI_VENDOR_ID_ADLINK);
-		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK_9112) {
-			for (i = 0; i < pci9112_board_nbr; i++) {
-				//printk("deviceid %d:\n",pci_device->device);
-				if (pci9112_boards[i].device_id ==
-					pci_device->device) {
-					// was a particular bus/slot requested?
-					if ((it->options[0] != 0)
-						|| (it->options[1] != 0)) {
-						// are we on the wrong bus/slot?
-						if (pci_device->bus->number !=
-							it->options[0]
-							|| PCI_SLOT(pci_device->
-								devfn) !=
-							it->options[1]) {
-							continue;
-						}
-					}
-
-					dev->board_ptr = pci9112_boards + i;
-					board = (pci9112_board_struct *) dev->
-						board_ptr;
-					dev_private->pci_device = pci_device;
-					goto found;
-				}
-			}
-		}
-	}
-
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, it->options[0], it->options[1]);
-	return -EIO;
-
-      found:
-
-	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
-		dev->minor,
-		pci9112_boards[i].name,
-		pci_device->bus->number,
-		PCI_SLOT(pci_device->devfn),
-		PCI_FUNC(pci_device->devfn), pci_device->irq);
+	struct pci_dev *pci_device = dev_private->pci_device;
+	int error;
+	const pci9112_board_struct *board = dev->board_ptr;
 
 	// TODO: Warn about non-tested boards.
 
@@ -1487,6 +1439,92 @@ static int pci9112_attach(comedi_device * dev, comedi_devconfig * it)
 	dev_private->is_valid = 1;
 
 	return 0;
+}
+
+static int pci9112_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pci_device;
+	int i;
+	const pci9112_board_struct *board;
+
+	if (alloc_private(dev, sizeof(pci9112_private_data_struct)) < 0) {
+		return -ENOMEM;
+	}
+	//
+	// Probe the device to determine what device in the series it is.
+	//
+
+	printk("comedi%d: " PCI9112_DRIVER_NAME " driver\n", dev->minor);
+
+	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pci_device != NULL;
+		pci_device =
+		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+		//printk("Vendor id:%d %d\n",pci_device->vendor,PCI_VENDOR_ID_ADLINK);
+		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK_9112) {
+			for (i = 0; i < pci9112_board_nbr; i++) {
+				//printk("deviceid %d:\n",pci_device->device);
+				if (pci9112_boards[i].device_id ==
+					pci_device->device) {
+					// was a particular bus/slot requested?
+					if ((it->options[0] != 0)
+						|| (it->options[1] != 0)) {
+						// are we on the wrong bus/slot?
+						if (pci_device->bus->number !=
+							it->options[0]
+							|| PCI_SLOT(pci_device->
+								devfn) !=
+							it->options[1]) {
+							continue;
+						}
+					}
+
+					dev->board_ptr = pci9112_boards + i;
+					board = (pci9112_board_struct *) dev->
+						board_ptr;
+					dev_private->pci_device = pci_device;
+					goto found;
+				}
+			}
+		}
+	}
+
+	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, it->options[0], it->options[1]);
+	return -EIO;
+
+      found:
+
+	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
+		dev->minor,
+		pci9112_boards[i].name,
+		pci_device->bus->number,
+		PCI_SLOT(pci_device->devfn),
+		PCI_FUNC(pci_device->devfn), pci_device->irq);
+
+	return pci9112_attach_common(dev);
+}
+
+static int pci9112_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_device = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: " PCI9112_DRIVER_NAME " attaching pci %s\n",
+		dev->minor, pci_name(pci_device));
+
+	if (alloc_private(dev, sizeof(pci9112_private_data_struct)) < 0) {
+		return -ENOMEM;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in pci9112_detach() */
+	dev_private->pci_device = pci_dev_get(pci_device);
+
+	if (context_model >= pci9112_board_nbr)
+		return -EINVAL;
+
+	dev->board_ptr = &pci9112_boards[context_model];
+
+	return pci9112_attach_common(dev);
 }
 
 //
