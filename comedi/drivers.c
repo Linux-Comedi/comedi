@@ -713,3 +713,20 @@ void comedi_usb_auto_unconfig(struct usb_interface *intf)
 	BUG_ON(intf == NULL);
 	comedi_auto_unconfig(&intf->dev);
 }
+
+struct pci_dev *comedi_to_pci_dev(comedi_device *dev)
+{
+	return dev->hw_dev ? to_pci_dev(dev->hw_dev) : NULL;
+}
+
+struct usb_interface *comedi_to_usb_interface(comedi_device *dev)
+{
+	return dev->hw_dev ? to_usb_interface(dev->hw_dev) : NULL;
+}
+
+struct usb_device *comedi_to_usb_dev(comedi_device *dev)
+{
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+
+	return intf ? interface_to_usbdev(intf) : NULL;
+}

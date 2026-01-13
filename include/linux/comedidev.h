@@ -528,6 +528,9 @@ struct usb_interface;	// forward declaration
 int comedi_usb_auto_config(struct usb_interface *intf, comedi_driver *driver,
 	unsigned long context);
 void comedi_usb_auto_unconfig(struct usb_interface *intf);
+struct pci_dev *comedi_to_pci_dev(comedi_device *dev);
+struct usb_device *comedi_to_usb_dev(comedi_device *dev);
+struct usb_interface *comedi_to_usb_interface(comedi_device *dev);
 
 //#ifdef COMEDI_CONFIG_RT
 #include <linux/comedi_rt.h>
