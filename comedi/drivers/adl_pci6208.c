@@ -120,16 +120,18 @@ typedef struct {
 #define devpriv ((pci6208_private *)dev->private)
 
 static int pci6208_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci6208_attach_common(comedi_device * dev);
+static int pci6208_auto_attach(comedi_device * dev, unsigned long context);
 static int pci6208_detach(comedi_device * dev);
 
-#define pci6208_board_nbr \
-	(sizeof(pci6208_boards) / sizeof(pci6208_board))
+#define pci6208_board_nbr ARRAY_SIZE(pci6208_boards)
 
 static comedi_driver driver_pci6208 = {
-      driver_name:PCI6208_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci6208_attach,
-      detach:pci6208_detach,
+      .driver_name = PCI6208_DRIVER_NAME,
+      .module = THIS_MODULE,
+      .attach =pci6208_attach,
+      .auto_attach = pci6208_auto_attach,
+      .detach = pci6208_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);
@@ -149,6 +151,29 @@ static int pci6208_di_insn_bits(comedi_device *dev, comedi_subdevice *s,
 static int pci6208_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
+static int pci6208_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	int retval;
+
+	printk("comedi%d: pci6208: attach pci %s\n", dev->minor,
+		pci_name(pci_dev));
+
+	retval = alloc_private(dev, sizeof(pci6208_private));
+	if (retval < 0)
+		return retval;
+
+	/* pci_dev_get() call matches pci_dev_put() in pci6208_detach() */
+	devpriv->pci_dev = pci_dev_get(pci_dev);
+
+	if (context_model >= pci6208_board_nbr)
+		return -EINVAL;
+
+	dev->board_ptr = &pci6208_boards[context_model];
+
+	return pci6208_attach_common(dev);
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -157,9 +182,7 @@ static int pci6208_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
  */
 static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
 	int retval;
-	unsigned long io_base;
 
 	printk("comedi%d: pci6208\n", dev->minor);
 
@@ -170,6 +193,15 @@ static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
 	retval = pci6208_find_device(dev, it->options[0], it->options[1]);
 	if (retval < 0)
 		return retval;
+
+	return pci6208_attach_common(dev);
+}
+
+static int pci6208_attach_common(comedi_device *dev)
+{
+	comedi_subdevice *s;
+	int retval;
+	unsigned long io_base;
 
 	retval = pci6208_pci_setup(devpriv->pci_dev, &io_base, dev->minor);
 	if (retval < 0)
