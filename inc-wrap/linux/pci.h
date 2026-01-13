@@ -41,4 +41,18 @@ comedi_pci_request_regions(struct pci_dev *pdev, const char *res_name)
 
 #endif
 
+/* PCI_VDEVICE() macro was added in kernel version 2.6.20. */
+#ifndef PCI_VDEVICE
+#define PCI_VDEVICE(vendor, device) \
+	PCI_VENDOR_ID_##vendor, (device), \
+	PCI_ANY_ID, PCI_ANY_ID, 0, 0
+#endif
+
+/* PCI_DEVICE_SUB() macro was added in kernel version 3.8. */
+#ifndef PCI_DEVICE_SUB
+#define PCI_DEVICE_SUB(vend, dev, subvend, subdev) \
+	.vendor = (vend), .device = (dev), \
+	.subvendor = (subvend), .subdevice = (subdev)
+#endif
+
 #endif
