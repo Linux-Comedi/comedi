@@ -1563,7 +1563,88 @@ static int pci_dio_detach(comedi_device * dev)
 /*
 ==============================================================================
 */
-COMEDI_PCI_INITCLEANUP(driver_pci_dio, pci_dio_pci_table);
+static unsigned long pci_dio_override_cardtype(struct pci_dev *pcidev,
+	unsigned long cardtype)
+{
+	/*
+	 * Change cardtype from TYPE_PCI1753 to TYPE_PCI1753E if expansion
+	 * board available.  Need to enable PCI device and request the main
+	 * registers PCI BAR temporarily to perform the test.
+	 */
+	if (cardtype != TYPE_PCI1753)
+		return cardtype;
+	if (comedi_pci_enable(pcidev, "adv_pci_dio") == 0) {
+		/*
+		 * This test is based on Advantech's "advdaq" driver source
+		 * (which declares its module license as "GPL" although the
+		 * driver source does not include a "COPYING" file).
+		 */
+		unsigned long reg = pci_resource_start(pcidev, 2) + 53;
+
+		outb(0x05, reg);
+		if ((inb(reg) & 0x07) == 0x02) {
+			outb(0x02, reg);
+			if ((inb(reg) & 0x07) == 0x05)
+				cardtype = TYPE_PCI1753E;
+		}
+		comedi_pci_disable(pcidev);
+	}
+	return cardtype;
+}
+
+/*
+==============================================================================
+*/
+static int __devinit pci_dio_pci_probe(struct pci_dev *dev,
+	const struct pci_device_id *id)
+{
+	unsigned long cardtype;
+
+	cardtype = pci_dio_override_cardtype(dev, id->driver_data);
+	return comedi_pci_auto_config(dev, &driver_pci_dio, cardtype);
+}
+
+/*
+==============================================================================
+*/
+static struct pci_driver pci_dio_pci_driver = {
+	.name = "adv_pci_dio",
+	.id_table = pci_dio_pci_table,
+	.probe = pci_dio_pci_probe,
+	.remove = __devexit_p(comedi_pci_auto_unconfig),
+};
+
+/*
+==============================================================================
+*/
+static int __init pci_dio_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pci_dio);
+	if (retval < 0)
+		return retval;
+
+	return pci_register_driver(&pci_dio_pci_driver);
+}
+
+module_init(pci_dio_init_module);
+
+/*
+==============================================================================
+*/
+static void __exit pci_dio_cleanup_module(void)
+{
+	pci_unregister_driver(&pci_dio_pci_driver);
+	comedi_driver_unregister(&driver_pci_dio);
+}
+
+module_exit(pci_dio_cleanup_module);
+
+/*
+==============================================================================
+*/
+COMEDI_MODULE_MACROS
 /*
 ==============================================================================
 */
