@@ -1202,7 +1202,7 @@ static int pci_dio_reset(comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci1760_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci1760_attach(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int subdev = 0;
@@ -1480,7 +1480,7 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 
 	if (this_board->cardtype == TYPE_PCI1760)
-		pci1760_attach(dev, it);
+		pci1760_attach(dev);
 
 	devpriv->valid = 1;
 
