@@ -116,16 +116,16 @@ typedef struct pci1723_board_struct {
 
 static const boardtype boardtypes[] = {
 	{
-	      name:	"pci1723",
-	      vendor_id:ADVANTECH_VENDOR,
-	      device_id:0x1723,
-	      iorange:	IORANGE_1723,
-	      cardtype:TYPE_PCI1723,
-	      n_aochan:8,
-	      n_diochan:16,
-	      ao_maxdata:0xffff,
-	      rangelist_ao:&range_pci1723,
-		},
+	      .name = "pci1723",
+	      .vendor_id = ADVANTECH_VENDOR,
+	      .device_id = 0x1723,
+	      .iorange = IORANGE_1723,
+	      .cardtype = TYPE_PCI1723,
+	      .n_aochan = 8,
+	      .n_diochan = 16,
+	      .ao_maxdata = 0xffff,
+	      .rangelist_ao = &range_pci1723,
+	},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -144,15 +144,17 @@ MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
  * the device code.
  */
 static int pci1723_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci1723_auto_attach(comedi_device * dev, unsigned long context);
 static int pci1723_detach(comedi_device * dev);
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 
 static comedi_driver driver_pci1723 = {
-      driver_name:"adv_pci1723",
-      module:THIS_MODULE,
-      attach:pci1723_attach,
-      detach:pci1723_detach,
+      .driver_name = "adv_pci1723",
+      .module = THIS_MODULE,
+      .attach = pci1723_attach,
+      .auto_attach = pci1723_auto_attach,
+      .detach = pci1723_detach,
 };
 
 /* this structure is for data unique to this hardware driver. */
@@ -290,64 +292,12 @@ static int pci1723_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a pci1723 board.
- */
-static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci1723_attach_common(comedi_device * dev, struct pci_dev *pcidev)
 {
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
-	struct pci_dev *pcidev;
 	unsigned int iobase;
 	unsigned char pci_bus, pci_slot, pci_func;
-	int opt_bus, opt_slot;
-	const char *errstr;
-
-	rt_printk("comedi%d: adv_pci1723: board=%s", dev->minor,
-		this_board->name);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	if ((ret = alloc_private(dev, sizeof(pci1723_private))) < 0) {
-		rt_printk(KERN_CONT " - Allocation failed!\n");
-		return -ENOMEM;
-	}
-
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev =
-			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				this_board->device_id, pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-				|| opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
-			errstr = "failed to enable PCI device and request regions!";
-			continue;
-		}
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
-				opt_bus, opt_slot, errstr);
-		} else {
-			rt_printk(KERN_CONT " - Card %s\n", errstr);
-		}
-		return -EIO;
-	}
 
 	pci_bus = pcidev->bus->number;
 	pci_slot = PCI_SLOT(pcidev->devfn);
@@ -430,6 +380,94 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 
 	rt_printk(KERN_CONT " - attached\n");
 	return 0;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a pci1723 board.
+ */
+static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+	struct pci_dev *pcidev;
+	int opt_bus, opt_slot;
+	const char *errstr;
+
+	rt_printk("comedi%d: adv_pci1723: board=%s", dev->minor,
+		this_board->name);
+
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
+
+	if ((ret = alloc_private(dev, sizeof(pci1723_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	while (NULL != (pcidev =
+			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
+				this_board->device_id, pcidev))) {
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+				|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
+			errstr = "failed to enable PCI device and request regions!";
+			continue;
+		}
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
+				opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
+		}
+		return -EIO;
+	}
+
+	return pci1723_attach_common(dev, pcidev);
+}
+
+static int pci1723_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	rt_printk("comedi%d: adv_pci1723: auto-attach PCI %s",
+		dev->minor, pci_name(pcidev));
+
+	if ((ret = alloc_private(dev, sizeof(pci1723_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * pci1723_attach() calls comedi_pci_enable() before
+	 * pci1723_attach_common(), so do the same.
+	 */
+	ret = comedi_pci_enable(pcidev, "adv_pci1723");
+	if (ret) {
+		rt_printk(KERN_CONT " - failed to enable PCI device and request regions!\n");
+		return ret;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in pci1723_detach() */
+	pci_dev_get(pcidev);
+
+	return pci1723_attach_common(dev, pcidev);
 }
 
 /*
