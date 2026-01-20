@@ -680,8 +680,6 @@ static comedi_driver driver_pci_dio = {
 };
 typedef struct pci_dio_private_st pci_dio_private;
 struct pci_dio_private_st {
-	pci_dio_private *prev;	// previous private struct
-	pci_dio_private *next;	// next private struct
 	struct pci_dev *pcidev;	// pointer to board's pci_dev
 	char valid;		// card is usable
 	char GlobalIrqEnabled;	// 1= any IRQ source is enabled
@@ -698,8 +696,6 @@ struct pci_dio_private_st {
 	unsigned short IDIFiltrLow[8];	// IDI's filter value low signal
 	unsigned short IDIFiltrHigh[8];	// IDI's filter value high signal
 };
-
-static pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
 
 #define devpriv ((pci_dio_private *)dev->private)
 #define this_board ((const boardtype *)dev->board_ptr)
@@ -1328,32 +1324,6 @@ static int pci_dio_add_8254(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int CheckAndAllocCard(comedi_device * dev, comedi_devconfig * it,
-	struct pci_dev *pcidev)
-{
-	pci_dio_private *pr, *prev;
-
-	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
-		if (pr->pcidev == pcidev) {
-			return 0;	// this card is used, look for another
-		}
-	}
-
-	if (prev) {
-		devpriv->prev = prev;
-		prev->next = devpriv;
-	} else {
-		pci_priv = devpriv;
-	}
-
-	devpriv->pcidev = pcidev;
-
-	return 1;
-}
-
-/*
-==============================================================================
-*/
 static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
@@ -1386,8 +1356,7 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 					continue;
 				}
 			}
-			ret = CheckAndAllocCard(dev, it, pcidev);
-			if (ret != 1) continue;
+			devpriv->pcidev = pcidev;
 			dev->board_ptr = boardtypes + i;
 			break;
 		}
@@ -1544,15 +1513,6 @@ static int pci_dio_detach(comedi_device * dev)
 				comedi_pci_disable(devpriv->pcidev);
 			}
 			pci_dev_put(devpriv->pcidev);
-		}
-
-		if (devpriv->prev) {
-			devpriv->prev->next = devpriv->next;
-		} else {
-			pci_priv = devpriv->next;
-		}
-		if (devpriv->next) {
-			devpriv->next->prev = devpriv->prev;
 		}
 	}
 
