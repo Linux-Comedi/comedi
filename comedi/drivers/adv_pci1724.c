@@ -243,60 +243,13 @@ static int adv_pci1724_insn_config(comedi_device *dev, comedi_subdevice *s,
 	return ret < 0 ? ret : insn->n;
 }
 
-static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
+static int adv_pci1724_attach_common(comedi_device *dev, struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev;
 	comedi_subdevice *s;
 	unsigned int board_id;
 	unsigned char pci_bus, pci_slot, pci_func;
 	unsigned int iobase;
-	int opt_bus, opt_slot;
 	int ret;
-	const char *errstr;
-
-	rt_printk("comedi%d: adv_pci1724", dev->minor);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	if ((ret = alloc_private(dev, sizeof(pci1724_private))) < 0) {
-		rt_printk(KERN_CONT " - Allocation failed!\n");
-		return -ENOMEM;
-	}
-
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev =
-			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				0x1724, pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-				|| opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1724")) {
-			errstr = "failed to enable PCI device and request regions!";
-			continue;
-		}
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
-				opt_bus, opt_slot, errstr);
-		} else {
-			rt_printk(KERN_CONT " - Card %s\n", errstr);
-		}
-		return -EIO;
-	}
 
 	pci_bus = pcidev->bus->number;
 	pci_slot = PCI_SLOT(pcidev->devfn);
@@ -358,6 +311,88 @@ static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
+static int adv_pci1724_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	struct pci_dev *pcidev;
+	int opt_bus, opt_slot;
+	int ret;
+	const char *errstr;
+
+	rt_printk("comedi%d: adv_pci1724", dev->minor);
+
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
+
+	if ((ret = alloc_private(dev, sizeof(pci1724_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	while (NULL != (pcidev =
+			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
+				0x1724, pcidev))) {
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+				|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (comedi_pci_enable(pcidev, "adv_pci1724")) {
+			errstr = "failed to enable PCI device and request regions!";
+			continue;
+		}
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
+				opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
+		}
+		return -EIO;
+	}
+
+	return adv_pci1724_attach_common(dev, pcidev);
+}
+
+static int adv_pci1724_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	rt_printk("comedi%d: adv_pci1724", dev->minor);
+
+	if ((ret = alloc_private(dev, sizeof(pci1724_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * adv_pci1724_attach() calls comedi_pci_enable() before
+	 * adv_pci1724_attach_common(), so do the same.
+	 */
+	ret = comedi_pci_enable(pcidev, "adv_pci1724");
+	if (ret) {
+		rt_printk(KERN_CONT " - failed to enable PCI device and request regions!\n");
+		return ret;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in adv_pci1724_detach() */
+	pci_dev_get(pcidev);
+
+	return adv_pci1724_attach_common(dev, pcidev);
+}
+
 static int adv_pci1724_detach(comedi_device *dev)
 {
 	printk("comedi%d: adv_pci1724: remove\n", dev->minor);
@@ -375,10 +410,11 @@ static int adv_pci1724_detach(comedi_device *dev)
 }
 
 static comedi_driver adv_pci1724_driver = {
-	driver_name:	"adv_pci1724",
-	module:		THIS_MODULE,
-	attach:		adv_pci1724_attach,
-	detach:		adv_pci1724_detach,
+	.driver_name	= "adv_pci1724",
+	.module		= THIS_MODULE,
+	.attach		= adv_pci1724_attach,
+	.auto_attach	= adv_pci1724_auto_attach,
+	.detach		= adv_pci1724_detach,
 };
 
 static const struct pci_device_id adv_pci1724_pci_table[] = {
