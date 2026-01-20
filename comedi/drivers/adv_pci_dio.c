@@ -211,6 +211,7 @@ typedef enum {
 #define OMBCMD_RETRY	0x03	/* 3 times try request before error */
 
 static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci_dio_auto_attach(comedi_device * dev, unsigned long context);
 static int pci_dio_detach(comedi_device * dev);
 
 typedef struct {
@@ -236,21 +237,21 @@ typedef struct {
 } boardtype;
 
 static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
-	{PCI_VENDOR_ID_ADVANTECH, 0x1730, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1733, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1734, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1735, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1739, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1750, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1751, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1752, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1753, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1754, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1756, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1760, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1761, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1762, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(ADVANTECH, 0x1730), TYPE_PCI1730 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1733), TYPE_PCI1733 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1734), TYPE_PCI1734 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1735), TYPE_PCI1735 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1736), TYPE_PCI1736 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1739), TYPE_PCI1739 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1750), TYPE_PCI1750 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1751), TYPE_PCI1751 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1752), TYPE_PCI1752 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1753), TYPE_PCI1753 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1754), TYPE_PCI1754 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1756), TYPE_PCI1756 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1760), TYPE_PCI1760 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1761), TYPE_PCI1761 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1762), TYPE_PCI1762 },
 	{0}
 };
 
@@ -676,6 +677,7 @@ static comedi_driver driver_pci_dio = {
       .driver_name = "adv_pci_dio",
       .module = THIS_MODULE,
       .attach = pci_dio_attach,
+      .auto_attach = pci_dio_auto_attach,
       .detach = pci_dio_detach
 };
 typedef struct pci_dio_private_st pci_dio_private;
@@ -1324,51 +1326,12 @@ static int pci_dio_add_8254(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci_dio_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices, i, j;
 	unsigned long iobase;
-	struct pci_dev *pcidev;
-
-	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
-
-	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
-		rt_printk(KERN_CONT ", Error: Cann't allocate private memory!\n");
-		return -ENOMEM;
-	}
-
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// loop through cards supported by this driver
-		for (i = 0; i < n_boardtypes; ++i) {
-			if (boardtypes[i].vendor_id != pcidev->vendor)
-				continue;
-			if (boardtypes[i].device_id != pcidev->device)
-				continue;
-			// was a particular bus/slot requested?
-			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
-				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
-					continue;
-				}
-			}
-			devpriv->pcidev = pcidev;
-			dev->board_ptr = boardtypes + i;
-			break;
-		}
-		if (dev->board_ptr)
-			break;
-	}
-
-	if (!dev->board_ptr) {
-		rt_printk
-			(KERN_CONT ", Error: Requested type of the card was not found!\n");
-		return -EIO;
-	}
+	struct pci_dev *pcidev = devpriv->pcidev;
 
 	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
 		rt_printk
@@ -1456,6 +1419,84 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 	pci_dio_reset(dev);
 
 	return 0;
+}
+
+/*
+==============================================================================
+*/
+static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret, i;
+	struct pci_dev *pcidev;
+
+	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
+
+	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
+		rt_printk(KERN_CONT ", Error: Can't allocate private memory!\n");
+		return -ENOMEM;
+	}
+
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		// loop through cards supported by this driver
+		for (i = 0; i < n_boardtypes; ++i) {
+			if (boardtypes[i].vendor_id != pcidev->vendor)
+				continue;
+			if (boardtypes[i].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
+					continue;
+				}
+			}
+			devpriv->pcidev = pcidev;
+			dev->board_ptr = boardtypes + i;
+			break;
+		}
+		if (dev->board_ptr)
+			break;
+	}
+
+	if (!dev->board_ptr) {
+		rt_printk
+			(KERN_CONT ", Error: Requested type of the card was not found!\n");
+		return -EIO;
+	}
+
+	return pci_dio_attach_common(dev);
+}
+
+/*
+==============================================================================
+*/
+static int pci_dio_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
+
+	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
+		rt_printk(KERN_CONT ", Error: Can't allocate private memory!\n");
+		return -ENOMEM;
+	}
+
+	if (context_model >= n_boardtypes) {
+		rt_printk(KERN_CONT ", Error: Auto-attach board match failed!\n");
+		return -EINVAL;
+	}
+
+	dev->board_ptr = &boardtypes[context_model];
+
+	/* pci_dev_get() call matches pci_dev_put() in pci_dio_detach() */
+	devpriv->pcidev = pci_dev_get(pcidev);
+
+	return pci_dio_attach_common(dev);
 }
 
 /*
