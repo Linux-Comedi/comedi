@@ -199,7 +199,19 @@ static const comedi_lrange range_pci171x_da = { 3, {
 
 
 static int pci1710_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci1710_auto_attach(comedi_device * dev, unsigned long context);
 static int pci1710_detach(comedi_device * dev);
+
+enum pci1710_boardid {
+	BOARD_PCI1710,
+	BOARD_PCI1710HG,
+	BOARD_PCI1711,
+	BOARD_PCI1713,
+	BOARD_PCI1716,
+	BOARD_PCI1720,
+	BOARD_PCI1731,
+	BOARD_DUMMY
+};
 
 typedef struct {
 	const char *name;	// board name
@@ -223,19 +235,98 @@ typedef struct {
 } boardtype;
 
 static DEFINE_PCI_DEVICE_TABLE(pci1710_pci_table) = {
-	{PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1716, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_ADVANTECH, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0000),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb100),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb200),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc100),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc200),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       0x1000, 0xd100),
+		.driver_data = BOARD_PCI1710,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0x0002),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb102),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xb202),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc102),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       PCI_VENDOR_ID_ADVANTECH, 0xc202),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADVANTECH, 0x1710,
+			       0x1000, 0xd102),
+		.driver_data = BOARD_PCI1710HG,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1711),
+		.driver_data = BOARD_PCI1711,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1713),
+		.driver_data = BOARD_PCI1713,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1716),
+		.driver_data = BOARD_PCI1716,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1720),
+		.driver_data = BOARD_PCI1720,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1731),
+		.driver_data = BOARD_PCI1731,
+	},
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
 static const boardtype boardtypes[] = {
-	{
+	[BOARD_PCI1710] = {
 		.name = "pci1710",
 		.device_id = 0x1710,
 		.iorange = IORANGE_171x,
@@ -255,7 +346,7 @@ static const boardtype boardtypes[] = {
 		.ai_ns_min = 10000,
 		.fifo_half_size = 2048,
 	},
-	{
+	[BOARD_PCI1710HG] = {
 		.name = "pci1710hg",
 		.device_id = 0x1710,
 		.iorange = IORANGE_171x,
@@ -275,7 +366,7 @@ static const boardtype boardtypes[] = {
 		.ai_ns_min = 10000,
 		.fifo_half_size = 2048,
 	},
-	{
+	[BOARD_PCI1711] = {
 		.name = "pci1711",
 		.device_id = 0x1711,
 		.iorange = IORANGE_171x,
@@ -295,7 +386,7 @@ static const boardtype boardtypes[] = {
 		.ai_ns_min = 10000,
 		.fifo_half_size = 512,
 	},
-	{
+	[BOARD_PCI1713] = {
 		.name = "pci1713",
 		.device_id = 0x1713,
 		.iorange = IORANGE_171x,
@@ -315,7 +406,7 @@ static const boardtype boardtypes[] = {
 		.ai_ns_min = 10000,
 		.fifo_half_size = 2048,
 	},
-        {
+        [BOARD_PCI1716] = {
 		.name = "pci1716",
 		.device_id = 0x1716,
                 .iorange = IORANGE_171x,
@@ -335,7 +426,7 @@ static const boardtype boardtypes[] = {
                 .ai_ns_min = 4000,
 		.fifo_half_size = 512,
 	},
-	{
+	[BOARD_PCI1720] = {
 		.name = "pci1720",
 		.device_id = 0x1720,
 		.iorange = IORANGE_1720,
@@ -355,7 +446,7 @@ static const boardtype boardtypes[] = {
 		.ai_ns_min = 0,
 		.fifo_half_size = 0,
 	},
-	{
+	[BOARD_PCI1731] = {
 		.name = "pci1731",
 		.device_id = 0x1731,
 		.iorange = IORANGE_171x,
@@ -376,17 +467,18 @@ static const boardtype boardtypes[] = {
 		.fifo_half_size = 512,
 	},
 	// dummy entry corresponding to driver name
-	{
+	[BOARD_DUMMY] = {
 		.name = DRV_NAME,
 	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 
 static comedi_driver driver_pci1710 = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = pci1710_attach,
+	.auto_attach = pci1710_auto_attach,
 	.detach = pci1710_detach,
 	.num_names = n_boardtypes,
 	.board_name = &boardtypes[0].name,
@@ -1349,80 +1441,13 @@ static int pci1710_reset(comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci1710_attach_common(comedi_device * dev, struct pci_dev *pcidev)
 {
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
 	unsigned long iobase;
-	struct pci_dev *pcidev;
-	int opt_bus, opt_slot;
-	const char *errstr;
 	unsigned char pci_bus, pci_slot, pci_func;
-	int i;
-	int board_index;
-
-	rt_printk("comedi%d: adv_pci1710: ", dev->minor);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	if ((ret = alloc_private(dev, sizeof(pci1710_private))) < 0) {
-		rt_printk(KERN_CONT " - Allocation failed!\n");
-		return -ENOMEM;
-	}
-
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	board_index = this_board - boardtypes;
-	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-		PCI_ANY_ID, pcidev))) {
-		if(strcmp(this_board->name, DRV_NAME) == 0)
-		{
-			for(i = 0; i < n_boardtypes; ++i)
-			{
-				if(pcidev->device == boardtypes[i].device_id)
-				{
-					board_index = i;
-					break;
-				}
-			}
-			if(i == n_boardtypes) continue;
-		}else
-		{
-			if(pcidev->device != boardtypes[board_index].device_id) continue;
-		}
-
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-				|| opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		* Look for device that isn't in use.
-		* Enable PCI device and request regions.
-		*/
-		if (comedi_pci_enable(pcidev, DRV_NAME)) {
-			errstr = "failed to enable PCI device and request regions!";
-			continue;
-		}
-		// fixup board_ptr in case we were using the dummy entry with the driver name
-		dev->board_ptr = &boardtypes[board_index];
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
-				opt_bus, opt_slot, errstr);
-		} else {
-			rt_printk(KERN_CONT " - Card %s\n", errstr);
-		}
-		return -EIO;
-	}
 
 	pci_bus = pcidev->bus->number;
 	pci_slot = PCI_SLOT(pcidev->devfn);
@@ -1568,6 +1593,121 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->valid = 1;
 
 	return 0;
+}
+
+/*
+==============================================================================
+*/
+static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+	struct pci_dev *pcidev;
+	int opt_bus, opt_slot;
+	const char *errstr;
+	int i;
+	int board_index;
+
+	rt_printk("comedi%d: adv_pci1710: ", dev->minor);
+
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
+
+	if ((ret = alloc_private(dev, sizeof(pci1710_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	board_index = this_board - boardtypes;
+	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
+		PCI_ANY_ID, pcidev))) {
+		if(strcmp(this_board->name, DRV_NAME) == 0)
+		{
+			for(i = 0; i < n_boardtypes; ++i)
+			{
+				if(pcidev->device == boardtypes[i].device_id)
+				{
+					board_index = i;
+					break;
+				}
+			}
+			if(i == n_boardtypes) continue;
+		}else
+		{
+			if(pcidev->device != boardtypes[board_index].device_id) continue;
+		}
+
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+				|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		* Look for device that isn't in use.
+		* Enable PCI device and request regions.
+		*/
+		if (comedi_pci_enable(pcidev, DRV_NAME)) {
+			errstr = "failed to enable PCI device and request regions!";
+			continue;
+		}
+		// fixup board_ptr in case we were using the dummy entry with the driver name
+		dev->board_ptr = &boardtypes[board_index];
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(KERN_CONT " - Card at b:s %d:%d %s\n",
+				opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(KERN_CONT " - Card %s\n", errstr);
+		}
+		return -EIO;
+	}
+
+	return pci1710_attach_common(dev, pcidev);
+}
+
+/*
+==============================================================================
+*/
+static int pci1710_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	rt_printk("comedi%d: adv_pci1710: ", dev->minor);
+
+	if ((ret = alloc_private(dev, sizeof(pci1710_private))) < 0) {
+		rt_printk(KERN_CONT " - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	if (context_model >= n_boardtypes || context_model == BOARD_DUMMY) {
+		rt_printk(KERN_CONT " - Auto-attach board match failed!\n");
+		return -EINVAL;
+	}
+
+	dev->board_ptr = &boardtypes[context_model];
+
+	/*
+	 * pci1710_attach() calls comedi_pci_enable() before
+	 * pci1710_attach_common(), so do the same.
+	 */
+	ret = comedi_pci_enable(pcidev, DRV_NAME);
+	if (ret) {
+		rt_printk(KERN_CONT " - Auto-attach failed to enable PCI device and request regions!\n");
+		return ret;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in pci1710_detach() */
+	pci_dev_get(pcidev);
+
+	return pci1710_attach_common(dev, pcidev);
 }
 
 /*
