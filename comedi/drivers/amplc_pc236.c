@@ -112,7 +112,9 @@ enum pc236_model
 typedef struct pc236_board_struct {
 	const char *name;
 	const char *fancy_name;
+#ifdef COMEDI_CONFIG_PCI
 	unsigned short devid;
+#endif
 	enum pc236_bustype bustype;
 	enum pc236_model model;
 } pc236_board;
