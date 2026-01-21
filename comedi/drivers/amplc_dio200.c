@@ -384,7 +384,9 @@ enum dio200_layout {
 
 typedef struct dio200_board_struct {
 	const char *name;
+#ifdef COMEDI_CONFIG_PCI
 	unsigned short devid;
+#endif
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout layout;
