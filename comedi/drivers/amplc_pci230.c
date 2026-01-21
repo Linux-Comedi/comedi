@@ -453,49 +453,50 @@ typedef struct pci230_board_struct {
 	int have_dio;
 	unsigned int min_hwver;	/* Minimum hardware version supported. */
 } pci230_board;
+
 static const pci230_board pci230_boards[] = {
 	{
-	      name:	"pci230+",
-	      id:	PCI_DEVICE_ID_PCI230,
-	      ai_chans:16,
-	      ai_bits:	16,
-	      ao_chans:2,
-	      ao_bits:	12,
-	      have_dio:1,
-	      min_hwver:1,
-		},
+		.name		= "pci230+",
+		.id		= PCI_DEVICE_ID_PCI230,
+		.ai_chans	= 16,
+		.ai_bits	= 16,
+		.ao_chans	= 2,
+		.ao_bits	= 12,
+		.have_dio	= 1,
+		.min_hwver	= 1,
+	},
 	{
-	      name:	"pci260+",
-	      id:	PCI_DEVICE_ID_PCI260,
-	      ai_chans:16,
-	      ai_bits:	16,
-	      ao_chans:0,
-	      ao_bits:	0,
-	      have_dio:0,
-	      min_hwver:1,
-		},
+		.name		= "pci260+",
+		.id		= PCI_DEVICE_ID_PCI260,
+		.ai_chans	= 16,
+		.ai_bits	= 16,
+		.ao_chans	= 0,
+		.ao_bits	= 0,
+		.have_dio	= 0,
+		.min_hwver	= 1,
+	},
 	{
-	      name:	"pci230",
-	      id:	PCI_DEVICE_ID_PCI230,
-	      ai_chans:16,
-	      ai_bits:	12,
-	      ao_chans:2,
-	      ao_bits:	12,
-	      have_dio:1,
-		},
+		.name		= "pci230",
+		.id		= PCI_DEVICE_ID_PCI230,
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.ao_chans	= 2,
+		.ao_bits	= 12,
+		.have_dio	= 1,
+	},
 	{
-	      name:	"pci260",
-	      id:	PCI_DEVICE_ID_PCI260,
-	      ai_chans:16,
-	      ai_bits:	12,
-	      ao_chans:0,
-	      ao_bits:	0,
-	      have_dio:0,
-		},
+		.name		= "pci260",
+		.id		= PCI_DEVICE_ID_PCI260,
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.ao_chans	= 0,
+		.ao_bits	= 0,
+		.have_dio	= 0,
+	},
 	{
-	      name:	"amplc_pci230",	/* Wildcard matches any above */
-	      id:	PCI_DEVICE_ID_INVALID,
-		},
+		.name		= "amplc_pci230",	/* Wildcard */
+		.id		= PCI_DEVICE_ID_INVALID,
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci230_pci_table) = {
@@ -510,7 +511,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define n_pci230_boards (sizeof(pci230_boards)/sizeof(pci230_boards[0]))
+#define n_pci230_boards ARRAY_SIZE(pci230_boards)
 #define thisboard ((const pci230_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
@@ -554,15 +555,17 @@ static const unsigned int pci230_timebase[8] = {
 };
 
 /* PCI230 analogue input range table */
-static const comedi_lrange pci230_ai_range = { 7, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5)
-	}
+static const comedi_lrange pci230_ai_range = {
+	7,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+	},
 };
 
 /* PCI230 analogue gain bits for each input range. */
@@ -572,10 +575,12 @@ static const unsigned char pci230_ai_gain[7] = { 0, 1, 2, 3, 1, 2, 3 };
 static const unsigned char pci230_ai_bipolar[7] = { 1, 1, 1, 1, 0, 0, 0 };
 
 /* PCI230 analogue output range table */
-static const comedi_lrange pci230_ao_range = { 2, {
-			UNI_RANGE(10),
-			BIP_RANGE(10)
-	}
+static const comedi_lrange pci230_ao_range = {
+	2,
+	{
+		UNI_RANGE(10),
+		BIP_RANGE(10),
+	},
 };
 
 /* PCI230 daccon bipolar flag for each analogue output range. */
@@ -590,13 +595,13 @@ static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 static int pci230_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci230_detach(comedi_device * dev);
 static comedi_driver driver_amplc_pci230 = {
-      driver_name:"amplc_pci230",
-      module:THIS_MODULE,
-      attach:pci230_attach,
-      detach:pci230_detach,
-      board_name:&pci230_boards[0].name,
-      offset:sizeof(pci230_boards[0]),
-      num_names:sizeof(pci230_boards) / sizeof(pci230_boards[0]),
+	.driver_name	= "amplc_pci230",
+	.module		= THIS_MODULE,
+	.attach		= pci230_attach,
+	.detach		= pci230_detach,
+	.board_name	= &pci230_boards[0].name,
+	.offset		= sizeof(pci230_boards[0]),
+	.num_names	= n_pci230_boards,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
