@@ -93,8 +93,21 @@ unused.
  * Board descriptions for Amplicon PC36AT and PCI236.
  */
 
-enum pc236_bustype { isa_bustype, pci_bustype };
-enum pc236_model { pc36at_model, pci236_model, anypci_model };
+enum pc236_bustype {
+	isa_bustype,
+#ifdef COMEDI_CONFIG_PCI
+	pci_bustype,
+#endif
+};
+
+enum pc236_model
+{
+	pc36at_model,
+#ifdef COMEDI_CONFIG_PCI
+	pci236_model,
+	anypci_model,
+#endif
+};
 
 typedef struct pc236_board_struct {
 	const char *name;
@@ -103,30 +116,31 @@ typedef struct pc236_board_struct {
 	enum pc236_bustype bustype;
 	enum pc236_model model;
 } pc236_board;
+
 static const pc236_board pc236_boards[] = {
-	{
-	      name:	"pc36at",
-	      fancy_name:"PC36AT",
-	      bustype:	isa_bustype,
-	      model:	pc36at_model,
-		},
+	[pc36at_model] = {
+		.name		= "pc36at",
+		.fancy_name	= "PC36AT",
+		.bustype	= isa_bustype,
+		.model		= pc36at_model,
+	},
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pci236",
-	      fancy_name:"PCI236",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI236,
-	      bustype:	pci_bustype,
-	      model:	pci236_model,
-		},
+	[pci236_model] = {
+		.name		= "pci236",
+		.fancy_name	= "PCI236",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI236,
+		.bustype	= pci_bustype,
+		.model		= pci236_model,
+	},
 #endif
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	PC236_DRIVER_NAME,
-	      fancy_name:PC236_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
-		},
+	[anypci_model] = {
+		.name		= PC236_DRIVER_NAME,
+		.fancy_name	= PC236_DRIVER_NAME,
+		.devid		= PCI_DEVICE_ID_INVALID,
+		.bustype	= pci_bustype,
+		.model		= anypci_model,	/* wildcard */
+	},
 #endif
 };
 
@@ -167,14 +181,15 @@ typedef struct {
  */
 static int pc236_attach(comedi_device * dev, comedi_devconfig * it);
 static int pc236_detach(comedi_device * dev);
+
 static comedi_driver driver_amplc_pc236 = {
-      driver_name:PC236_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pc236_attach,
-      detach:pc236_detach,
-      board_name:&pc236_boards[0].name,
-      offset:sizeof(pc236_board),
-      num_names:sizeof(pc236_boards) / sizeof(pc236_board),
+	.driver_name	= PC236_DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= pc236_attach,
+	.detach		= pc236_detach,
+	.board_name	= &pc236_boards[0].name,
+	.offset		= sizeof(pc236_board),
+	.num_names	= ARRAY_SIZE(pc236_boards),
 };
 
 #ifdef COMEDI_CONFIG_PCI
