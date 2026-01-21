@@ -688,6 +688,39 @@ static inline void pci230_ao_write_fifo(comedi_device * dev, sampl_t datum,
 }
 
 /*
+ * Check if PCI device ID matches a specific board.
+ * Assume PCI vendor ID matches.
+ */
+static bool pci230_match_pci_board(const pci230_board *board,
+	struct pci_dev *pci_dev)
+{
+	/* assume pci_dev->device != PCI_DEVICE_ID_INVALID */
+	if (board->id != pci_dev->device)
+		return false;
+	if (board->min_hwver == 0)
+		return true;
+	/* Looking for a '+' model.  First check length of registers. */
+	if (pci_resource_len(pci_dev, 3) < 32)
+		return false;	/* Not a '+' model. */
+	/*
+	 * TODO: temporarily enable PCI device and read the hardware version
+	 * register.  For now, assume it's okay.
+	 */
+	return true;
+}
+
+/* Look for board matching PCI device. */
+static const pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pci230_boards); i++)
+		if (pci230_match_pci_board(&pci230_boards[i], pci_dev))
+			return &pci230_boards[i];
+	return NULL;
+}
+
+/*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
  * in the driver structure, dev->board_ptr contains that
@@ -699,7 +732,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
 	struct pci_dev *pci_dev;
-	int i = 0, irq_hdl, rc;
+	int irq_hdl, rc;
 
 	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
 		thisboard->name, it->options[0], it->options[1]);
@@ -730,50 +763,20 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 			 * used to match any supported device.  Replace the
 			 * current dev->board_ptr with one that matches the
 			 * PCI device ID. */
-			for (i = 0; i < n_pci230_boards; i++) {
-				if (pci_dev->device == pci230_boards[i].id) {
-					if (pci230_boards[i].min_hwver > 0) {
-						/* Check for a '+' model.
-						 * First check length of
-						 * registers. */
-						if (pci_resource_len(pci_dev, 3)
-							< 32) {
-							/* Not a '+' model. */
-							continue;
-						}
-						/* TODO: temporarily enable the
-						 * PCI device and read the
-						 * hardware version register.
-						 * For now assume it's okay. */
-					}
-					/* Change board_ptr to matched board */
-					dev->board_ptr = &pci230_boards[i];
-					break;
-				}
-			}
-			if (i < n_pci230_boards)
+			const pci230_board *board =
+				pci230_find_pci_board(pci_dev);
+
+			if (board) {
+				/* Change board_ptr to matched board */
+				dev->board_ptr = board;
 				break;
+			}
 		} else {
 			/* The name was specified as a specific device name.
 			 * The current dev->board_ptr is correct.  Check
 			 * whether it matches the PCI device ID. */
-			if (thisboard->id == pci_dev->device) {
-				/* Check minimum hardware version. */
-				if (thisboard->min_hwver > 0) {
-					/* Looking for a '+' model.  First
-					 * check length of registers. */
-					if (pci_resource_len(pci_dev, 3) < 32) {
-						/* Not a '+' model. */
-						continue;
-					}
-					/* TODO: temporarily enable the PCI
-					 * device and read the hardware version
-					 * register.  For now, assume it's
-					 * okay. */
-					break;
-				} else {
-					break;
-				}
+			if (pci230_match_pci_board(thisboard, pci_dev)) {
+				break;
 			}
 		}
 	}
