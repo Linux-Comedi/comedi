@@ -341,17 +341,31 @@ struct dio200_region {
  * Board descriptions.
  */
 
-enum dio200_bustype { isa_bustype, pci_bustype };
+enum dio200_bustype {
+	isa_bustype,
+#ifdef COMEDI_CONFIG_PCI
+	pci_bustype,
+#endif
+};
 
 enum dio200_model {
 	pc212e_model,
 	pc214e_model,
-	pc215e_model, pci215_model, pcie215_model,
+	pc215e_model,
+#ifdef COMEDI_CONFIG_PCI
+	pci215_model,
+	pcie215_model,
+#endif
 	pc218e_model,
+#ifdef COMEDI_CONFIG_PCI
 	pcie236_model,
-	pc272e_model, pci272_model,
+#endif
+	pc272e_model,
+#ifdef COMEDI_CONFIG_PCI
+	pci272_model,
 	pcie296_model,
-	anypci_model
+	anypci_model,
+#endif
 };
 
 enum dio200_layout {
@@ -380,106 +394,106 @@ typedef struct dio200_board_struct {
 } dio200_board;
 
 static const dio200_board dio200_boards[] = {
-	{
-	      name:	"pc212e",
-	      bustype:	isa_bustype,
-	      model:	pc212e_model,
-	      layout:	pc212_layout,
-	      mainsize:	DIO200_IO_SIZE,
-		},
-	{
-	      name:	"pc214e",
-	      bustype:	isa_bustype,
-	      model:	pc214e_model,
-	      layout:	pc214_layout,
-	      mainsize:	DIO200_IO_SIZE,
-		},
-	{
-	      name:	"pc215e",
-	      bustype:	isa_bustype,
-	      model:	pc215e_model,
-	      layout:	pc215_layout,
-	      mainsize:	DIO200_IO_SIZE,
-		},
+	[pc212e_model] = {
+	      .name	= "pc212e",
+	      .bustype	= isa_bustype,
+	      .model	= pc212e_model,
+	      .layout	= pc212_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	},
+	[pc214e_model] = {
+	      .name	= "pc214e",
+	      .bustype	= isa_bustype,
+	      .model	= pc214e_model,
+	      .layout	= pc214_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	},
+	[pc215e_model] = {
+	      .name	= "pc215e",
+	      .bustype	= isa_bustype,
+	      .model	= pc215e_model,
+	      .layout	= pc215_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	},
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pci215",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI215,
-	      bustype:	pci_bustype,
-	      model:	pci215_model,
-	      layout:	pc215_layout,
-	      mainsize:	DIO200_IO_SIZE,
-	      mainbar:	2,
-		},
+	[pci215_model] = {
+	      .name	= "pci215",
+	      .devid	= PCI_DEVICE_ID_AMPLICON_PCI215,
+	      .bustype	= pci_bustype,
+	      .model	= pci215_model,
+	      .layout	= pc215_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	      .mainbar	= 2,
+	},
 #endif
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pcie215",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE215,
-	      bustype:	pci_bustype,
-	      model:	pcie215_model,
-	      layout:	pcie215_layout,
-	      mainsize:	DIO200_PCIE_IO_SIZE,
-	      mainbar:	1,
-	      mainshift: 3,
-		},
+	[pcie215_model] = {
+	      .name	= "pcie215",
+	      .devid	= PCI_DEVICE_ID_AMPLICON_PCIE215,
+	      .bustype	= pci_bustype,
+	      .model	= pcie215_model,
+	      .layout	= pcie215_layout,
+	      .mainsize	= DIO200_PCIE_IO_SIZE,
+	      .mainbar	= 1,
+	      .mainshift = 3,
+	},
 #endif
-	{
-	      name:	"pc218e",
-	      bustype:	isa_bustype,
-	      model:	pc218e_model,
-	      layout:	pc218_layout,
-	      mainsize:	DIO200_IO_SIZE,
-		},
+	[pc218e_model] = {
+	      .name	= "pc218e",
+	      .bustype	= isa_bustype,
+	      .model	= pc218e_model,
+	      .layout	= pc218_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	},
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pcie236",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE236,
-	      bustype:	pci_bustype,
-	      model:	pcie236_model,
-	      layout:	pcie236_layout,
-	      mainsize:	DIO200_PCIE_IO_SIZE,
-	      mainbar:	1,
-	      mainshift: 3,
-		},
+	[pcie236_model] = {
+	      .name	= "pcie236",
+	      .devid	= PCI_DEVICE_ID_AMPLICON_PCIE236,
+	      .bustype	= pci_bustype,
+	      .model	= pcie236_model,
+	      .layout	= pcie236_layout,
+	      .mainsize	= DIO200_PCIE_IO_SIZE,
+	      .mainbar	= 1,
+	      .mainshift = 3,
+	},
 #endif
-	{
-	      name:	"pc272e",
-	      bustype:	isa_bustype,
-	      model:	pc272e_model,
-	      layout:	pc272_layout,
-	      mainsize:	DIO200_IO_SIZE,
-		},
+	[pc272e_model] = {
+	      .name	= "pc272e",
+	      .bustype	= isa_bustype,
+	      .model	= pc272e_model,
+	      .layout	= pc272_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	},
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pci272",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI272,
-	      bustype:	pci_bustype,
-	      model:	pci272_model,
-	      layout:	pc272_layout,
-	      mainsize:	DIO200_IO_SIZE,
-	      mainbar:	2,
-		},
-#endif
-#ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	"pcie296",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE296,
-	      bustype:	pci_bustype,
-	      model:	pcie296_model,
-	      layout:	pcie296_layout,
-	      mainsize:	DIO200_PCIE_IO_SIZE,
-	      mainbar:	1,
-	      mainshift: 3,
-		},
+	[pci272_model] = {
+	      .name	= "pci272",
+	      .devid	= PCI_DEVICE_ID_AMPLICON_PCI272,
+	      .bustype	= pci_bustype,
+	      .model	= pci272_model,
+	      .layout	= pc272_layout,
+	      .mainsize	= DIO200_IO_SIZE,
+	      .mainbar	= 2,
+	},
 #endif
 #ifdef COMEDI_CONFIG_PCI
-	{
-	      name:	DIO200_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
-		},
+	[pcie296_model] = {
+	      .name	= "pcie296",
+	      .devid	= PCI_DEVICE_ID_AMPLICON_PCIE296,
+	      .bustype	= pci_bustype,
+	      .model	= pcie296_model,
+	      .layout	= pcie296_layout,
+	      .mainsize	= DIO200_PCIE_IO_SIZE,
+	      .mainbar	= 1,
+	      .mainshift = 3,
+	},
+#endif
+#ifdef COMEDI_CONFIG_PCI
+	[anypci_model] = {
+	      .name	= DIO200_DRIVER_NAME,
+	      .devid	= PCI_DEVICE_ID_INVALID,
+	      .bustype	= pci_bustype,
+	      .model	= anypci_model,	/* wildcard */
+	},
 #endif
 };
 
@@ -504,84 +518,108 @@ typedef struct dio200_layout_struct {
 
 static const dio200_layout dio200_layouts[] = {
 	[pc212_layout] = {
-	      n_subdevs:6,
-	      sdtype:	{sd_8255, sd_8254, sd_8254, sd_8254,
-					sd_8254,
-				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x0C, 0x10, 0x14,
-				0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:0,
+		.n_subdevs		= 6,
+		.sdtype			= {
+			sd_8255, sd_8254, sd_8254, sd_8254, sd_8254, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x08, 0x0C, 0x10, 0x14, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 0,
+	},
 	[pc214_layout] = {
-	      n_subdevs:4,
-	      sdtype:	{sd_8255, sd_8255, sd_8254,
-				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x01},
-	      has_int_sce:0,
-	      has_clk_gat_sce:0,
-	      has_enhancements:0,
+		.n_subdevs		= 4,
+		.sdtype			= {
+			sd_8255, sd_8255, sd_8254, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x08, 0x10, 0x01,
+		},
+		.has_int_sce		= 0,
+		.has_clk_gat_sce	= 0,
+		.has_enhancements	= 0,
+	},
 	[pc215_layout] = {
-	      n_subdevs:5,
-	      sdtype:	{sd_8255, sd_8255, sd_8254,
-					sd_8254,
-				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x14, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:0,
+		.n_subdevs		= 5,
+		.sdtype			= {
+			sd_8255, sd_8255, sd_8254, sd_8254, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x08, 0x10, 0x14, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 0,
+	},
 	[pc218_layout] = {
-	      n_subdevs:7,
-	      sdtype:	{sd_8254, sd_8254, sd_8255, sd_8254,
-					sd_8254,
-				sd_intr},
-	      sdinfo:	{0x00, 0x04, 0x08, 0x0C, 0x10,
-					0x14,
-				0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:0,
+		.n_subdevs		= 7,
+		.sdtype			= {
+			sd_8254, sd_8254, sd_8255, sd_8254, sd_8254, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 0,
+	},
 	[pc272_layout] = {
-	      n_subdevs:4,
-	      sdtype:	{sd_8255, sd_8255, sd_8255,
-				sd_intr},
-	      sdinfo:	{0x00, 0x08, 0x10, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:0,
-	      has_enhancements:0,
+		.n_subdevs		= 4,
+		.sdtype			= {
+			sd_8255, sd_8255, sd_8255, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x08, 0x10, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 0,
+		.has_enhancements	= 0,
+	},
 #ifdef COMEDI_CONFIG_PCI
 	[pcie215_layout] = {
-	      n_subdevs:8,
-	      sdtype:	{sd_8255, sd_none, sd_8255, sd_none, sd_8254, sd_8254,
-				sd_timer, sd_intr},
-	      sdinfo:	{0x00, 0x00, 0x08, 0x00, 0x10, 0x14, 0x00, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:1,
+		.n_subdevs		= 8,
+		.sdtype			= {
+			sd_8255, sd_none, sd_8255, sd_none, sd_8254, sd_8254,
+			sd_timer, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x00, 0x08, 0x00, 0x10, 0x14,
+			0x00, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 1,
+	},
 	[pcie236_layout] = {
-	      n_subdevs:8,
-	      sdtype:	{sd_8255, sd_none, sd_none, sd_none, sd_8254, sd_8254,
-				sd_timer, sd_intr},
-	      sdinfo:	{0x00, 0x00, 0x00, 0x00, 0x10, 0x14, 0x00, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:1,
+		.n_subdevs		= 8,
+		.sdtype			= {
+			sd_8255, sd_none, sd_none, sd_none, sd_8254, sd_8254,
+			sd_timer, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x00, 0x00, 0x00, 0x10, 0x14,
+			0x00, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 1,
+	},
 	[pcie296_layout] = {
-	      n_subdevs:8,
-	      sdtype:	{sd_8255, sd_8255, sd_8255, sd_8255, sd_8254, sd_8254,
-				sd_timer, sd_intr},
-	      sdinfo:	{0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x00, 0x3F},
-	      has_int_sce:1,
-	      has_clk_gat_sce:1,
-	      has_enhancements:1,
+		.n_subdevs		= 8,
+		.sdtype			= {
+			sd_8255, sd_8255, sd_8255, sd_8255, sd_8254, sd_8254,
+			sd_timer, sd_intr,
 		},
+		.sdinfo			= {
+			0x00, 0x04, 0x08, 0x0C, 0x10, 0x14,
+			0x00, 0x3F,
+		},
+		.has_int_sce		= 1,
+		.has_clk_gat_sce	= 1,
+		.has_enhancements	= 1,
+	},
 #endif
 };
 
@@ -657,13 +695,13 @@ typedef struct {
 static int dio200_attach(comedi_device * dev, comedi_devconfig * it);
 static int dio200_detach(comedi_device * dev);
 static comedi_driver driver_amplc_dio200 = {
-      driver_name:DIO200_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:dio200_attach,
-      detach:dio200_detach,
-      board_name:&dio200_boards[0].name,
-      offset:sizeof(dio200_board),
-      num_names:sizeof(dio200_boards) / sizeof(dio200_board),
+	.driver_name	= DIO200_DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= dio200_attach,
+	.detach		= dio200_detach,
+	.board_name	= &dio200_boards[0].name,
+	.offset		= sizeof(dio200_board),
+	.num_names	= ARRAY_SIZE(dio200_boards),
 };
 
 #ifdef COMEDI_CONFIG_PCI
