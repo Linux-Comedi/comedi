@@ -379,10 +379,14 @@ static const pci224_board pci224_boards[] = {
  */
 
 static DEFINE_PCI_DEVICE_TABLE(pci224_pci_table) = {
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224),
+		.driver_data = pci224_model,
+	},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234),
+		.driver_data = pci234_model,
+	},
 	{0}
 };
 
@@ -425,11 +429,13 @@ typedef struct {
  * the device code.
  */
 static int pci224_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci224_auto_attach(comedi_device * dev, unsigned long context);
 static int pci224_detach(comedi_device * dev);
 static comedi_driver driver_amplc_pci224 = {
 	.driver_name	= DRIVER_NAME,
 	.module		= THIS_MODULE,
 	.attach		= pci224_attach,
+	.auto_attach	= pci224_auto_attach,
 	.detach		= pci224_detach,
 	.board_name	= &pci224_boards[0].name,
 	.offset		= sizeof(pci224_board),
@@ -1315,33 +1321,13 @@ pci224_find_pci(comedi_device * dev, int bus, int slot,
 	return -EIO;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci224_attach_common(comedi_device *dev, const int *options)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = devpriv->pci_dev;
 	unsigned int irq;
-	int bus = 0, slot = 0;
 	unsigned n;
 	int ret;
-
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor, DRIVER_NAME);
-
-	bus = it->options[0];
-	slot = it->options[1];
-	if ((ret = alloc_private(dev, sizeof(pci224_private))) < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
-		return ret;
-	}
-	if ((ret = pci224_find_pci(dev, bus, slot, &pci_dev)) < 0)
-		return ret;
-	devpriv->pci_dev = pci_dev;
 
 	if ((ret = comedi_pci_enable(pci_dev, DRIVER_NAME)) < 0) {
 		printk(KERN_ERR
@@ -1424,23 +1410,23 @@ static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
 			return -ENOMEM;
 		}
 		for (n = 2; n < 3 + s->n_chan; n++) {
-			if (it->options[n] < 0 || it->options[n] > 1) {
+			if (options && (options[n] < 0 || options[n] > 1)) {
 				printk(KERN_WARNING "comedi%d: %s: warning! "
 					"bad options[%u]=%d\n",
 					dev->minor, DRIVER_NAME, n,
-					it->options[n]);
+					options[n]);
 			}
 		}
 		for (n = 0; n < s->n_chan; n++) {
-			if (n < COMEDI_NDEVCONFOPTS - 3 &&
-				it->options[3 + n] == 1) {
-				if (it->options[2] == 1) {
+			if (n < COMEDI_NDEVCONFOPTS - 3 && options &&
+				options[3 + n] == 1) {
+				if (options[2] == 1) {
 					range_table_list[n] = &range_pci234_ext;
 				} else {
 					range_table_list[n] = &range_bipolar5;
 				}
 			} else {
-				if (it->options[2] == 1) {
+				if (options && options[2] == 1) {
 					range_table_list[n] =
 						&range_pci234_ext2;
 				} else {
@@ -1451,15 +1437,15 @@ static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->hwrange = hwrange_pci234;
 	} else {
 		/* PCI224 range options. */
-		if (it->options[2] == 1) {
+		if (options && options[2] == 1) {
 			s->range_table = &range_pci224_external;
 			devpriv->hwrange = hwrange_pci224_external;
 		} else {
-			if (it->options[2] != 0) {
+			if (options && options[2] != 0) {
 				printk(KERN_WARNING "comedi%d: %s: warning! "
 					"bad options[2]=%d\n",
 					dev->minor, DRIVER_NAME,
-					it->options[2]);
+					options[2]);
 			}
 			s->range_table = &range_pci224_internal;
 			devpriv->hwrange = hwrange_pci224_internal;
@@ -1491,6 +1477,62 @@ static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "attached\n");
 
 	return 1;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pci_dev;
+	int bus = 0, slot = 0;
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor, DRIVER_NAME);
+
+	bus = it->options[0];
+	slot = it->options[1];
+	if ((ret = alloc_private(dev, sizeof(pci224_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+	if ((ret = pci224_find_pci(dev, bus, slot, &pci_dev)) < 0)
+		return ret;
+	devpriv->pci_dev = pci_dev;
+
+	return pci224_attach_common(dev, it->options);
+}
+
+static int pci224_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: auto-attach PCI %s\n", dev->minor,
+		DRIVER_NAME, pci_name(pci_dev));
+
+	if ((ret = alloc_private(dev, sizeof(pci224_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+
+	dev->board_ptr = context_model < ARRAY_SIZE(pci224_boards)
+		? &pci224_boards[context_model] : NULL;
+	if (thisboard == NULL || thisboard->model == any_model) {
+		printk(KERN_ERR "comedi%d: %s: BUG! bad auto-attach context - %lu\n",
+			dev->minor, DRIVER_NAME, context_model);
+		return -EINVAL;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in pci224_detach() */
+	devpriv->pci_dev = pci_dev_get(pci_dev);
+
+	return pci224_attach_common(dev, NULL);
 }
 
 /*
