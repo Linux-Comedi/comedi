@@ -62,8 +62,20 @@ The state of the outputs can be read.
  * Board descriptions for Amplicon PC263 / PCI263.
  */
 
-enum pc263_bustype { isa_bustype, pci_bustype };
-enum pc263_model { pc263_model, pci263_model, anypci_model };
+enum pc263_bustype {
+	isa_bustype,
+#ifdef COMEDI_CONFIG_PCI
+	pci_bustype,
+#endif
+};
+
+enum pc263_model {
+	pc263_model,
+#ifdef COMEDI_CONFIG_PCI
+	pci263_model,
+	anypci_model,
+#endif
+};
 
 typedef struct pc263_board_struct {
 	const char *name;
@@ -72,30 +84,31 @@ typedef struct pc263_board_struct {
 	enum pc263_bustype bustype;
 	enum pc263_model model;
 } pc263_board;
+
 static const pc263_board pc263_boards[] = {
 	{
-	      name:	"pc263",
-	      fancy_name:"PC263",
-	      bustype:	isa_bustype,
-	      model:	pc263_model,
-		},
+		.name		= "pc263",
+		.fancy_name	= "PC263",
+		.bustype	= isa_bustype,
+		.model		= pc263_model,
+	},
 #ifdef COMEDI_CONFIG_PCI
 	{
-	      name:	"pci263",
-	      fancy_name:"PCI263",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI263,
-	      bustype:	pci_bustype,
-	      model:	pci263_model,
-		},
+		.name		= "pci263",
+		.fancy_name	= "PCI263",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI263,
+		.bustype	= pci_bustype,
+		.model		= pci263_model,
+	},
 #endif
 #ifdef COMEDI_CONFIG_PCI
 	{
-	      name:	PC263_DRIVER_NAME,
-	      fancy_name:PC263_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
-		},
+		.name		= PC263_DRIVER_NAME,
+		.fancy_name	= PC263_DRIVER_NAME,
+		.devid		= PCI_DEVICE_ID_INVALID,
+		.bustype	= pci_bustype,
+		.model		= anypci_model,	/* wildcard */
+	},
 #endif
 };
 
@@ -134,14 +147,15 @@ typedef struct {
  */
 static int pc263_attach(comedi_device * dev, comedi_devconfig * it);
 static int pc263_detach(comedi_device * dev);
+
 static comedi_driver driver_amplc_pc263 = {
-      driver_name:PC263_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pc263_attach,
-      detach:pc263_detach,
-      board_name:&pc263_boards[0].name,
-      offset:sizeof(pc263_board),
-      num_names:sizeof(pc263_boards) / sizeof(pc263_board),
+	.driver_name	= PC263_DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= pc263_attach,
+	.detach		= pc263_detach,
+	.board_name	= &pc263_boards[0].name,
+	.offset		= sizeof(pc263_board),
+	.num_names	= ARRAY_SIZE(pc263_boards),
 };
 
 static int pc263_request_region(unsigned minor, unsigned long from,
