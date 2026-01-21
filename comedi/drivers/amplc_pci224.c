@@ -279,15 +279,15 @@ Caveats:
 static const comedi_lrange range_pci224_internal = {
 	8,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
 static const unsigned short hwrange_pci224_internal[8] = {
@@ -305,9 +305,9 @@ static const unsigned short hwrange_pci224_internal[8] = {
 static const comedi_lrange range_pci224_external = {
 	2,
 	{
-			RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
-			RANGE_ext(0, 1),	/* unipolar [0,+Vref] */
-		}
+		RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
+		RANGE_ext(0, 1),	/* unipolar [0,+Vref] */
+	},
 };
 
 static const unsigned short hwrange_pci224_external[2] = {
@@ -320,8 +320,8 @@ static const unsigned short hwrange_pci224_external[2] = {
 static const comedi_lrange range_pci234_ext2 = {
 	1,
 	{
-			RANGE_ext(-2, 2),
-		}
+		RANGE_ext(-2, 2),
+	},
 };
 
 /* The hardware selectable Vref external range for PCI234
@@ -329,8 +329,8 @@ static const comedi_lrange range_pci234_ext2 = {
 static const comedi_lrange range_pci234_ext = {
 	1,
 	{
-			RANGE_ext(-1, 1),
-		}
+		RANGE_ext(-1, 1),
+	},
 };
 
 /* This serves for all the PCI234 ranges. */
@@ -342,7 +342,7 @@ static const unsigned short hwrange_pci234[1] = {
  * Board descriptions.
  */
 
-enum pci224_model { any_model, pci224_model, pci234_model };
+enum pci224_model { pci224_model, pci234_model, any_model, };
 
 typedef struct pci224_board_struct {
 	const char *name;
@@ -353,25 +353,25 @@ typedef struct pci224_board_struct {
 } pci224_board;
 
 static const pci224_board pci224_boards[] = {
-	{
-	      name:	"pci224",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI224,
-	      model:	pci224_model,
-	      ao_chans:16,
-	      ao_bits:	12,
-		},
-	{
-	      name:	"pci234",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI234,
-	      model:	pci234_model,
-	      ao_chans:4,
-	      ao_bits:	16,
-		},
-	{
-	      name:	DRIVER_NAME,
-	      devid: PCI_DEVICE_ID_INVALID,
-	      model:	any_model,	/* wildcard */
-		},
+	[pci224_model] = {
+		.name		= "pci224",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI224,
+		.model		= pci224_model,
+		.ao_chans	= 16,
+		.ao_bits	= 12,
+	},
+	[pci234_model] = {
+		.name		= "pci234",
+		.devid		= PCI_DEVICE_ID_AMPLICON_PCI234,
+		.model		= pci234_model,
+		.ao_chans	= 4,
+		.ao_bits	= 16,
+	},
+	[any_model] = {
+		.name		= DRIVER_NAME,
+		.devid		= PCI_DEVICE_ID_INVALID,
+		.model		= any_model,	/* wildcard */
+	},
 };
 
 /*
@@ -427,13 +427,13 @@ typedef struct {
 static int pci224_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci224_detach(comedi_device * dev);
 static comedi_driver driver_amplc_pci224 = {
-      driver_name:DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci224_attach,
-      detach:pci224_detach,
-      board_name:&pci224_boards[0].name,
-      offset:sizeof(pci224_board),
-      num_names:sizeof(pci224_boards) / sizeof(pci224_board),
+	.driver_name	= DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= pci224_attach,
+	.detach		= pci224_detach,
+	.board_name	= &pci224_boards[0].name,
+	.offset		= sizeof(pci224_board),
+	.num_names	= ARRAY_SIZE(pci224_boards),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
