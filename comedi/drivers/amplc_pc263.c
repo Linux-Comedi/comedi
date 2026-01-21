@@ -80,7 +80,9 @@ enum pc263_model {
 typedef struct pc263_board_struct {
 	const char *name;
 	const char *fancy_name;
+#ifdef COMEDI_CONFIG_PCI
 	unsigned short devid;
+#endif
 	enum pc263_bustype bustype;
 	enum pc263_model model;
 } pc263_board;
