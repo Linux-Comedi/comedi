@@ -593,11 +593,13 @@ static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
  * the device code.
  */
 static int pci230_attach(comedi_device * dev, comedi_devconfig * it);
+static int pci230_auto_attach(comedi_device * dev, unsigned long context);
 static int pci230_detach(comedi_device * dev);
 static comedi_driver driver_amplc_pci230 = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.attach		= pci230_attach,
+	.auto_attach	= pci230_auto_attach,
 	.detach		= pci230_detach,
 	.board_name	= &pci230_boards[0].name,
 	.offset		= sizeof(pci230_boards[0]),
@@ -720,72 +722,18 @@ static const pci230_board *pci230_find_pci_board(struct pci_dev *pci_dev)
 	return NULL;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
+static int pci230_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = devpriv->pci_dev;
 	int irq_hdl, rc;
 
-	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
-		thisboard->name, it->options[0], it->options[1]);
-
-	/* Allocate the private structure area using alloc_private().
-	 * Macro defined in comedidev.h - memsets struct fields to 0. */
-	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0) {
-		return -ENOMEM;
-	}
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);
 	spin_lock_init(&devpriv->ai_stop_spinlock);
 	spin_lock_init(&devpriv->ao_stop_spinlock);
-	/* Find card */
-	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_dev != NULL;
-		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
-		if (it->options[0] || it->options[1]) {
-			/* Match against bus/slot options. */
-			if (it->options[0] != pci_dev->bus->number ||
-				it->options[1] != PCI_SLOT(pci_dev->devfn))
-				continue;
-		}
-		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
-			continue;
-		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
-			/* The name was specified as "amplc_pci230" which is
-			 * used to match any supported device.  Replace the
-			 * current dev->board_ptr with one that matches the
-			 * PCI device ID. */
-			const pci230_board *board =
-				pci230_find_pci_board(pci_dev);
-
-			if (board) {
-				/* Change board_ptr to matched board */
-				dev->board_ptr = board;
-				break;
-			}
-		} else {
-			/* The name was specified as a specific device name.
-			 * The current dev->board_ptr is correct.  Check
-			 * whether it matches the PCI device ID. */
-			if (pci230_match_pci_board(thisboard, pci_dev)) {
-				break;
-			}
-		}
-	}
-	if (!pci_dev) {
-		printk("comedi%d: No %s card found\n", dev->minor,
-			thisboard->name);
-		return -EIO;
-	}
-	devpriv->pci_dev = pci_dev;
 
 	/*
 	 * Initialize dev->board_name.
@@ -943,6 +891,96 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: attached\n", dev->minor);
 
 	return 1;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pci_dev;
+
+	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
+		thisboard->name, it->options[0], it->options[1]);
+
+	/* Allocate the private structure area using alloc_private().
+	 * Macro defined in comedidev.h - memsets struct fields to 0. */
+	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0) {
+		return -ENOMEM;
+	}
+	/* Find card */
+	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pci_dev != NULL;
+		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+		if (it->options[0] || it->options[1]) {
+			/* Match against bus/slot options. */
+			if (it->options[0] != pci_dev->bus->number ||
+				it->options[1] != PCI_SLOT(pci_dev->devfn))
+				continue;
+		}
+		if (pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+		if (thisboard->id == PCI_DEVICE_ID_INVALID) {
+			/* The name was specified as "amplc_pci230" which is
+			 * used to match any supported device.  Replace the
+			 * current dev->board_ptr with one that matches the
+			 * PCI device ID. */
+			const pci230_board *board =
+				pci230_find_pci_board(pci_dev);
+
+			if (board) {
+				/* Change board_ptr to matched board */
+				dev->board_ptr = board;
+				break;
+			}
+		} else {
+			/* The name was specified as a specific device name.
+			 * The current dev->board_ptr is correct.  Check
+			 * whether it matches the PCI device ID. */
+			if (pci230_match_pci_board(thisboard, pci_dev)) {
+				break;
+			}
+		}
+	}
+	if (!pci_dev) {
+		printk("comedi%d: No %s card found\n", dev->minor,
+			thisboard->name);
+		return -EIO;
+	}
+	devpriv->pci_dev = pci_dev;
+
+	return pci230_attach_common(dev);
+}
+
+static int pci230_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	const pci230_board *board;
+
+	printk("comedi%d: amplc_pci230: auto-attach PCI %s\n", dev->minor,
+		pci_name(pci_dev));
+
+	/* Allocate the private structure area using alloc_private().
+	 * Macro defined in comedidev.h - memsets struct fields to 0. */
+	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0) {
+		return -ENOMEM;
+	}
+
+	board = pci230_find_pci_board(pci_dev);
+	if (!board) {
+		printk("comedi%d: amplc_pci230: BUG! cannot determine board type!\n",
+			dev->minor);
+		return -EINVAL;
+	}
+	dev->board_ptr = board;
+
+	/* pci_dev_get() call matches pci_dev_put() in pci230_detach() */
+	devpriv->pci_dev = pci_dev_get(pci_dev);
+
+	return pci230_attach_common(dev);
 }
 
 /*
