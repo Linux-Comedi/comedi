@@ -146,8 +146,10 @@ static const pc236_board pc236_boards[] = {
 
 #ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236, PCI_ANY_ID,
-		PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236),
+		.driver_data = pci236_model,
+	},
 	{0}
 };
 
@@ -180,12 +182,18 @@ typedef struct {
  * the device code.
  */
 static int pc236_attach(comedi_device * dev, comedi_devconfig * it);
+#ifdef COMEDI_CONFIG_PCI
+static int pc236_auto_attach(comedi_device * dev, unsigned long context);
+#endif
 static int pc236_detach(comedi_device * dev);
 
 static comedi_driver driver_amplc_pc236 = {
 	.driver_name	= PC236_DRIVER_NAME,
 	.module		= THIS_MODULE,
 	.attach		= pc236_attach,
+#ifdef COMEDI_CONFIG_PCI
+	.auto_attach	= pc236_auto_attach,
+#endif
 	.detach		= pc236_detach,
 	.board_name	= &pc236_boards[0].name,
 	.offset		= sizeof(pc236_board),
@@ -273,64 +281,18 @@ pc236_find_pci(comedi_device * dev, int bus, int slot,
 }
 #endif
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
+static int pc236_attach_common(comedi_device * dev, unsigned long iobase,
+	unsigned int irq)
 {
 	comedi_subdevice *s;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
 #ifdef COMEDI_CONFIG_PCI
-	struct pci_dev *pci_dev = NULL;
-	int bus = 0, slot = 0;
+	struct pci_dev *pci_dev = devpriv->pci_dev;
 #endif
-	int share_irq = 0;
 	int ret;
 
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
-		PC236_DRIVER_NAME);
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if ((ret = alloc_private(dev, sizeof(pc236_private))) < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
-		return ret;
-	}
-	/* Process options. */
-	switch (thisboard->bustype) {
-	case isa_bustype:
-		iobase = it->options[0];
-		irq = it->options[1];
-		share_irq = 0;
-		break;
-#ifdef COMEDI_CONFIG_PCI
-	case pci_bustype:
-		bus = it->options[0];
-		slot = it->options[1];
-		share_irq = 1;
-
-		if ((ret = pc236_find_pci(dev, bus, slot, &pci_dev)) < 0)
-			return ret;
-		devpriv->pci_dev = pci_dev;
-		break;
-#endif /* COMEDI_CONFIG_PCI */
-	default:
-		printk(KERN_ERR
-			"comedi%d: %s: BUG! cannot determine board type!\n",
-			dev->minor, PC236_DRIVER_NAME);
-		return -EINVAL;
-		break;
-	}
-
-/*
- * Initialize dev->board_name.
- */
+	/*
+	 * Initialize dev->board_name.
+	 */
 	dev->board_name = thisboard->name;
 
 	/* Enable device and reserve I/O spaces. */
@@ -377,7 +339,8 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_UNUSED;
 	pc236_intr_disable(dev);
 	if (irq) {
-		unsigned long flags = share_irq ? IRQF_SHARED : 0;
+		unsigned long flags = thisboard->bustype != isa_bustype
+		       ? IRQF_SHARED : 0;
 
 		if (comedi_request_irq(irq, pc236_interrupt, flags,
 				PC236_DRIVER_NAME, dev) >= 0) {
@@ -411,6 +374,94 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 
 	return 1;
 }
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
+#ifdef COMEDI_CONFIG_PCI
+	struct pci_dev *pci_dev = NULL;
+	int bus = 0, slot = 0;
+#endif
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
+		PC236_DRIVER_NAME);
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if ((ret = alloc_private(dev, sizeof(pc236_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+	/* Process options. */
+	switch (thisboard->bustype) {
+	case isa_bustype:
+		iobase = it->options[0];
+		irq = it->options[1];
+		break;
+#ifdef COMEDI_CONFIG_PCI
+	case pci_bustype:
+		bus = it->options[0];
+		slot = it->options[1];
+
+		if ((ret = pc236_find_pci(dev, bus, slot, &pci_dev)) < 0)
+			return ret;
+		devpriv->pci_dev = pci_dev;
+		break;
+#endif /* COMEDI_CONFIG_PCI */
+	default:
+		printk(KERN_ERR
+			"comedi%d: %s: BUG! cannot determine board type!\n",
+			dev->minor, PC236_DRIVER_NAME);
+		return -EINVAL;
+		break;
+	}
+
+	return pc236_attach_common(dev, iobase, irq);
+}
+
+#ifdef COMEDI_CONFIG_PCI
+static int pc236_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: auto-attach PCI %s\n", dev->minor,
+		PC236_DRIVER_NAME, pci_name(pci_dev));
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if ((ret = alloc_private(dev, sizeof(pc236_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+	dev->board_ptr = context_model < ARRAY_SIZE(pc236_boards)
+		? &pc236_boards[context_model] : NULL;
+	if (thisboard == NULL || thisboard->model == anypci_model ||
+		thisboard->bustype != pci_bustype) {
+		printk(KERN_ERR "comedi%d: %s: BUG! bad auto-attach context - %lu\n",
+			dev->minor, PC236_DRIVER_NAME, context_model);
+		return -EINVAL;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in pc236_detach() */
+	devpriv->pci_dev = pci_dev_get(pci_dev);
+
+	/* Don't care about iobase and IRQ here. */
+	return pc236_attach_common(dev, 0, 0);
+}
+#endif
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
