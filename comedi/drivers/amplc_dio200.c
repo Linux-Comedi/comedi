@@ -629,16 +629,26 @@ static const dio200_layout dio200_layouts[] = {
 
 #ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215),
+		.driver_data = pci215_model,
+	},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272),
+		.driver_data = pci272_model,
+	},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236),
+		.driver_data = pcie236_model,
+	},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215),
+		.driver_data = pcie215_model,
+	},
+	{
+		PCI_VDEVICE(AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296),
+		.driver_data = pcie296_model,
+	},
 	{0}
 };
 
@@ -693,11 +703,17 @@ typedef struct {
  * the device code.
  */
 static int dio200_attach(comedi_device * dev, comedi_devconfig * it);
+#ifdef COMEDI_CONFIG_PCI
+static int dio200_auto_attach(comedi_device * dev, unsigned long context);
+#endif
 static int dio200_detach(comedi_device * dev);
 static comedi_driver driver_amplc_dio200 = {
 	.driver_name	= DIO200_DRIVER_NAME,
 	.module		= THIS_MODULE,
 	.attach		= dio200_attach,
+#ifdef COMEDI_CONFIG_PCI
+	.auto_attach	= dio200_auto_attach,
+#endif
 	.detach		= dio200_detach,
 	.board_name	= &dio200_boards[0].name,
 	.offset		= sizeof(dio200_board),
@@ -1909,61 +1925,17 @@ dio200_pcie_board_setup(comedi_device * dev)
 }
 #endif
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
+static int dio200_attach_common(comedi_device *dev, unsigned long iobase,
+	unsigned int irq)
 {
 	comedi_subdevice *s;
-	unsigned long iobase = 0;
-	unsigned int irq = 0;
 #ifdef COMEDI_CONFIG_PCI
-	struct pci_dev *pci_dev = NULL;
-	int bus = 0, slot = 0;
+	struct pci_dev *pci_dev = devpriv->pci_dev;
 #endif
 	const dio200_layout *layout;
-	int share_irq = 0;
 	int sdx;
 	unsigned n;
 	int ret;
-
-	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
-		DIO200_DRIVER_NAME);
-
-	if ((ret = alloc_private(dev, sizeof(dio200_private))) < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-			dev->minor);
-		return ret;
-	}
-
-	/* Process options. */
-	switch (thisboard->bustype) {
-	case isa_bustype:
-		iobase = it->options[0];
-		irq = it->options[1];
-		share_irq = 0;
-		break;
-#ifdef COMEDI_CONFIG_PCI
-	case pci_bustype:
-		bus = it->options[0];
-		slot = it->options[1];
-		share_irq = 1;
-
-		if ((ret = dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
-			return ret;
-		devpriv->pci_dev = pci_dev;
-		break;
-#endif
-	default:
-		printk(KERN_ERR
-			"comedi%d: %s: BUG! cannot determine board type!\n",
-			dev->minor, DIO200_DRIVER_NAME);
-		return -EINVAL;
-		break;
-	}
 
 	devpriv->intr_sd = -1;
 	devpriv->io.regtype = no_regtype;
@@ -2096,7 +2068,8 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->board_name = thisboard->name;
 
 	if (irq) {
-		unsigned long flags = share_irq ? IRQF_SHARED : 0;
+		unsigned long flags = thisboard->bustype != isa_bustype
+			? IRQF_SHARED : 0;
 
 		if (comedi_request_irq(irq, dio200_interrupt, flags,
 				DIO200_DRIVER_NAME, dev) >= 0) {
@@ -2126,6 +2099,90 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 
 	return 1;
 }
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
+#ifdef COMEDI_CONFIG_PCI
+	struct pci_dev *pci_dev = NULL;
+	int bus = 0, slot = 0;
+#endif
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
+		DIO200_DRIVER_NAME);
+
+	if ((ret = alloc_private(dev, sizeof(dio200_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+
+	/* Process options. */
+	switch (thisboard->bustype) {
+	case isa_bustype:
+		iobase = it->options[0];
+		irq = it->options[1];
+		break;
+#ifdef COMEDI_CONFIG_PCI
+	case pci_bustype:
+		bus = it->options[0];
+		slot = it->options[1];
+
+		if ((ret = dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
+			return ret;
+		devpriv->pci_dev = pci_dev;
+		break;
+#endif
+	default:
+		printk(KERN_ERR
+			"comedi%d: %s: BUG! cannot determine board type!\n",
+			dev->minor, DIO200_DRIVER_NAME);
+		return -EINVAL;
+		break;
+	}
+
+	return dio200_attach_common(dev, iobase, irq);
+}
+
+#ifdef COMEDI_CONFIG_PCI
+static int dio200_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk(KERN_DEBUG "comedi%d: %s: auto-attach PCI %s\n", dev->minor,
+		DIO200_DRIVER_NAME, pci_name(pci_dev));
+
+	if ((ret = alloc_private(dev, sizeof(dio200_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return ret;
+	}
+
+	dev->board_ptr = context_model < ARRAY_SIZE(dio200_boards)
+		? &dio200_boards[context_model] : NULL;
+	if (thisboard == NULL || thisboard->model == anypci_model ||
+		thisboard->bustype != pci_bustype) {
+		printk(KERN_ERR "comedi%d: %s: BUG! bad auto-attach context - %lu\n",
+			dev->minor, DIO200_DRIVER_NAME, context_model);
+		return -EINVAL;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in dio200_detach() */
+	devpriv->pci_dev = pci_dev_get(pci_dev);
+
+	/* Don't care about iobase and IRQ here. */
+	return dio200_attach_common(dev, 0, 0);
+}
+#endif
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
