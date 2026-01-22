@@ -141,8 +141,17 @@ typedef struct cb_pcidda_board_struct {
 	const comedi_lrange *ranges;
 } cb_pcidda_board;
 
+enum cb_pcidda_model {
+	dda02_12_model,
+	dda04_12_model,
+	dda08_12_model,
+	dda02_16_model,
+	dda04_16_model,
+	dda08_16_model,
+};
+
 static const cb_pcidda_board cb_pcidda_boards[] = {
-	{
+	[dda02_12_model] = {
 		.name		= "pci-dda02/12",
 		.status		= 1,
 		.device_id	= 0x20,
@@ -150,7 +159,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		.ao_bits	= 12,
 		.ranges		= &cb_pcidda_ranges,
 	},
-	{
+	[dda04_12_model] = {
 		.name		= "pci-dda04/12",
 		.status		= 1,
 		.device_id	= 0x21,
@@ -158,7 +167,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		.ao_bits	= 12,
 		.ranges		= &cb_pcidda_ranges,
 	},
-	{
+	[dda08_12_model] = {
 		.name		= "pci-dda08/12",
 		.status		= 0,
 		.device_id	= 0x22,
@@ -166,7 +175,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		.ao_bits	= 12,
 		.ranges		= &cb_pcidda_ranges,
 	},
-	{
+	[dda02_16_model] = {
 		.name		= "pci-dda02/16",
 		.status		= 2,
 		.device_id	= 0x23,
@@ -174,7 +183,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		.ao_bits	= 16,
 		.ranges		= &cb_pcidda_ranges,
 	},
-	{
+	[dda04_16_model] = {
 		.name		= "pci-dda04/16",
 		.status		= 2,
 		.device_id	= 0x24,
@@ -182,7 +191,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		.ao_bits	= 16,
 		.ranges		= &cb_pcidda_ranges,
 	},
-	{
+	[dda08_16_model] = {
 		.name		= "pci-dda08/16",
 		.status		= 0,
 		.device_id	= 0x25,
@@ -193,12 +202,12 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
-	{PCI_VENDOR_ID_CB, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(CB, 0x0020), .driver_data = dda02_12_model, },
+	{ PCI_VDEVICE(CB, 0x0021), .driver_data = dda04_12_model, },
+	{ PCI_VDEVICE(CB, 0x0022), .driver_data = dda08_12_model, },
+	{ PCI_VDEVICE(CB, 0x0023), .driver_data = dda02_16_model, },
+	{ PCI_VDEVICE(CB, 0x0024), .driver_data = dda04_16_model, },
+	{ PCI_VDEVICE(CB, 0x0025), .driver_data = dda08_16_model, },
 	{0}
 };
 
@@ -234,6 +243,7 @@ typedef struct {
 #define devpriv ((cb_pcidda_private *)dev->private)
 
 static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it);
+static int cb_pcidda_auto_attach(comedi_device * dev, unsigned long context);
 static int cb_pcidda_detach(comedi_device * dev);
 //static int cb_pcidda_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidda_ao_winsn(comedi_device * dev, comedi_subdevice * s,
@@ -259,58 +269,15 @@ static comedi_driver driver_cb_pcidda = {
 	.driver_name	= "cb_pcidda",
 	.module		= THIS_MODULE,
 	.attach		= cb_pcidda_attach,
+	.auto_attach	= cb_pcidda_auto_attach,
 	.detach		= cb_pcidda_detach,
 };
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
+static int cb_pcidda_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	int index;
-
-	printk("comedi%d: cb_pcidda:\n", dev->minor);
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(cb_pcidda_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
-			if (it->options[0] || it->options[1]) {
-				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
-					continue;
-				}
-			}
-			for (index = 0; index < N_BOARDS; index++) {
-				if (cb_pcidda_boards[index].device_id ==
-					pcidev->device) {
-					goto found;
-				}
-			}
-		}
-	}
-	if (!pcidev) {
-		printk("Not a ComputerBoards/MeasurementComputing card on requested position\n");
-		return -EIO;
-	}
-      found:
-	devpriv->pci_dev = pcidev;
-	dev->board_ptr = cb_pcidda_boards + index;
-	// "thisboard" macro can be used from here.
-	printk("Found %s at requested position\n", thisboard->name);
 
 	/*
 	 * Enable PCI device and request regions.
@@ -320,27 +287,27 @@ static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 	}
 
-/*
- * Allocate the I/O ports.
- */
+	/*
+	 * Allocate the I/O ports.
+	 */
 	devpriv->digitalio =
 		pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
 	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
-/*
- * Warn about the status of the driver.
- */
+	/*
+	 * Warn about the status of the driver.
+	 */
 	if (thisboard->status == 2)
 		printk("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. " "WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DDA08/12. " "PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
 
-/*
- * Initialize dev->board_name.
- */
+	/*
+	 * Initialize dev->board_name.
+	 */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.
- */
+	/*
+	 * Allocate the subdevice structures.
+	 */
 	if (alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
@@ -374,6 +341,85 @@ static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
 		cb_pcidda_calibrate(dev, index, devpriv->ao_range[index]);
 
 	return 1;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.
+ */
+static int cb_pcidda_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pcidev;
+	int index;
+
+	printk("comedi%d: cb_pcidda:\n", dev->minor);
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(cb_pcidda_private)) < 0)
+		return -ENOMEM;
+
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
+			if (it->options[0] || it->options[1]) {
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
+					continue;
+				}
+			}
+			for (index = 0; index < N_BOARDS; index++) {
+				if (cb_pcidda_boards[index].device_id ==
+					pcidev->device) {
+					goto found;
+				}
+			}
+		}
+	}
+	if (!pcidev) {
+		printk("Not a ComputerBoards/MeasurementComputing card on requested position\n");
+		return -EIO;
+	}
+found:
+	devpriv->pci_dev = pcidev;
+	dev->board_ptr = cb_pcidda_boards + index;
+	// "thisboard" macro can be used from here.
+	printk("Found %s at requested position\n", thisboard->name);
+
+	return cb_pcidda_attach_common(dev);
+}
+
+static int cb_pcidda_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: cb_pcidda: auto-attach PCI %s\n",
+	       dev->minor, pci_name(pcidev));
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(cb_pcidda_private)) < 0)
+		return -ENOMEM;
+
+	/* context is the index into cb_pcidda_boards[] */
+	if (context >= N_BOARDS) {
+		printk("comedi%d: cb_pcidda: BUG: bad auto-attach context - %lu\n",
+		       dev->minor, context);
+		return -EINVAL;
+	}
+	dev->board_ptr = cb_pcidda_boards + context;
+
+	/* pci_dev_get() call matches pci_dev_put() in cb_pcidda_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return cb_pcidda_attach_common(dev);
 }
 
 /*
