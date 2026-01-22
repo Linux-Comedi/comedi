@@ -91,20 +91,20 @@ typedef struct cb_pcidac_board_struct {
 
 static const cb_pcidac_board cb_pcidac_boards[] = {
 	{
-		name:	"PCI-DAC6702",
-		device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
-		ao_nchan:8,
-		ao_bits:16,
-		dio_bits:8,
-		dio_nchan:8,
+		.name		= "PCI-DAC6702",
+		.device_id	= PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
+		.ao_nchan	= 8,
+		.ao_bits	= 16,
+		.dio_bits	= 8,
+		.dio_nchan	= 8,
 	},
 	{
-		name:	"PCI-DAC6703",
-		device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
-		ao_nchan:16,
-		ao_bits:16,
-		dio_bits:8,
-		dio_nchan:8,
+		.name		= "PCI-DAC6703",
+		.device_id	= PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
+		.ao_nchan	= 16,
+		.ao_bits	= 16,
+		.dio_bits	= 8,
+		.dio_nchan	= 8,
 	},
 };
 
@@ -165,10 +165,10 @@ typedef struct {
 static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it);
 static int cb_pcidac_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidac = {
-	driver_name:"cb_pcidac",
-	module:THIS_MODULE,
-	attach:cb_pcidac_attach,
-	detach:cb_pcidac_detach,
+	.driver_name	= "cb_pcidac",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcidac_attach,
+	.detach		= cb_pcidac_detach,
 };
 
 static int cb_pcidac_ao_winsn(comedi_device * dev, comedi_subdevice * s,
