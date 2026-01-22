@@ -115,13 +115,13 @@ Please report success/failure with other different cards to
 static const comedi_lrange cb_pcidda_ranges = {
 	6,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+	},
 };
 
 /*
@@ -140,55 +140,56 @@ typedef struct cb_pcidda_board_struct {
 	int ao_bits;
 	const comedi_lrange *ranges;
 } cb_pcidda_board;
+
 static const cb_pcidda_board cb_pcidda_boards[] = {
 	{
-	      name:	"pci-dda02/12",
-	      status:	1,
-	      device_id:0x20,
-	      ao_chans:2,
-	      ao_bits:	12,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda02/12",
+		.status		= 1,
+		.device_id	= 0x20,
+		.ao_chans	= 2,
+		.ao_bits	= 12,
+		.ranges		= &cb_pcidda_ranges,
+	},
 	{
-	      name:	"pci-dda04/12",
-	      status:	1,
-	      device_id:0x21,
-	      ao_chans:4,
-	      ao_bits:	12,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda04/12",
+		.status		= 1,
+		.device_id	= 0x21,
+		.ao_chans	= 4,
+		.ao_bits	= 12,
+		.ranges		= &cb_pcidda_ranges,
+	},
 	{
-	      name:	"pci-dda08/12",
-	      status:	0,
-	      device_id:0x22,
-	      ao_chans:8,
-	      ao_bits:	12,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda08/12",
+		.status		= 0,
+		.device_id	= 0x22,
+		.ao_chans	= 8,
+		.ao_bits	= 12,
+		.ranges		= &cb_pcidda_ranges,
+	},
 	{
-	      name:	"pci-dda02/16",
-	      status:	2,
-	      device_id:0x23,
-	      ao_chans:2,
-	      ao_bits:	16,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda02/16",
+		.status		= 2,
+		.device_id	= 0x23,
+		.ao_chans	= 2,
+		.ao_bits	= 16,
+		.ranges		= &cb_pcidda_ranges,
+	},
 	{
-	      name:	"pci-dda04/16",
-	      status:	2,
-	      device_id:0x24,
-	      ao_chans:4,
-	      ao_bits:	16,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda04/16",
+		.status		= 2,
+		.device_id	= 0x24,
+		.ao_chans	= 4,
+		.ao_bits	= 16,
+		.ranges		= &cb_pcidda_ranges,
+	},
 	{
-	      name:	"pci-dda08/16",
-	      status:	0,
-	      device_id:0x25,
-	      ao_chans:8,
-	      ao_bits:	16,
-	      ranges:	&cb_pcidda_ranges,
-		},
+		.name		= "pci-dda08/16",
+		.status		= 0,
+		.device_id	= 0x25,
+		.ao_chans	= 8,
+		.ao_bits	= 16,
+		.ranges		= &cb_pcidda_ranges,
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
@@ -255,10 +256,10 @@ static void cb_pcidda_calibrate(comedi_device * dev, unsigned int channel,
  * the device code.
  */
 static comedi_driver driver_cb_pcidda = {
-      driver_name:"cb_pcidda",
-      module:THIS_MODULE,
-      attach:cb_pcidda_attach,
-      detach:cb_pcidda_detach,
+	.driver_name	= "cb_pcidda",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcidda_attach,
+	.detach		= cb_pcidda_detach,
 };
 
 /*
