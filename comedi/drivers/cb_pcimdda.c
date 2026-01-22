@@ -116,8 +116,12 @@ enum DIO_METHODS {
 	DIO_INTERNAL		/* unimplemented */
 };
 
+enum models {
+	pcim_dda06_16_model,
+};
+
 static const board boards[] = {
-	{
+	[pcim_dda06_16_model] = {
 		.name		= "cb_pcimdda06-16",
 		.device_id	= PCI_ID_PCIM_DDA06_16,
 		.ao_chans	= 6,
@@ -145,8 +149,10 @@ static const board boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static DEFINE_PCI_DEVICE_TABLE(pci_table) = {
-	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID,
-		PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16),
+		.driver_data = pcim_dda06_16_model,
+	},
 	{0}
 };
 
@@ -182,11 +188,13 @@ typedef struct {
  * the device code.
  */
 static int attach(comedi_device * dev, comedi_devconfig * it);
+static int auto_attach(comedi_device * dev, unsigned long context);
 static int detach(comedi_device * dev);
 static comedi_driver cb_pcimdda_driver = {
 	.driver_name	= "cb_pcimdda",
 	.module		= THIS_MODULE,
 	.attach		= attach,
+	.auto_attach	= auto_attach,
 	.detach		= detach,
 };
 
@@ -233,37 +241,12 @@ static int probe(comedi_device * dev, const comedi_devconfig * it);
   FUNCTION DEFINITIONS
 -----------------------------------------------------------------------------*/
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int attach(comedi_device * dev, comedi_devconfig * it)
+static int attach_common(comedi_device *dev, const int *options)
 {
 	comedi_subdevice *s;
 	int err;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- * if this function fails (returns negative) then the private area is
- * kfree'd by comedi
- */
-	if (alloc_private(dev, sizeof(private)) < 0)
-		return -ENOMEM;
-
-/*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
- */
-	err = probe(dev, it);
-	if (err)
-		return err;
-
-	pcidev = devpriv->pci_dev;
 	err = comedi_pci_enable(pcidev, thisboard->name);
 	if (err) {
 		printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
@@ -272,19 +255,19 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->registers = pci_resource_start(pcidev, REGS_BADRINDEX);
 	devpriv->dio_registers = devpriv->registers + thisboard->dio_offset;
 
-/* Output some info */
+	/* Output some info */
 	printk("comedi%d: %s: ", dev->minor, thisboard->name);
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
+	/*
+	 * Initialize dev->board_name.  Note that we can use the "thisboard"
+	 * macro now, since we just initialized it in the last line.
+	 */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
 	if (alloc_subdevices(dev, 2) < 0) {
 		printk(KERN_CONT "Allocation failure\n");
 		return -ENOMEM;
@@ -298,7 +281,7 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = figure_out_maxdata(thisboard->ao_bits);
 	/* this is hard-coded here */
-	if (it->options[2]) {
+	if (options && options[2]) {
 		s->range_table = &range_bipolar10;
 	} else {
 		s->range_table = &range_bipolar5;
@@ -329,6 +312,64 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "attached\n");
 
 	return 1;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int err;
+
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 * if this function fails (returns negative) then the private area is
+	 * kfree'd by comedi
+	 */
+	if (alloc_private(dev, sizeof(private)) < 0)
+		return -ENOMEM;
+
+	/*
+	 * If you can probe the device to determine what device in a series
+	 * it is, this is the place to do it.  Otherwise, dev->board_ptr
+	 * should already be initialized.
+	 */
+	err = probe(dev, it);
+	if (err)
+		return err;
+
+	return attach_common(dev, it->options);
+}
+
+static int auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 * if this function fails (returns negative) then the private area is
+	 * kfree'd by comedi
+	 */
+	if (alloc_private(dev, sizeof(private)) < 0)
+		return -ENOMEM;
+
+	/* context_model is the index into boards[] */
+	if (context_model >= N_BOARDS) {
+		printk("cb_pcimdda: BUG: bad auto-attach context - %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return attach_common(dev, NULL);
 }
 
 /*
