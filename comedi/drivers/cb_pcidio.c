@@ -62,25 +62,25 @@ typedef struct pcidio_board_struct {
 
 static const pcidio_board pcidio_boards[] = {
 	{
-	      name:	"pci-dio24",
-	      dev_id:	0x0028,
-	      n_8255:	1,
-		},
+		.name	= "pci-dio24",
+		.dev_id	= 0x0028,
+		.n_8255	= 1,
+	},
 	{
-	      name:	"pci-dio24h",
-	      dev_id:	0x0014,
-	      n_8255:	1,
-		},
+		.name	= "pci-dio24h",
+		.dev_id	= 0x0014,
+		.n_8255	= 1,
+	},
 	{
-	      name:	"pci-dio48h",
-	      dev_id:	0x000b,
-	      n_8255:	2,
-		},
+		.name	= "pci-dio48h",
+		.dev_id	= 0x000b,
+		.n_8255	= 2,
+	},
 	{
-	      name:	"pci-dio96h",
-	      dev_id:	0x0017,
-	      n_8255:	4,
-		},
+		.name	= "pci-dio96h",
+		.dev_id	= 0x0017,
+		.n_8255	= 4,
+	},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -132,10 +132,10 @@ typedef struct {
 static int pcidio_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcidio_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidio = {
-      driver_name:"cb_pcidio",
-      module:THIS_MODULE,
-      attach:pcidio_attach,
-      detach:pcidio_detach,
+	.driver_name	= "cb_pcidio",
+	.module		= THIS_MODULE,
+	.attach		= pcidio_attach,
+	.detach		= pcidio_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -155,9 +155,9 @@ static comedi_driver driver_cb_pcidio = {
 	 * devices are such boards.
 	 */
 // The following fields should NOT be initialized if you are dealing with PCI devices
-//      board_name:     pcidio_boards,
-//      offset:         sizeof(pcidio_board),
-//      num_names:      sizeof(pcidio_boards) / sizeof(pcidio_board),
+//	.board_name	= pcidio_boards,
+//	.offset		= sizeof(pcidio_board),
+//	.num_names	= sizeof(pcidio_boards) / sizeof(pcidio_board),
 };
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
