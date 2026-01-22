@@ -86,21 +86,23 @@ http://www.mccdaq.com/PDFs/Manuals/pcie-das1602-16.pdf
 #define RESID_COUNT_L 14
 
 static const comedi_lrange cb_pcimdas_ai_bip_range = {
-	4, {
+	4,
+	{
 		BIP_RANGE(10),
 		BIP_RANGE(5),
 		BIP_RANGE(2.5),
-		BIP_RANGE(1.25)
-	}
+		BIP_RANGE(1.25),
+	},
 };
 
 static const comedi_lrange cb_pcimdas_ai_uni_range = {
-	4, {
+	4,
+	{
 		UNI_RANGE(10),
 		UNI_RANGE(5),
 		UNI_RANGE(2.5),
-		UNI_RANGE(1.25)
-	}
+		UNI_RANGE(1.25),
+	},
 };
 
 /* Board description */
@@ -123,38 +125,38 @@ typedef struct cb_pcimdas_board_struct {
 
 static const cb_pcimdas_board cb_pcimdas_boards[] = {
 	{
-	      name:	"PCIM-DAS1602/16",
-	      device_id:0x56,
-	      ai_se_chans:16,
-	      ai_diff_chans:8,
-	      ai_bits:	16,
-	      ai_speed:10000,	//??
-	      ao_nchan:2,
-	      ao_bits:	12,
-	      has_ao_fifo:0,	//??
-	      ao_scan_speed:10000,
+		.name		= "PCIM-DAS1602/16",
+		.device_id	= 0x56,
+		.ai_se_chans	= 16,
+		.ai_diff_chans	= 8,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,	//??
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.has_ao_fifo	= 0,	//??
+		.ao_scan_speed	= 10000,
 			//??
-	      fifo_size:1024,
-	      dio_bits:24,
-	      has_dio:	1,
-//              ranges:         &cb_pcimdas_ranges,
+		.fifo_size	= 1024,
+		.dio_bits	= 24,
+		.has_dio	= 1,
+//		.ranges		= &cb_pcimdas_ranges,
 	},
 	{
-	      name:	"PCIe-DAS1602/16",
-	      device_id:0x115,
-	      ai_se_chans:16,
-	      ai_diff_chans:8,
-	      ai_bits:	16,
-	      ai_speed:10000,	//??
-	      ao_nchan:2,
-	      ao_bits:	12,
-	      has_ao_fifo:0,	//??
-	      ao_scan_speed:10000,
+		.name		= "PCIe-DAS1602/16",
+		.device_id	= 0x115,
+		.ai_se_chans	= 16,
+		.ai_diff_chans	= 8,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,	//??
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.has_ao_fifo	= 0,	//??
+		.ao_scan_speed	= 10000,
 			//??
-	      fifo_size:1024,
-	      dio_bits:24,
-	      has_dio:	1,
-//              ranges:         &cb_pcimdas_ranges,
+		.fifo_size	= 1024,
+		.dio_bits	= 24,
+		.has_dio	= 1,
+//		.ranges		= &cb_pcimdas_ranges,
 	},
 };
 
@@ -216,10 +218,10 @@ typedef struct {
 static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it);
 static int cb_pcimdas_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcimdas = {
-      driver_name:"cb_pcimdas",
-      module:THIS_MODULE,
-      attach:cb_pcimdas_attach,
-      detach:cb_pcimdas_detach,
+	.driver_name	= "cb_pcimdas",
+	.module		= THIS_MODULE,
+	.attach		= cb_pcimdas_attach,
+	.detach		= cb_pcimdas_detach,
 };
 
 static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
