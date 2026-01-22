@@ -60,23 +60,30 @@ typedef struct pcidio_board_struct {
 	int n_8255;		// number of 8255 chips on board
 } pcidio_board;
 
+enum pcidio_model {
+	dio24_model,
+	dio24h_model,
+	dio48h_model,
+	dio96h_model,
+};
+
 static const pcidio_board pcidio_boards[] = {
-	{
+	[dio24_model] = {
 		.name	= "pci-dio24",
 		.dev_id	= 0x0028,
 		.n_8255	= 1,
 	},
-	{
+	[dio24h_model] = {
 		.name	= "pci-dio24h",
 		.dev_id	= 0x0014,
 		.n_8255	= 1,
 	},
-	{
+	[dio48h_model] = {
 		.name	= "pci-dio48h",
 		.dev_id	= 0x000b,
 		.n_8255	= 2,
 	},
-	{
+	[dio96h_model] = {
 		.name	= "pci-dio96h",
 		.dev_id	= 0x0017,
 		.n_8255	= 4,
@@ -88,10 +95,10 @@ static const pcidio_board pcidio_boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static DEFINE_PCI_DEVICE_TABLE(pcidio_pci_table) = {
-	{PCI_VENDOR_ID_CB, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0017, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x000b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(CB, 0x0028), .driver_data = dio24_model,	},
+	{ PCI_VDEVICE(CB, 0x0017), .driver_data = dio96h_model,	},
+	{ PCI_VDEVICE(CB, 0x0014), .driver_data = dio24h_model,	},
+	{ PCI_VDEVICE(CB, 0x000b), .driver_data = dio48h_model,	},
 	{0}
 };
 
@@ -130,11 +137,13 @@ typedef struct {
  * the device code.
  */
 static int pcidio_attach(comedi_device * dev, comedi_devconfig * it);
+static int pcidio_auto_attach(comedi_device * dev, unsigned long context);
 static int pcidio_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidio = {
 	.driver_name	= "cb_pcidio",
 	.module		= THIS_MODULE,
 	.attach		= pcidio_attach,
+	.auto_attach	= pcidio_auto_attach,
 	.detach		= pcidio_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
@@ -162,6 +171,47 @@ static comedi_driver driver_cb_pcidio = {
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
 
+static int pcidio_attach_common(comedi_device *dev)
+{
+	struct pci_dev *pcidev = devpriv->pci_dev;
+	int i;
+
+	dev->board_name = thisboard->name;
+	if (comedi_pci_enable(pcidev, thisboard->name)) {
+		printk("cb_pcidio: failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
+	/*
+	 * At some point, they switched from using AMCC S5933 (I think) PCI
+	 * interface chip with user registers in BAR 1 to using PLX
+	 * PCI9050/PCI9052 chip with user registers in BAR 2, but they kept the
+	 * same PCI device ID (although they did set the PCI subvendor and
+	 * subdevice ID on the newer cards as well).
+	 *
+	 * Use BAR 2 if it exists (for PLX), otherwise use BAR 1 (for AMCC).
+	 */
+	devpriv->dio_reg_base =
+		pci_resource_start(pcidev,
+			(pci_resource_len(pcidev, 2) ? 2 : 1));
+
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_subdevices(dev, thisboard->n_8255) < 0)
+		return -ENOMEM;
+
+	for (i = 0; i < thisboard->n_8255; i++) {
+		subdev_8255_init(dev, dev->subdevices + i,
+			NULL, devpriv->dio_reg_base + i * 4);
+		printk(" subdev %d: base = 0x%lx\n", i,
+			devpriv->dio_reg_base + i * 4);
+	}
+
+	printk("attached\n");
+	return 1;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -172,24 +222,23 @@ static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev = NULL;
 	int index;
-	int i;
 
 	printk("comedi%d: cb_pcidio: \n", dev->minor);
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
 	if (alloc_private(dev, sizeof(pcidio_private)) < 0)
 		return -ENOMEM;
-/*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
- */
-/*
- * Probe the device to determine what device in the series it is.
- */
+	/*
+	 * If you can probe the device to determine what device in a series
+	 * it is, this is the place to do it.  Otherwise, dev->board_ptr
+	 * should already be initialized.
+	 */
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
@@ -199,7 +248,7 @@ static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
 			continue;
 		// loop through cards supported by this driver
 		for (index = 0;
-			index < sizeof pcidio_boards / sizeof(pcidio_board);
+			index < ARRAY_SIZE(pcidio_boards);
 			index++) {
 			if (pcidio_boards[index].dev_id != pcidev->device)
 				continue;
@@ -222,51 +271,46 @@ static int pcidio_attach(comedi_device * dev, comedi_devconfig * it)
 		"requested position\n");
 	return -EIO;
 
-      found:
+found:
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
-
+	/*
+	 * Note that we can use the "thisboard" macro now,
+	 * since we just set dev->board_ptr.
+	 */
 	devpriv->pci_dev = pcidev;
 	printk("Found %s on bus %i, slot %i\n", thisboard->name,
 		devpriv->pci_dev->bus->number,
 		PCI_SLOT(devpriv->pci_dev->devfn));
-	if (comedi_pci_enable(pcidev, thisboard->name)) {
-		printk("cb_pcidio: failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
-	/*
-	 * At some point, they switched from using AMCC S5933 (I think) PCI
-	 * interface chip with user registers in BAR 1 to using PLX
-	 * PCI9050/PCI9052 chip with user registers in BAR 2, but they kept the
-	 * same PCI device ID (although they did set the PCI subvendor and
-	 * subdevice ID on the newer cards as well).
-	 *
-	 * Use BAR 2 if it exists (for PLX), otherwise use BAR 1 (for AMCC).
-	 */
-	devpriv->dio_reg_base =
-		pci_resource_start(pcidev,
-			(pci_resource_len(pcidev, 2) ? 2 : 1));
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, thisboard->n_8255) < 0)
+	return pcidio_attach_common(dev);
+}
+
+static int pcidio_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: cb_pcidio: auto-attach PCI %s\n",
+	       dev->minor, pci_name(pcidev));
+
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_private(dev, sizeof(pcidio_private)) < 0)
 		return -ENOMEM;
 
-	for (i = 0; i < thisboard->n_8255; i++) {
-		subdev_8255_init(dev, dev->subdevices + i,
-			NULL, devpriv->dio_reg_base + i * 4);
-		printk(" subdev %d: base = 0x%lx\n", i,
-			devpriv->dio_reg_base + i * 4);
+	/* context_model is the index into pcidio_boards[] */
+	if (context_model >= ARRAY_SIZE(pcidio_boards)) {
+		printk("comedi%d: cb_pcidio: BUG: bad auto-attach context - %lu\n",
+		       dev->minor, context_model);
+		return -EINVAL;
 	}
+	dev->board_ptr = pcidio_boards + context_model;
 
-	printk("attached\n");
-	return 1;
+	/* pci_dev_get() call matches pci_dev_put() in pcidio_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return pcidio_attach_common(dev);
 }
 
 /*
