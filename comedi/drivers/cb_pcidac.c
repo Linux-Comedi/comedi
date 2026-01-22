@@ -89,8 +89,13 @@ typedef struct cb_pcidac_board_struct {
 	const comedi_lrange *ranges;
 } cb_pcidac_board;
 
+enum cb_pcidac_model {
+	dac6702_model,
+	dac6703_model,
+};
+
 static const cb_pcidac_board cb_pcidac_boards[] = {
-	{
+	[dac6702_model] = {
 		.name		= "PCI-DAC6702",
 		.device_id	= PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
 		.ao_nchan	= 8,
@@ -98,7 +103,7 @@ static const cb_pcidac_board cb_pcidac_boards[] = {
 		.dio_bits	= 8,
 		.dio_nchan	= 8,
 	},
-	{
+	[dac6703_model] = {
 		.name		= "PCI-DAC6703",
 		.device_id	= PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
 		.ao_nchan	= 16,
@@ -111,10 +116,16 @@ static const cb_pcidac_board cb_pcidac_boards[] = {
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidac_pci_table) = {
-	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS,
+			    PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702),
+		.driver_data = dac6702_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS,
+			    PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703),
+		.driver_data = dac6703_model,
+	},
 	{0}
 };
 
@@ -163,11 +174,13 @@ typedef struct {
  * the device code.
  */
 static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it);
+static int cb_pcidac_auto_attach(comedi_device * dev, unsigned long context);
 static int cb_pcidac_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidac = {
 	.driver_name	= "cb_pcidac",
 	.module		= THIS_MODULE,
 	.attach		= cb_pcidac_attach,
+	.auto_attach	= cb_pcidac_auto_attach,
 	.detach		= cb_pcidac_detach,
 };
 
@@ -180,6 +193,88 @@ static int cb_pcidac_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int cb_pcidac_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 			      comedi_insn * insn, lsampl_t * data);
 
+static int cb_pcidac_attach_common(comedi_device * dev)
+{
+	comedi_subdevice *s;
+	struct pci_dev *pcidev = devpriv->pci_dev;
+
+	if (comedi_pci_enable(pcidev, "cb_pcidac")) {
+		printk("Failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
+
+	//Initialize dev->board_name
+	dev->board_name = thisboard->name;
+
+  	//Initialize dev->board_name
+
+	// FIXME 2025-11-19 Need to check that DIO_COUNTER_BADDRINDEX
+	// really is a PCI memory bar, because according to
+	// RegMapPCI-DAC670x.pdf it should be I/O mapped.
+
+	devpriv->plx9030_phys_iobase =
+		pci_resource_start(pcidev, PLX9030_BADDRINDEX);
+	devpriv->main_phys_iobase =
+		pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	devpriv->dio_counter_phys_iobase =
+		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
+
+	// remap, won't work with 2.0 kernels but who cares
+	devpriv->plx9030_iobase = ioremap(devpriv->plx9030_phys_iobase,
+		pci_resource_len(pcidev, PLX9030_BADDRINDEX));
+	devpriv->main_iobase = ioremap(devpriv->main_phys_iobase,
+		pci_resource_len(pcidev, MAIN_BADDRINDEX));
+	devpriv->dio_counter_iobase =
+		ioremap(devpriv->dio_counter_phys_iobase,
+		pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
+
+	if (!devpriv->plx9030_iobase || !devpriv->main_iobase
+		|| !devpriv->dio_counter_iobase) {
+		printk("Failed to remap io memory\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_subdevices(dev, 2) < 0)
+		return -ENOMEM;
+
+	s = dev->subdevices + 0;
+	// analog output subdevice
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = thisboard->ao_nchan;
+	s->maxdata = 1 << thisboard->ao_bits;
+	s->range_table = &range_bipolar10;
+	s->insn_write = &cb_pcidac_ao_winsn;
+	s->insn_read = &cb_pcidac_ao_rinsn;
+	/* Put all DAC channels in immediate update mode. */
+	writew(0, devpriv->main_iobase + DAC_UPDATE_MODE);
+
+	s = dev->subdevices + 1;
+	/* digital i/o subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = thisboard->dio_nchan;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = cb_pcidac_dio_insn_bits;
+	s->insn_config = cb_pcidac_dio_insn_config;
+
+	printk("attached\n");
+#ifdef CBPCIDAC_DEBUG
+	printk("devpriv->BADR%d = 0x%lx\n", PLX9030_BADDRINDEX,(unsigned long)devpriv->plx9030_phys_iobase);
+	printk("devpriv->BADR%d = 0x%lx\n", MAIN_BADDRINDEX,(unsigned long)devpriv->main_phys_iobase);
+	printk("devpriv->BADR%d = 0x%lx\n", DIO_COUNTER_BADDRINDEX, (unsigned long)devpriv->dio_counter_phys_iobase);
+	printk(" plx9030 remapped to 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
+	printk(" main remapped to 0x%lx\n", (unsigned long)devpriv->main_iobase);
+	printk(" diocounter remapped to 0x%lx\n", (unsigned long)devpriv->dio_counter_iobase);
+#endif
+	return 1;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -188,10 +283,8 @@ static int cb_pcidac_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  */
 static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *s;
 	struct pci_dev *pcidev;
 	int index;
-	//int i;
 
 	printk("comedi%d: cb_pcidac:\n", dev->minor);
 
@@ -237,88 +330,34 @@ found:
 	printk("Found %s on bus %i, slot %i\n", cb_pcidac_boards[index].name,
 	       pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
-	if (comedi_pci_enable(pcidev, "cb_pcidac")) {
-		printk("Failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	return cb_pcidac_attach_common(dev);
+}
 
+static int cb_pcidac_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-
-
-
-	//Initialize dev->board_name
-	dev->board_name = thisboard->name;
-
-  	//Initialize dev->board_name
-
-	// FIXME 2025-11-19 Need to check that DIO_COUNTER_BADDRINDEX
-	// really is a PCI memory bar, because according to
-	// RegMapPCI-DAC670x.pdf it should be I/O mapped.
-
-
-	devpriv->plx9030_phys_iobase =
-		pci_resource_start(pcidev, PLX9030_BADDRINDEX);
-	devpriv->main_phys_iobase =
-		pci_resource_start(pcidev, MAIN_BADDRINDEX);
-	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
-
-
-	// remap, won't work with 2.0 kernels but who cares
-	devpriv->plx9030_iobase = ioremap(devpriv->plx9030_phys_iobase,
-		pci_resource_len(pcidev, PLX9030_BADDRINDEX));
-	devpriv->main_iobase = ioremap(devpriv->main_phys_iobase,
-		pci_resource_len(pcidev, MAIN_BADDRINDEX));
-	devpriv->dio_counter_iobase =
-		ioremap(devpriv->dio_counter_phys_iobase,
-		pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
-
-	if (!devpriv->plx9030_iobase || !devpriv->main_iobase
-		|| !devpriv->dio_counter_iobase) {
-		printk("Failed to remap io memory\n");
-		return -ENOMEM;
-	}
-
+	printk("comedi%d: cb_pcidac: auto-attach PCI %s\n",
+	       dev->minor, pci_name(pcidev));
 
 	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
+	 * Allocate the private structure area.
 	 */
-	if (alloc_subdevices(dev, 2) < 0)
+	if (alloc_private(dev, sizeof(cb_pcidac_private)) < 0)
 		return -ENOMEM;
 
-	s = dev->subdevices + 0;
-	// analog output subdevice
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = thisboard->ao_nchan;
-	s->maxdata = 1 << thisboard->ao_bits;
-	s->range_table = &range_bipolar10;
-	s->insn_write = &cb_pcidac_ao_winsn;
-	s->insn_read = &cb_pcidac_ao_rinsn;
-	/* Put all DAC channels in immediate update mode. */
-	writew(0, devpriv->main_iobase + DAC_UPDATE_MODE);
+	/* context is the index into cb_pcidac_boards[] */
+	if (context >= N_BOARDS) {
+		printk("comedi%d: cb_pcidac: BUG: bad auto-attach context - %lu\n",
+		       dev->minor, context);
+		return -EINVAL;
+	}
+	dev->board_ptr = cb_pcidac_boards + context;
 
-	s = dev->subdevices + 1;
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = thisboard->dio_nchan;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = cb_pcidac_dio_insn_bits;
-	s->insn_config = cb_pcidac_dio_insn_config;
+	/* pci_dev_get() call matches pci_dev_put() in cb_pcidac_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
 
-	printk("attached\n");
-#ifdef CBPCIDAC_DEBUG
-	printk("devpriv->BADR%d = 0x%lx\n", PLX9030_BADDRINDEX,(unsigned long)devpriv->plx9030_phys_iobase);
-	printk("devpriv->BADR%d = 0x%lx\n", MAIN_BADDRINDEX,(unsigned long)devpriv->main_phys_iobase);
-	printk("devpriv->BADR%d = 0x%lx\n", DIO_COUNTER_BADDRINDEX, (unsigned long)devpriv->dio_counter_phys_iobase);
-	printk(" plx9030 remapped to 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
-	printk(" main remapped to 0x%lx\n", (unsigned long)devpriv->main_iobase);
-	printk(" diocounter remapped to 0x%lx\n", (unsigned long)devpriv->dio_counter_iobase);
-#endif
-	return 1;
+	return cb_pcidac_attach_common(dev);
 }
 
 /*
