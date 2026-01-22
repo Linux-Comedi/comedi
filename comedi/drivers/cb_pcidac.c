@@ -80,42 +80,42 @@ enum base_address_regions {
 
 /* Board description */
 typedef struct cb_pcidac_board_struct {
-  const char *name;
-  unsigned short device_id;
-  int ao_nchan;		// number of analog out channels
-  int ao_bits;		// analogue output resolution
-  int dio_bits;		// number of dio bits
-  int dio_nchan;	// number of dio channels
-  const comedi_lrange *ranges;
+	const char *name;
+	unsigned short device_id;
+	int ao_nchan;		// number of analog out channels
+	int ao_bits;		// analogue output resolution
+	int dio_bits;		// number of dio bits
+	int dio_nchan;	// number of dio channels
+	const comedi_lrange *ranges;
 } cb_pcidac_board;
 
 static const cb_pcidac_board cb_pcidac_boards[] = {
-  {
-  name:	"PCI-DAC6702",
-  device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
-  ao_nchan:8,
-  ao_bits:16,
-  dio_bits:8,
-  dio_nchan:8,
-  },
-  {
-  name:	"PCI-DAC6703",
-  device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
-  ao_nchan:16,
-  ao_bits:16,
-  dio_bits:8,
-  dio_nchan:8,
-  },
+	{
+		name:	"PCI-DAC6702",
+		device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
+		ao_nchan:8,
+		ao_bits:16,
+		dio_bits:8,
+		dio_nchan:8,
+	},
+	{
+		name:	"PCI-DAC6703",
+		device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
+		ao_nchan:16,
+		ao_bits:16,
+		dio_bits:8,
+		dio_nchan:8,
+	},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidac_pci_table) = {
-  {PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-  {PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-  {0}
+	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcidac_pci_table);
@@ -131,22 +131,22 @@ MODULE_DEVICE_TABLE(pci, cb_pcidac_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
-  int data;
+	int data;
 
-  // would be useful for a PCI device
-  struct pci_dev *pci_dev;
+	// would be useful for a PCI device
+	struct pci_dev *pci_dev;
 
-  /* Used for AO readback */
-  lsampl_t ao_readback[2];
+	/* Used for AO readback */
+	lsampl_t ao_readback[2];
 
-  // base addresses (physical)
-  resource_size_t plx9030_phys_iobase;
-  resource_size_t main_phys_iobase;
-  resource_size_t dio_counter_phys_iobase;
-  // base addresses (ioremapped)
-  void *plx9030_iobase;
-  void *main_iobase;
-  void *dio_counter_iobase;
+	// base addresses (physical)
+	resource_size_t plx9030_phys_iobase;
+	resource_size_t main_phys_iobase;
+	resource_size_t dio_counter_phys_iobase;
+	// base addresses (ioremapped)
+	void *plx9030_iobase;
+	void *main_iobase;
+	void *dio_counter_iobase;
 
 } cb_pcidac_private;
 
@@ -165,10 +165,10 @@ typedef struct {
 static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it);
 static int cb_pcidac_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidac = {
- driver_name:"cb_pcidac",
- module:THIS_MODULE,
- attach:cb_pcidac_attach,
- detach:cb_pcidac_detach,
+	driver_name:"cb_pcidac",
+	module:THIS_MODULE,
+	attach:cb_pcidac_attach,
+	detach:cb_pcidac_detach,
 };
 
 static int cb_pcidac_ao_winsn(comedi_device * dev, comedi_subdevice * s,
@@ -188,67 +188,65 @@ static int cb_pcidac_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  */
 static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 {
-  comedi_subdevice *s;
-  struct pci_dev *pcidev;
-  int index;
-  //int i;
+	comedi_subdevice *s;
+	struct pci_dev *pcidev;
+	int index;
+	//int i;
 
-  printk("comedi%d: cb_pcidac:\n", dev->minor);
+	printk("comedi%d: cb_pcidac:\n", dev->minor);
 
-  /*
-   * Allocate the private structure area.
-   */
-  if (alloc_private(dev, sizeof(cb_pcidac_private)) < 0)
-    return -ENOMEM;
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(cb_pcidac_private)) < 0)
+		return -ENOMEM;
 
-  /*
-   * Probe the device to determine what device in the series it is.
-   */
-  for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-       pcidev != NULL;
-       pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-    // is it not a computer boards card?
-    if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-      continue;
-    // loop through cards supported by this driver
-    for (index = 0; index < N_BOARDS; index++) {
-      if (cb_pcidac_boards[index].device_id !=
-	  pcidev->device)
-	continue;
-      // was a particular bus/slot requested?
-      if (it->options[0] || it->options[1]) {
-	// are we on the wrong bus/slot?
-	if (pcidev->bus->number != it->options[0] ||
-	    PCI_SLOT(pcidev->devfn) !=
-	    it->options[1]) {
-	  continue;
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		// is it not a computer boards card?
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+		// loop through cards supported by this driver
+		for (index = 0; index < N_BOARDS; index++) {
+			if (cb_pcidac_boards[index].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
+					continue;
+				}
+			}
+			devpriv->pci_dev = pcidev;
+			dev->board_ptr = cb_pcidac_boards + index;
+			goto found;
+		}
 	}
-      }
-      devpriv->pci_dev = pcidev;
-      dev->board_ptr = cb_pcidac_boards + index;
-      goto found;
-    }
-  }
 
-  printk("No supported ComputerBoards/MeasurementComputing card found on "
-	 "requested position\n");
-  return -EIO;
+	printk("No supported ComputerBoards/MeasurementComputing card found on "
+	       "requested position\n");
+	return -EIO;
 
- found:
+found:
 
-  printk("Found %s on bus %i, slot %i\n", cb_pcidac_boards[index].name,
-	 pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	printk("Found %s on bus %i, slot %i\n", cb_pcidac_boards[index].name,
+	       pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
-  if (comedi_pci_enable(pcidev, "cb_pcidac")) {
-    printk("Failed to enable PCI device and request regions\n");
-    return -EIO;
-  }
+	if (comedi_pci_enable(pcidev, "cb_pcidac")) {
+		printk("Failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
 
 
 
 
 
-  //Initialize dev->board_name
+	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
 
   	//Initialize dev->board_name
@@ -264,7 +262,7 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 		pci_resource_start(pcidev, MAIN_BADDRINDEX);
 	devpriv->dio_counter_phys_iobase =
 		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
-		
+
 
 	// remap, won't work with 2.0 kernels but who cares
 	devpriv->plx9030_iobase = ioremap(devpriv->plx9030_phys_iobase,
@@ -280,47 +278,47 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("Failed to remap io memory\n");
 		return -ENOMEM;
 	}
- 
-  
-  /*
-   * Allocate the subdevice structures.  alloc_subdevice() is a
-   * convenient macro defined in comedidev.h.
-   */
-  if (alloc_subdevices(dev, 2) < 0)
-    return -ENOMEM;
 
-  s = dev->subdevices + 0;
-  // analog output subdevice
-  s->type = COMEDI_SUBD_AO;
-  s->subdev_flags = SDF_WRITABLE;
-  s->n_chan = thisboard->ao_nchan;
-  s->maxdata = 1 << thisboard->ao_bits;
-  s->range_table = &range_bipolar10;
-  s->insn_write = &cb_pcidac_ao_winsn;
-  s->insn_read = &cb_pcidac_ao_rinsn;
-  /* Put all DAC channels in immediate update mode. */
-  writew(0, devpriv->main_iobase + DAC_UPDATE_MODE);
 
-  s = dev->subdevices + 1;
-  /* digital i/o subdevice */
-  s->type = COMEDI_SUBD_DIO;
-  s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-  s->n_chan = thisboard->dio_nchan;
-  s->maxdata = 1;
-  s->range_table = &range_digital;
-  s->insn_bits = cb_pcidac_dio_insn_bits;
-  s->insn_config = cb_pcidac_dio_insn_config;
-  
-  printk("attached\n");
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_subdevices(dev, 2) < 0)
+		return -ENOMEM;
+
+	s = dev->subdevices + 0;
+	// analog output subdevice
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = thisboard->ao_nchan;
+	s->maxdata = 1 << thisboard->ao_bits;
+	s->range_table = &range_bipolar10;
+	s->insn_write = &cb_pcidac_ao_winsn;
+	s->insn_read = &cb_pcidac_ao_rinsn;
+	/* Put all DAC channels in immediate update mode. */
+	writew(0, devpriv->main_iobase + DAC_UPDATE_MODE);
+
+	s = dev->subdevices + 1;
+	/* digital i/o subdevice */
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = thisboard->dio_nchan;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = cb_pcidac_dio_insn_bits;
+	s->insn_config = cb_pcidac_dio_insn_config;
+
+	printk("attached\n");
 #ifdef CBPCIDAC_DEBUG
-      printk("devpriv->BADR%d = 0x%lx\n", PLX9030_BADDRINDEX,(unsigned long)devpriv->plx9030_phys_iobase);
-      printk("devpriv->BADR%d = 0x%lx\n", MAIN_BADDRINDEX,(unsigned long)devpriv->main_phys_iobase);
-      printk("devpriv->BADR%d = 0x%lx\n", DIO_COUNTER_BADDRINDEX, (unsigned long)devpriv->dio_counter_phys_iobase);
-      printk(" plx9030 remapped to 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
-      printk(" main remapped to 0x%lx\n", (unsigned long)devpriv->main_iobase);
-      printk(" diocounter remapped to 0x%lx\n", (unsigned long)devpriv->dio_counter_iobase);
+	printk("devpriv->BADR%d = 0x%lx\n", PLX9030_BADDRINDEX,(unsigned long)devpriv->plx9030_phys_iobase);
+	printk("devpriv->BADR%d = 0x%lx\n", MAIN_BADDRINDEX,(unsigned long)devpriv->main_phys_iobase);
+	printk("devpriv->BADR%d = 0x%lx\n", DIO_COUNTER_BADDRINDEX, (unsigned long)devpriv->dio_counter_phys_iobase);
+	printk(" plx9030 remapped to 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
+	printk(" main remapped to 0x%lx\n", (unsigned long)devpriv->main_iobase);
+	printk(" diocounter remapped to 0x%lx\n", (unsigned long)devpriv->dio_counter_iobase);
 #endif
-  return 1;
+	return 1;
 }
 
 /*
@@ -334,32 +332,32 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 static int cb_pcidac_detach(comedi_device * dev)
 {
 #ifdef CBPCIDAC_DEBUG
-  if (devpriv) {
-    printk("devpriv->plx9030_iobase = 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
-    printk("devpriv->plx9030_phys_iobase = 0x%lx\n", (unsigned long)devpriv->plx9030_phys_iobase);
-    printk("devpriv->main_iobase = 0x%lx\n", (unsigned long)devpriv->main_iobase);
-    printk("devpriv->main_phys_iobase = 0x%lx\n", (unsigned long)devpriv->main_phys_iobase);
-     }
+	if (devpriv) {
+		printk("devpriv->plx9030_iobase = 0x%lx\n", (unsigned long)devpriv->plx9030_iobase);
+		printk("devpriv->plx9030_phys_iobase = 0x%lx\n", (unsigned long)devpriv->plx9030_phys_iobase);
+		printk("devpriv->main_iobase = 0x%lx\n", (unsigned long)devpriv->main_iobase);
+		printk("devpriv->main_phys_iobase = 0x%lx\n", (unsigned long)devpriv->main_phys_iobase);
+	}
 #endif
-  printk("comedi%d: cb_pcidac: remove\n", dev->minor);
-  
-  
-  if (devpriv) { 
-    if (devpriv->plx9030_iobase)
-      iounmap((void *)devpriv->plx9030_iobase);
-    if (devpriv->main_iobase)
-      iounmap((void *)devpriv->main_iobase);
-    if (devpriv->dio_counter_iobase)
-      iounmap((void *)devpriv->dio_counter_iobase);       
-    if (devpriv->pci_dev) {
-      if (devpriv->plx9030_phys_iobase) {
-	comedi_pci_disable(devpriv->pci_dev);
-      }
-      pci_dev_put(devpriv->pci_dev);
-    }
-  }
+	printk("comedi%d: cb_pcidac: remove\n", dev->minor);
 
-  return 0;
+
+	if (devpriv) {
+		if (devpriv->plx9030_iobase)
+			iounmap((void *)devpriv->plx9030_iobase);
+		if (devpriv->main_iobase)
+			iounmap((void *)devpriv->main_iobase);
+		if (devpriv->dio_counter_iobase)
+			iounmap((void *)devpriv->dio_counter_iobase);
+		if (devpriv->pci_dev) {
+			if (devpriv->plx9030_phys_iobase) {
+				comedi_pci_disable(devpriv->pci_dev);
+			}
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -370,18 +368,18 @@ static int cb_pcidac_detach(comedi_device * dev)
 static int cb_pcidac_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 			      comedi_insn * insn, lsampl_t * data)
 {
-  int i;
-  int chan = CR_CHAN(insn->chanspec);
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
-  /* Writing a list of values to an AO channel is probably not
-   * very useful, but that's how the interface is defined. */
-  for (i = 0; i < insn->n; i++) {
-      writew(chan, devpriv->main_iobase + DAC_CHSELECT);
-      writew(data[i], devpriv->main_iobase + DAC_DATA);
-  }
+	/* Writing a list of values to an AO channel is probably not
+	 * very useful, but that's how the interface is defined. */
+	for (i = 0; i < insn->n; i++) {
+		writew(chan, devpriv->main_iobase + DAC_CHSELECT);
+		writew(data[i], devpriv->main_iobase + DAC_DATA);
+	}
 
-  /* return the number of samples read/written */
-  return i;
+	/* return the number of samples read/written */
+	return i;
 }
 
 /* AO subdevices should have a read insn as well as a write insn.
@@ -389,18 +387,17 @@ static int cb_pcidac_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 static int cb_pcidac_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 			      comedi_insn * insn, lsampl_t * data)
 {
-  int i;
-  int chan = CR_CHAN(insn->chanspec);
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
-  for (i = 0; i < insn->n; i++)
-    {
-    //data[i] = devpriv->ao_readback[chan];
-      writew(chan, devpriv->main_iobase + DAC_CHSELECT);
-      data[i] = readw(devpriv->main_iobase + DAC_READOUT);
-    }
-    return i;
-    
+	for (i = 0; i < insn->n; i++) {
+		//data[i] = devpriv->ao_readback[chan];
+		writew(chan, devpriv->main_iobase + DAC_CHSELECT);
+		data[i] = readw(devpriv->main_iobase + DAC_READOUT);
+	}
+	return i;
 }
+
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
