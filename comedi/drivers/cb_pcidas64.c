@@ -632,8 +632,39 @@ static inline unsigned int ai_dma_ring_count(pcidas64_board * board)
 
 static const int bytes_in_sample = 2;
 
+enum pcidas64_model {
+	das6402_16_model,
+	das6402_12_model,
+	das64_m1_16_model,
+	das64_m2_16_model,
+	das64_m3_16_model,
+	das6013_model,
+	das6014_model,
+	das6023_model,
+	das6025_model,
+	das6030_model,
+	das6031_model,
+	das6032_model,
+	das6033_model,
+	das6034_model,
+	das6035_model,
+	das6036_model,
+	das6040_model,
+	das6052_model,
+	das6070_model,
+	das6071_model,
+	das4020_12_model,
+	//das6402_16_model,
+	//das64_m1_16_jr_model,
+	//das64_m2_16_jr_model,
+	//das64_m3_16_jr_model,
+	//das64_m1_14_model,
+	//das64_m2_14_model,
+	//das64_m3_14_model,
+};
+
 static const pcidas64_board pcidas64_boards[] = {
-	{
+	[das6402_16_model] = {
 		.name		= "pci-das6402/16",
 		.device_id	= 0x1d,
 		.ai_se_chans	= 64,
@@ -650,7 +681,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das6402_12_model] = {
 		.name		= "pci-das6402/12",	// XXX check
 		.device_id	= 0x1e,
 		.ai_se_chans	= 64,
@@ -667,7 +698,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m1_16_model] = {
 		.name		= "pci-das64/m1/16",
 		.device_id	= 0x35,
 		.ai_se_chans	= 64,
@@ -684,7 +715,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m2_16_model] = {
 		.name		= "pci-das64/m2/16",
 		.device_id	= 0x36,
 		.ai_se_chans	= 64,
@@ -701,7 +732,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m3_16_model] = {
 		.name		= "pci-das64/m3/16",
 		.device_id	= 0x37,
 		.ai_se_chans	= 64,
@@ -718,7 +749,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das6013_model] = {
 		.name		= "pci-das6013",
 		.device_id	= 0x78,
 		.ai_se_chans	= 16,
@@ -734,7 +765,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6014_model] = {
 		.name		= "pci-das6014",
 		.device_id	= 0x79,
 		.ai_se_chans	= 16,
@@ -751,7 +782,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6023_model] = {
 		.name		= "pci-das6023",
 		.device_id	= 0x5d,
 		.ai_se_chans	= 16,
@@ -767,7 +798,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 1,
 	},
-	{
+	[das6025_model] = {
 		.name		= "pci-das6025",
 		.device_id	= 0x5e,
 		.ai_se_chans	= 16,
@@ -784,7 +815,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 1,
 	},
-	{
+	[das6030_model] = {
 		.name		= "pci-das6030",
 		.device_id	= 0x5f,
 		.ai_se_chans	= 16,
@@ -801,7 +832,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6031_model] = {
 		.name		= "pci-das6031",
 		.device_id	= 0x60,
 		.ai_se_chans	= 64,
@@ -818,7 +849,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6032_model] = {
 		.name		= "pci-das6032",
 		.device_id	= 0x61,
 		.ai_se_chans	= 16,
@@ -831,7 +862,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6033_model] = {
 		.name		= "pci-das6033",
 		.device_id	= 0x62,
 		.ai_se_chans	= 64,
@@ -844,7 +875,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6034_model] = {
 		.name		= "pci-das6034",
 		.device_id	= 0x63,
 		.ai_se_chans	= 16,
@@ -858,7 +889,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6035_model] = {
 		.name		= "pci-das6035",
 		.device_id	= 0x64,
 		.ai_se_chans	= 16,
@@ -875,7 +906,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6036_model] = {
 		.name		= "pci-das6036",
 		.device_id	= 0x6f,
 		.ai_se_chans	= 16,
@@ -892,7 +923,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6040_model] = {
 		.name		= "pci-das6040",
 		.device_id	= 0x65,
 		.ai_se_chans	= 16,
@@ -909,7 +940,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6052_model] = {
 		.name		= "pci-das6052",
 		.device_id	= 0x66,
 		.ai_se_chans	= 16,
@@ -926,7 +957,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6070_model] = {
 		.name		= "pci-das6070",
 		.device_id	= 0x67,
 		.ai_se_chans	= 16,
@@ -943,7 +974,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das6071_model] = {
 		.name		= "pci-das6071",
 		.device_id	= 0x68,
 		.ai_se_chans	= 64,
@@ -960,7 +991,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
 	},
-	{
+	[das4020_12_model] = {
 		.name		= "pci-das4020/12",
 		.device_id	= 0x52,
 		.ai_se_chans	= 4,
@@ -977,7 +1008,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.has_8255	= 1,
 	},
 #if 0
-	{
+	[das6402_16_model] = {
 		.name		= "pci-das6402/16/jr",
 		.device_id	= 0	// XXX,
 		.ai_se_chans	= 64,
@@ -991,7 +1022,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m1_16_jr_model] = {
 		.name		= "pci-das64/m1/16/jr",
 		.device_id	= 0	// XXX,
 		.ai_se_chans	= 64,
@@ -1005,7 +1036,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m2_16_jr_model] = {
 		.name		= "pci-das64/m2/16/jr",
 		.device_id	= 0	// XXX,
 		.ai_se_chans	= 64,
@@ -1019,7 +1050,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m3_16_jr_model] = {
 		.name		= "pci-das64/m3/16/jr",
 		.device_id	= 0	// XXX,
 		.ai_se_chans	= 64,
@@ -1033,7 +1064,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m1_14_model] = {
 		.name		= "pci-das64/m1/14",
 		.device_id	= 0,	// XXX
 		.ai_se_chans	= 64,
@@ -1047,7 +1078,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= 	ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m2_14_model] = {
 		.name		= "pci-das64/m2/14",
 		.device_id	= 0,	// XXX
 		.ai_se_chans	= 64,
@@ -1061,7 +1092,7 @@ static const pcidas64_board pcidas64_boards[] = {
 		.ai_fifo	= ai_fifo_64xx,
 		.has_8255	= 1,
 	},
-	{
+	[das64_m3_14_model] = {
 		.name		= "pci-das64/m3/14",
 		.device_id	= 0,	// XXX
 		.ai_se_chans	= 64,
@@ -1081,29 +1112,94 @@ static const pcidas64_board pcidas64_boards[] = {
 // Number of boards in cb_pcidas_boards
 static inline unsigned int num_boards(void)
 {
-	return sizeof(pcidas64_boards) / sizeof(pcidas64_board);
+	return ARRAY_SIZE(pcidas64_boards);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x005d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x005f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0061, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0062, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0066, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0067, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0068, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x006f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0078, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0079, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x001d),
+		.driver_data = das6402_16_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x001e),
+		.driver_data = das6402_12_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0035),
+		.driver_data = das64_m1_16_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0036),
+		.driver_data = das64_m2_16_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0037),
+		.driver_data = das64_m3_16_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0052),
+		.driver_data = das4020_12_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x005d),
+		.driver_data = das6023_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x005e),
+		.driver_data = das6025_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x005f),
+		.driver_data = das6030_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0060),
+		.driver_data = das6031_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0061),
+		.driver_data = das6032_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0062),
+		.driver_data = das6033_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0063),
+		.driver_data = das6034_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0064),
+		.driver_data = das6035_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0065),
+		.driver_data = das6040_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0066),
+		.driver_data = das6052_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0067),
+		.driver_data = das6070_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0068),
+		.driver_data = das6071_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x006f),
+		.driver_data = das6036_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0078),
+		.driver_data = das6013_model,
+	},
+	{
+		PCI_VDEVICE(COMPUTERBOARDS, 0x0079),
+		.driver_data = das6014_model,
+	},
 	{0}
 };
 
@@ -1191,11 +1287,13 @@ static inline pcidas64_private *priv(comedi_device * dev)
  * the device code.
  */
 static int attach(comedi_device * dev, comedi_devconfig * it);
+static int auto_attach(comedi_device * dev, unsigned long context);
 static int detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidas = {
 	.driver_name	= "cb_pcidas64",
 	.module		= THIS_MODULE,
 	.attach		= attach,
+	.auto_attach	= auto_attach,
 	.detach		= detach,
 };
 
@@ -1700,63 +1798,11 @@ static inline void warn_external_queue(comedi_device * dev)
 		"Use internal AI channel queue (channels must be consecutive and use same range/aref)");
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int attach(comedi_device * dev, comedi_devconfig * it)
+static int attach_common(comedi_device * dev)
 {
-	struct pci_dev *pcidev;
-	int index;
+	struct pci_dev *pcidev = priv(dev)->hw_dev;
 	uint32_t local_range, local_decode;
 	int retval;
-
-	printk("comedi%d: cb_pcidas64\n", dev->minor);
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(pcidas64_private)) < 0)
-		return -ENOMEM;
-
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// is it not a computer boards card?
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		// loop through cards supported by this driver
-		for (index = 0; index < num_boards(); index++) {
-			if (pcidas64_boards[index].device_id != pcidev->device)
-				continue;
-			// was a particular bus/slot requested?
-			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
-				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
-					continue;
-				}
-			}
-			priv(dev)->hw_dev = pcidev;
-			dev->board_ptr = pcidas64_boards + index;
-			break;
-		}
-		if (dev->board_ptr)
-			break;
-	}
-
-	if (dev->board_ptr == NULL) {
-		printk("No supported ComputerBoards/MeasurementComputing card found\n");
-		return -EIO;
-	}
-
-	printk("Found %s on bus %i, slot %i\n", board(dev)->name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if (comedi_pci_enable(pcidev, driver_cb_pcidas.driver_name)) {
 		printk(KERN_WARNING
@@ -1842,6 +1888,92 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	return 0;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.
+ */
+static int attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pcidev;
+	int index;
+
+	printk("comedi%d: cb_pcidas64\n", dev->minor);
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(pcidas64_private)) < 0)
+		return -ENOMEM;
+
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		// is it not a computer boards card?
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+		// loop through cards supported by this driver
+		for (index = 0; index < num_boards(); index++) {
+			if (pcidas64_boards[index].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
+					continue;
+				}
+			}
+			priv(dev)->hw_dev = pcidev;
+			dev->board_ptr = pcidas64_boards + index;
+			break;
+		}
+		if (dev->board_ptr)
+			break;
+	}
+
+	if (dev->board_ptr == NULL) {
+		printk("No supported ComputerBoards/MeasurementComputing card found\n");
+		return -EIO;
+	}
+
+	printk("Found %s on bus %i, slot %i\n", board(dev)->name,
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	return attach_common(dev);
+}
+
+static int auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: cb_pcidas64: auto-attach PCI %s\n",
+		dev->minor, pci_name(pcidev));
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(pcidas64_private)) < 0)
+		return -ENOMEM;
+
+	/* context_model is the index into pcidas64_boards[] */
+	if (context_model >= num_boards()) {
+		printk("comedi%d: cb_pcidas64: BUG: bad auto-attach context - %lu\n",
+		       dev->minor, context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = pcidas64_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in detach() */
+	priv(dev)->hw_dev = pci_dev_get(pcidev);
+
+	return attach_common(dev);
 }
 
 /*
