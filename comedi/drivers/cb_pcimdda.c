@@ -243,6 +243,7 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int err;
+	struct pci_dev *pcidev;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
@@ -258,8 +259,18 @@ static int attach(comedi_device * dev, comedi_devconfig * it)
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	if ((err = probe(dev, it)))
+	err = probe(dev, it);
+	if (err)
 		return err;
+
+	pcidev = devpriv->pci_dev;
+	err = comedi_pci_enable(pcidev, thisboard->name);
+	if (err) {
+		printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
+		return err;
+	}
+	devpriv->registers = pci_resource_start(pcidev, REGS_BADRINDEX);
+	devpriv->dio_registers = devpriv->registers + thisboard->dio_offset;
 
 /* Output some info */
 	printk("comedi%d: %s: ", dev->minor, thisboard->name);
@@ -422,8 +433,6 @@ static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  *
  *  o  assigns a struct pci_dev * to dev->private->pci_dev
  *  o  assigns a struct board * to dev->board_ptr
- *  o  sets dev->private->registers
- *  o  sets dev->private->dio_registers
  *
  *  Otherwise, returns a -errno on error
  */
@@ -431,7 +440,6 @@ static int probe(comedi_device * dev, const comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int index;
-	unsigned long registers;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
@@ -456,16 +464,6 @@ static int probe(comedi_device * dev, const comedi_devconfig * it)
 
 			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
-			if (comedi_pci_enable(pcidev, thisboard->name)) {
-				printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
-				return -EIO;
-			}
-			registers =
-				pci_resource_start(devpriv->pci_dev,
-				REGS_BADRINDEX);
-			devpriv->registers = registers;
-			devpriv->dio_registers
-				= devpriv->registers + thisboard->dio_offset;
 			return 0;
 		}
 	}
