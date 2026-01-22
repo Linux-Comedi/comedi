@@ -271,8 +271,19 @@ typedef struct cb_pcidas_board_struct {
 	unsigned has_ai_trig_invert:1;	/* Tells if the AI trigger can be inverted */
 } cb_pcidas_board;
 
+enum cb_pcidas_model {
+	das1602_16_model,
+	das1200_model,
+	das1602_12_model,
+	das1200_jr_model,
+	das1602_16_jr_model,
+	das1000_model,
+	das1001_model,
+	das1002_model,
+};
+
 static const cb_pcidas_board cb_pcidas_boards[] = {
-	{
+	[das1602_16_model] = {
 		.name			= "pci-das1602/16",
 		.device_id		= 0x1,
 		.ai_se_chans		= 16,
@@ -289,7 +300,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 1,
 		.has_ai_trig_invert	= 1,
 	},
-	{
+	[das1200_model] = {
 		.name			= "pci-das1200",
 		.device_id		= 0xF,
 		.ai_se_chans		= 16,
@@ -305,7 +316,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 0,
 		.has_ai_trig_invert	= 0,
 	},
-	{
+	[das1602_12_model] = {
 		.name			= "pci-das1602/12",
 		.device_id		= 0x10,
 		.ai_se_chans		= 16,
@@ -322,7 +333,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 1,
 		.has_ai_trig_invert	= 1,
 	},
-	{
+	[das1200_jr_model] = {
 		.name			= "pci-das1200/jr",
 		.device_id		= 0x19,
 		.ai_se_chans		= 16,
@@ -338,7 +349,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 0,
 		.has_ai_trig_invert	= 0,
 	},
-	{
+	[das1602_16_jr_model] = {
 		.name			= "pci-das1602/16/jr",
 		.device_id		= 0x1C,
 		.ai_se_chans		= 16,
@@ -354,7 +365,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 1,
 		.has_ai_trig_invert	= 1,
 	},
-	{
+	[das1000_model] = {
 		.name			= "pci-das1000",
 		.device_id		= 0x4C,
 		.ai_se_chans		= 16,
@@ -370,7 +381,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 0,
 		.has_ai_trig_invert	= 0,
 	},
-	{
+	[das1001_model] = {
 		.name			= "pci-das1001",
 		.device_id		= 0x1a,
 		.ai_se_chans		= 16,
@@ -386,7 +397,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 		.has_ai_trig_gated	= 0,
 		.has_ai_trig_invert	= 0,
 	},
-	{
+	[das1002_model] = {
 		.name			= "pci-das1002",
 		.device_id		= 0x1b,
 		.ai_se_chans		= 16,
@@ -405,17 +416,17 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 // Number of boards in cb_pcidas_boards
-#define N_BOARDS	(sizeof(cb_pcidas_boards) / sizeof(cb_pcidas_board))
+#define N_BOARDS	ARRAY_SIZE(cb_pcidas_boards)
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
-	{PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x000f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x001c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x004c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x001a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_CB, 0x001b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(CB, 0x0001), .driver_data = das1602_16_model,	},
+	{ PCI_VDEVICE(CB, 0x000f), .driver_data = das1200_model,	},
+	{ PCI_VDEVICE(CB, 0x0010), .driver_data = das1602_12_model,	},
+	{ PCI_VDEVICE(CB, 0x0019), .driver_data = das1200_jr_model,	},
+	{ PCI_VDEVICE(CB, 0x001c), .driver_data = das1602_16_jr_model,	},
+	{ PCI_VDEVICE(CB, 0x004c), .driver_data = das1000_model,	},
+	{ PCI_VDEVICE(CB, 0x001a), .driver_data = das1001_model,	},
+	{ PCI_VDEVICE(CB, 0x001b), .driver_data = das1002_model,	},
 	{0}
 };
 
@@ -471,11 +482,13 @@ typedef struct {
  * the device code.
  */
 static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it);
+static int cb_pcidas_auto_attach(comedi_device * dev, unsigned long context);
 static int cb_pcidas_detach(comedi_device * dev);
 static comedi_driver driver_cb_pcidas = {
 	.driver_name	= "cb_pcidas",
 	.module		= THIS_MODULE,
 	.attach		= cb_pcidas_attach,
+	.auto_attach	= cb_pcidas_auto_attach,
 	.detach		= cb_pcidas_detach,
 };
 
@@ -533,63 +546,11 @@ static inline unsigned int cal_enable_bits(comedi_device * dev)
 	return CAL_EN_BIT | CAL_SRC_BITS(devpriv->calibration_source);
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
+static int cb_pcidas_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pcidev;
-	int index;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	int i;
-
-	printk("comedi%d: cb_pcidas:\n", dev->minor);
-
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0) {
-		printk("Allocation failure\n");
-		return -ENOMEM;
-	}
-
-/*
- * Probe the device to determine what device in the series it is.
- */
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// is it not a computer boards card?
-		if (pcidev->vendor != PCI_VENDOR_ID_CB)
-			continue;
-		// loop through cards supported by this driver
-		for (index = 0; index < N_BOARDS; index++) {
-			if (cb_pcidas_boards[index].device_id != pcidev->device)
-				continue;
-			// was a particular bus/slot requested?
-			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
-				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			dev->board_ptr = cb_pcidas_boards + index;
-			goto found;
-		}
-	}
-
-	printk("No supported ComputerBoards/MeasurementComputing card found on "
-		"requested position\n");
-	return -EIO;
-
-      found:
-
-	printk("Found %s on bus %i, slot %i\n", cb_pcidas_boards[index].name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	/*
 	 * Enable PCI device and reserve I/O ports.
@@ -629,9 +590,9 @@ static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
 	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.
- */
+	/*
+	 * Allocate the subdevice structures.
+	 */
 	if (alloc_subdevices(dev, 7) < 0)
 		return -ENOMEM;
 
@@ -739,6 +700,94 @@ static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
 	return 1;
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.
+ */
+static int cb_pcidas_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pcidev;
+	int index;
+
+	printk("comedi%d: cb_pcidas:\n", dev->minor);
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0) {
+		printk("Allocation failure\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		// is it not a computer boards card?
+		if (pcidev->vendor != PCI_VENDOR_ID_CB)
+			continue;
+		// loop through cards supported by this driver
+		for (index = 0; index < N_BOARDS; index++) {
+			if (cb_pcidas_boards[index].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
+					continue;
+				}
+			}
+			devpriv->pci_dev = pcidev;
+			dev->board_ptr = cb_pcidas_boards + index;
+			goto found;
+		}
+	}
+
+	printk("No supported ComputerBoards/MeasurementComputing card found on "
+		"requested position\n");
+	return -EIO;
+
+found:
+
+	printk("Found %s on bus %i, slot %i\n", cb_pcidas_boards[index].name,
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	return cb_pcidas_attach_common(dev);
+}
+
+static int cb_pcidas_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: cb_pcidas: auto-attach PCI %s\n",
+	       dev->minor, pci_name(pcidev));
+
+	/*
+	 * Allocate the private structure area.
+	 */
+	if (alloc_private(dev, sizeof(cb_pcidas_private)) < 0) {
+		printk("Allocation failure\n");
+		return -ENOMEM;
+	}
+
+	/* context is the index into cb_pcidas_boards[] */
+	if (context >= N_BOARDS) {
+		printk("comedi%d: cb_pcidas: BUG: bad auto-attach context - %lu\n",
+		       dev->minor, context);
+		return -EINVAL;
+	}
+	dev->board_ptr = cb_pcidas_boards + context;
+
+	/* pci_dev_get() call matches pci_dev_put() in cb_pcidas_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return cb_pcidas_attach_common(dev);
 }
 
 /*
