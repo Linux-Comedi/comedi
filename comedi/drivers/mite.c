@@ -69,7 +69,7 @@ struct mite_struct *mite_devices = NULL;
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
-void mite_init(void)
+static void mite_init(void)
 {
 	struct pci_dev *pcidev;
 	struct mite_struct *mite;
@@ -201,7 +201,7 @@ int mite_setup(struct mite_struct *mite)
 	return mite_setup2(mite, 0);
 }
 
-void mite_cleanup(void)
+static void mite_cleanup(void)
 {
 	struct mite_struct *mite, *next;
 
