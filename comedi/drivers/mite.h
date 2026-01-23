@@ -40,12 +40,7 @@
 
 #define MAX_MITE_DMA_CHANNELS 8
 
-struct mite_dma_descriptor {
-	u32 count;
-	u32 addr;
-	u32 next;
-	u32 dar;
-};
+struct mite_dma_descriptor;
 
 struct mite_dma_descriptor_ring {
 	struct device *hw_dev;
