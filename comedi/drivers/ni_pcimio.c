@@ -116,6 +116,7 @@ Bugs:
 
 #include "ni_stc.h"
 #include "mite.h"
+#include "comedi_pci.h"
 
 //#define PCI_DEBUG
 
@@ -1862,8 +1863,13 @@ static int pcimio_detach(comedi_device * dev)
 		mite_free_ring(devpriv->cdo_mite_ring);
 		mite_free_ring(devpriv->gpct_mite_ring[0]);
 		mite_free_ring(devpriv->gpct_mite_ring[1]);
-		if (devpriv->mite)
+		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
+			if (devpriv->mite->pcidev) {
+				pci_dev_put(devpriv->mite->pcidev);
+			}
+			mite_free(devpriv->mite);
+		}
 	}
 
 	return 0;
@@ -1876,6 +1882,11 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: ni_pcimio:", dev->minor);
 
 	ret = ni_alloc_private(dev);
+	if (ret == 0) {
+		if (!(devpriv->mite = mite_alloc())) {
+			ret = -ENOMEM;
+		}
+	}
 	if (ret < 0) {
 		printk(KERN_CONT " allocation failure\n");
 		return ret;
@@ -1957,29 +1968,39 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 
 static int pcimio_find_device(comedi_device * dev, int bus, int slot)
 {
-	struct mite_struct *mite;
+	struct pci_dev *pcidev = NULL;
+	int ret;
 	int i;
 
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID,
+					pcidev)) != NULL) {
 		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-				slot != PCI_SLOT(mite->pcidev->devfn))
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn)) {
 				continue;
-		}
-
-		for (i = 0; i < n_pcimio_boards; i++) {
-			if (mite_device_id(mite) == ni_boards[i].device_id) {
-				dev->board_ptr = ni_boards + i;
-				devpriv->mite = mite;
-
-				return 0;
 			}
 		}
+		for (i = 0; i < n_pcimio_boards; i++) {
+			if (pcidev->device == ni_boards[i].device_id) {
+				break;
+			}
+		}
+		if (i == n_pcimio_boards) {
+			continue;
+		}
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "ni_pcimio");
+		if (ret) {
+			/* Skip PCI device in use. */
+			continue;
+		}
+		/* Undo temporary enable of PCI device. */
+		comedi_pci_disable(pcidev);
+		dev->board_ptr = ni_boards + i;
+		devpriv->mite->pcidev = pcidev;
+		return 0;
 	}
 	printk(KERN_CONT "no device found\n");
-	mite_list_devices();
 	return -EIO;
 }
 
