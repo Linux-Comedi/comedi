@@ -251,6 +251,37 @@ void mite_list_devices(void)
 
 }
 
+struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
+{
+	struct mite_dma_descriptor_ring *ring =
+		kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
+	if (ring == NULL)
+		return ring;
+	ring->hw_dev = get_device(&mite->pcidev->dev);
+	if (ring->hw_dev == NULL) {
+		kfree(ring);
+		return NULL;
+	}
+	ring->n_links = 0;
+	ring->descriptors = NULL;
+	ring->descriptors_dma_addr = 0;
+	return ring;
+};
+
+void mite_free_ring(struct mite_dma_descriptor_ring *ring)
+{
+	if (ring) {
+		if (ring->descriptors) {
+			dma_free_coherent(ring->hw_dev,
+				ring->n_links *
+				sizeof(struct mite_dma_descriptor),
+				ring->descriptors, ring->descriptors_dma_addr);
+		}
+		put_device(ring->hw_dev);
+		kfree(ring);
+	}
+};
+
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 	struct mite_dma_descriptor_ring *ring, unsigned min_channel,
 	unsigned max_channel)
@@ -804,6 +835,8 @@ EXPORT_SYMBOL(mite_setregs);
 #endif
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
+EXPORT_SYMBOL(mite_alloc_ring);
+EXPORT_SYMBOL(mite_free_ring);
 EXPORT_SYMBOL(mite_request_channel_in_range);
 EXPORT_SYMBOL(mite_release_channel);
 EXPORT_SYMBOL(mite_prep_dma);
