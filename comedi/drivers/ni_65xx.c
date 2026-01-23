@@ -52,6 +52,7 @@ except maybe the 6514.
 #include <linux/comedidev.h>
 
 #include "mite.h"
+#include "comedi_pci.h"
 
 #define NI6514_DIO_SIZE 4096
 #define NI6514_MITE_SIZE 4096
@@ -657,7 +658,8 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni_65xx:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni_65xx_private))) < 0) {
+	if (alloc_private(dev, sizeof(ni_65xx_private)) < 0 ||
+		!(private(dev)->mite = mite_alloc())) {
 		printk(KERN_CONT " allocation failure\n");
 		return ret;
 	}
@@ -803,11 +805,10 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 
 static int ni_65xx_detach(comedi_device * dev)
 {
-	if (private(dev) && private(dev)->mite
-		&& private(dev)->mite->daq_io_addr) {
-		writeb(0x00,
-			private(dev)->mite->daq_io_addr +
-			Master_Interrupt_Control);
+	struct mite_struct *mite = private(dev) ? private(dev)->mite : NULL;
+
+	if (mite && mite->daq_io_addr) {
+		writeb(0x00, mite->daq_io_addr + Master_Interrupt_Control);
 	}
 
 	if (dev->irq) {
@@ -822,8 +823,12 @@ static int ni_65xx_detach(comedi_device * dev)
 				dev->subdevices[i].private = NULL;
 			}
 		}
-		if (private(dev)->mite) {
-			mite_unsetup(private(dev)->mite);
+		if (mite) {
+			mite_unsetup(mite);
+			if (mite->pcidev) {
+				pci_dev_put(mite->pcidev);
+			}
+			mite_free(mite);
 		}
 	}
 	return 0;
@@ -831,27 +836,37 @@ static int ni_65xx_detach(comedi_device * dev)
 
 static int ni_65xx_find_device(comedi_device * dev, int bus, int slot)
 {
-	struct mite_struct *mite;
+	struct pci_dev *pcidev = NULL;
+	int ret;
 	int i;
 
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID,
+					pcidev)) != NULL) {
 		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-				slot != PCI_SLOT(mite->pcidev->devfn))
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
 		for (i = 0; i < n_ni_65xx_boards; i++) {
-			if (mite_device_id(mite) == ni_65xx_boards[i].dev_id) {
-				dev->board_ptr = ni_65xx_boards + i;
-				private(dev)->mite = mite;
-				return 0;
+			if (pcidev->device == ni_65xx_boards[i].dev_id) {
+				break;
 			}
 		}
+		if (i == n_ni_65xx_boards)
+			continue;
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "ni_65xx");
+		if (ret) {
+			/* Skip PCI device in use. */
+			continue;
+		}
+		/* Undo temporary enable of PCI device. */
+		comedi_pci_disable(pcidev);
+		dev->board_ptr = ni_65xx_boards + i;
+		private(dev)->mite->pcidev = pcidev;
+		return 0;
 	}
-	printk(KERN_CONT "no device found\n");
-	mite_list_devices();
+	printk(KERN_CONT " no device found\n");
 	return -EIO;
 }
 
