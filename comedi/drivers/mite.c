@@ -100,28 +100,6 @@ struct mite_struct *mite_alloc(void)
 	return mite;
 }
 
-static void mite_init(void)
-{
-	struct pci_dev *pcidev;
-	struct mite_struct *mite;
-
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		if (pcidev->vendor == PCI_VENDOR_ID_NATINST) {
-			mite = mite_alloc();
-			if (!mite) {
-				printk("mite: allocation failed\n");
-				pci_dev_put(pcidev);
-				return;
-			}
-			mite->pcidev = pci_dev_get(pcidev);
-			mite->next = mite_devices;
-			mite_devices = mite;
-		}
-	}
-}
-
 static void dump_chip_signature(u32 csigr_bits)
 {
 	printk("mite: version = %i, type = %i, mite mode = %i, interface mode = %i\n", mite_csigr_version(csigr_bits), mite_csigr_type(csigr_bits), mite_csigr_mmode(csigr_bits), mite_csigr_imode(csigr_bits));
@@ -214,7 +192,6 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	}
 	mite->fifo_size = mite_fifo_size(mite, 0);
 	printk("mite: fifo size is %i.\n", mite->fifo_size);
-	mite->used = 1;
 
 	return 0;
 }
@@ -222,17 +199,6 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 int mite_setup(struct mite_struct *mite)
 {
 	return mite_setup2(mite, 0);
-}
-
-static void mite_cleanup(void)
-{
-	struct mite_struct *mite, *next;
-
-	for (mite = mite_devices; mite; mite = next) {
-		pci_dev_put(mite->pcidev);
-		next = mite->next;
-		mite_free(mite);
-	}
 }
 
 void mite_unsetup(struct mite_struct *mite)
@@ -254,24 +220,6 @@ void mite_unsetup(struct mite_struct *mite)
 		comedi_pci_disable(mite->pcidev);
 		mite->mite_phys_addr = 0;
 	}
-
-	mite->used = 0;
-}
-
-void mite_list_devices(void)
-{
-	struct mite_struct *mite, *next;
-
-	printk("Available NI device IDs:");
-	if (mite_devices)
-		for (mite = mite_devices; mite; mite = next) {
-			next = mite->next;
-			printk(KERN_CONT " 0x%04x", mite_device_id(mite));
-			if (mite->used)
-				printk(KERN_CONT "(used)");
-		}
-	printk(KERN_CONT "\n");
-
 }
 
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
@@ -828,16 +776,12 @@ static void mite_decode(char **bit_str, unsigned int bits)
 
 static int __init mite_init_module(void)
 {
-	mite_init();
-	mite_list_devices();
-
 	return 0;
 }
 
 
 static void __exit mite_exit_module(void)
 {
-	mite_cleanup();
 }
 
 module_init(mite_init_module);
@@ -858,7 +802,6 @@ EXPORT_SYMBOL(mite_ll_from_kvmem);
 EXPORT_SYMBOL(mite_setregs);
 #endif
 EXPORT_SYMBOL(mite_devices);
-EXPORT_SYMBOL(mite_list_devices);
 EXPORT_SYMBOL(mite_alloc_ring);
 EXPORT_SYMBOL(mite_free_ring);
 EXPORT_SYMBOL(mite_request_channel_in_range);
