@@ -42,6 +42,7 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 
 #include <linux/comedidev.h>
 #include "mite.h"
+#include "comedi_pci.h"
 #include "ni_tio.h"
 
 enum ni_660x_constants {
@@ -978,6 +979,9 @@ static int ni_660x_allocate_private(comedi_device * dev)
 
 	if ((retval = alloc_private(dev, sizeof(ni_660x_private))) < 0)
 		return retval;
+	private(dev)->mite = mite_alloc();
+	if (!private(dev)->mite)
+		return -ENOMEM;
 	spin_lock_init(&private(dev)->mite_channel_lock);
 	spin_lock_init(&private(dev)->interrupt_lock);
 	spin_lock_init(&private(dev)->soft_reg_copy_lock);
@@ -1149,11 +1153,17 @@ static int ni_660x_detach(comedi_device * dev)
 		comedi_free_irq(dev->irq, dev);
 
 	if (dev->private) {
+		struct mite_struct *mite = private(dev)->mite;
+
 		if (private(dev)->counter_dev)
 			ni_gpct_device_destroy(private(dev)->counter_dev);
-		if (private(dev)->mite) {
-			ni_660x_free_mite_rings(dev);
-			mite_unsetup(private(dev)->mite);
+		if (mite) {
+			if (board(dev))
+				ni_660x_free_mite_rings(dev);
+			mite_unsetup(mite);
+			if (mite->pcidev)
+				pci_dev_put(mite->pcidev);
+			mite_free(mite);
 		}
 	}
 	return 0;
@@ -1201,28 +1211,37 @@ static int ni_660x_GPCT_winsn(comedi_device * dev,
 
 static int ni_660x_find_device(comedi_device * dev, int bus, int slot)
 {
-	struct mite_struct *mite;
+	struct pci_dev *pcidev = NULL;
+	int ret;
 	int i;
 
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID,
+					pcidev)) != NULL) {
 		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-				slot != PCI_SLOT(mite->pcidev->devfn))
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
-
 		for (i = 0; i < n_ni_660x_boards; i++) {
-			if (mite_device_id(mite) == ni_660x_boards[i].dev_id) {
-				dev->board_ptr = ni_660x_boards + i;
-				private(dev)->mite = mite;
-				return 0;
+			if (pcidev->device == ni_660x_boards[i].dev_id) {
+				break;
 			}
 		}
+		if (i == n_ni_660x_boards)
+			continue;
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "ni_660x");
+		if (ret) {
+			/* Skip PCI device in use. */
+			continue;
+		}
+		/* Undo temporary enable of PCI device. */
+		comedi_pci_disable(pcidev);
+		dev->board_ptr = ni_660x_boards + i;
+		private(dev)->mite->pcidev = pcidev;
+		return 0;
 	}
 	printk(KERN_CONT "no device found\n");
-	mite_list_devices();
 	return -EIO;
 }
 
