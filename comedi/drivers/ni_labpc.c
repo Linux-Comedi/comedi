@@ -84,6 +84,7 @@ NI manuals:
 #include "8253.h"
 #include "8255.h"
 #include "mite.h"
+#include "comedi_pci.h"
 #include "ni_labpc.h"
 
 #define DRV_NAME "ni_labpc"
@@ -665,6 +666,10 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 		break;
 	case pci_bustype:
 #ifdef COMEDI_CONFIG_PCI
+		devpriv->mite = mite_alloc();
+		if (!devpriv->mite) {
+			return -ENOMEM;
+		}
 		retval = labpc_find_device(dev, it->options[0], it->options[1]);
 		if (retval < 0) {
 			return retval;
@@ -696,30 +701,41 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef COMEDI_CONFIG_PCI
 static int labpc_find_device(comedi_device *dev, int bus, int slot)
 {
-	struct mite_struct *mite;
+	struct pci_dev *pcidev = NULL;
+	int ret;
 	int i;
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
+
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID,
+					pcidev)) != NULL) {
 		// if bus/slot are specified then make sure we have the right bus/slot
 		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number
-				|| slot != PCI_SLOT(mite->pcidev->devfn))
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
 		for (i = 0; i < driver_labpc.num_names; i++) {
 			if (labpc_boards[i].bustype != pci_bustype)
 				continue;
-			if (mite_device_id(mite) == labpc_boards[i].device_id) {
-				devpriv->mite = mite;
-				// fixup board pointer, in case we were using the dummy "ni_labpc" entry
-				dev->board_ptr = &labpc_boards[i];
-				return 0;
+			if (pcidev->device == labpc_boards[i].device_id) {
+				break;
 			}
 		}
+		if (i == driver_labpc.num_names)
+			continue;
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, DRV_NAME);
+		if (ret) {
+			/* Skip PCI device in use. */
+			continue;
+		}
+		/* Undo temporary enable of PCI device. */
+		comedi_pci_disable(pcidev);
+		// fixup board pointer, in case we were using the dummy "ni_labpc" entry
+		dev->board_ptr = &labpc_boards[i];
+		devpriv->mite->pcidev = pcidev;
+		return 0;
 	}
 	printk("no device found\n");
-	mite_list_devices();
 	return -EIO;
 }
 #endif
@@ -741,8 +757,12 @@ int labpc_common_detach(comedi_device * dev)
 	if (thisboard->bustype == isa_bustype && dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
 #ifdef COMEDI_CONFIG_PCI
-	if (devpriv->mite)
+	if (devpriv->mite) {
 		mite_unsetup(devpriv->mite);
+		if (devpriv->mite->pcidev)
+			pci_dev_put(devpriv->mite->pcidev);
+		mite_free(devpriv->mite);
+	}
 #endif
 
 	return 0;
