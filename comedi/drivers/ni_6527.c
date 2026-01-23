@@ -44,6 +44,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #include <linux/comedidev.h>
 
 #include "mite.h"
+#include "comedi_pci.h"
 
 #define NI6527_DIO_SIZE 4096
 #define NI6527_MITE_SIZE 4096
@@ -368,9 +369,10 @@ static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: ni6527:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(ni6527_private))) < 0) {
+	if (alloc_private(dev, sizeof(ni6527_private)) < 0 ||
+		!(devpriv->mite = mite_alloc())) {
 		printk(KERN_CONT " allocation failure\n");
-		return ret;
+		return -ENOMEM;
 	}
 
 	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
@@ -457,6 +459,9 @@ static int ni6527_detach(comedi_device * dev)
 
 	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);
+		if (devpriv->mite->pcidev)
+			pci_dev_put(devpriv->mite->pcidev);
+		mite_free(devpriv->mite);
 	}
 
 	return 0;
@@ -464,28 +469,39 @@ static int ni6527_detach(comedi_device * dev)
 
 static int ni6527_find_device(comedi_device * dev, int bus, int slot)
 {
-	struct mite_struct *mite;
+	struct pci_dev *pcidev = NULL;
+	int ret;
 	int i;
 
-	for (mite = mite_devices; mite; mite = mite->next) {
-		if (mite->used)
-			continue;
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID,
+					pcidev)) != NULL) {
 		if (bus || slot) {
-			if (bus != mite->pcidev->bus->number ||
-				slot != PCI_SLOT(mite->pcidev->devfn))
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
 		for (i = 0; i < n_ni6527_boards; i++) {
-			if (mite_device_id(mite) == ni6527_boards[i].dev_id) {
-				dev->board_ptr = ni6527_boards + i;
-				devpriv->mite = mite;
-				return 0;
+			if (pcidev->device == ni6527_boards[i].dev_id) {
+				break;
 			}
 		}
+		if (i == n_ni6527_boards)
+			continue;
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "ni6527");
+		if (ret) {
+			/* Skip PCI device in use. */
+			continue;
+		}
+		/* Undo temporary enable of PCI device. */
+		comedi_pci_disable(pcidev);
+		dev->board_ptr = ni6527_boards + i;
+		devpriv->mite->pcidev = pcidev;
+		return 0;
 	}
-	printk(KERN_CONT "no device found\n");
-	mite_list_devices();
+	printk(KERN_CONT " no device found\n");
 	return -EIO;
 }
+
 
 COMEDI_PCI_INITCLEANUP(driver_ni6527, ni6527_pci_table);
