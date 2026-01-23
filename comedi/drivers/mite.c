@@ -752,6 +752,12 @@ void mite_dump_regs(struct mite_channel *mite_chan)
 	printk("mite status[FCR] at 0x%08lx =0x%08x\n\n", addr, readl(addr));
 }
 
+void mite_print_chsr(unsigned int chsr)
+{
+	printk("mite CHSR=0x%08x\n", chsr);
+	mite_decode(mite_CHSR_strings, chsr);
+}
+
 static void mite_decode(char **bit_str, unsigned int bits)
 {
 	int i;
@@ -810,7 +816,7 @@ EXPORT_SYMBOL(mite_bytes_in_transit);
 EXPORT_SYMBOL(mite_get_status);
 EXPORT_SYMBOL(mite_done);
 #ifdef DEBUG_MITE
-EXPORT_SYMBOL(mite_decode);
+EXPORT_SYMBOL(mite_print_chsr);
 EXPORT_SYMBOL(mite_dump_regs);
 #endif
 
