@@ -72,6 +72,13 @@ struct mite_dma_descriptor {
 	__le32 dar;
 };
 
+struct mite_dma_descriptor_ring {
+	struct device *hw_dev;
+	unsigned int n_links;
+	struct mite_dma_descriptor *descriptors;
+	dma_addr_t descriptors_dma_addr;
+};
+
 struct mite_struct *mite_devices = NULL;
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))

@@ -41,13 +41,7 @@
 #define MAX_MITE_DMA_CHANNELS 8
 
 struct mite_dma_descriptor;
-
-struct mite_dma_descriptor_ring {
-	struct device *hw_dev;
-	unsigned int n_links;
-	struct mite_dma_descriptor *descriptors;
-	dma_addr_t descriptors_dma_addr;
-};
+struct mite_dma_descriptor_ring;
 
 struct mite_channel {
 	struct mite_struct *mite;
