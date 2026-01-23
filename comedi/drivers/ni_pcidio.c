@@ -538,11 +538,12 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	ni_pcidio_print_status(status);
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
-	if (devpriv->di_mite_chan)
+	if (devpriv->di_mite_chan) {
 		m_status = mite_get_status(devpriv->di_mite_chan);
-#ifdef MITE_DEBUG
-	mite_print_chsr(m_status);
+#ifdef DEBUG_MITE
+		mite_print_chsr(m_status);
 #endif
+	}
 	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN));
 	//mite_dump_regs(mite);
 	if (m_status & CHSR_INT) {
