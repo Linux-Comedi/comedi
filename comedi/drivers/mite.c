@@ -66,10 +66,10 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
 
 struct mite_dma_descriptor {
-	u32 count;
-	u32 addr;
-	u32 next;
-	u32 dar;
+	__le32 count;
+	__le32 addr;
+	__le32 next;
+	__le32 dar;
 };
 
 struct mite_struct *mite_devices = NULL;
