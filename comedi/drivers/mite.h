@@ -73,6 +73,13 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 
 extern struct mite_struct *mite_devices;
 
+struct mite_struct *mite_alloc(void);
+
+static inline void mite_free(struct mite_struct *mite)
+{
+	kfree(mite);
+}
+
 static inline unsigned int mite_irq(struct mite_struct *mite)
 {
 	return mite->pcidev->irq;

@@ -83,6 +83,23 @@ struct mite_struct *mite_devices = NULL;
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
+struct mite_struct *mite_alloc(void)
+{
+	struct mite_struct *mite;
+	unsigned int i;
+
+	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
+	if (mite) {
+		spin_lock_init(&mite->lock);
+		for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
+			mite->channels[i].mite = mite;
+			mite->channels[i].channel = i;
+			mite->channels[i].done = 1;
+		}
+	}
+	return mite;
+}
+
 static void mite_init(void)
 {
 	struct pci_dev *pcidev;
@@ -92,21 +109,13 @@ static void mite_init(void)
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if (pcidev->vendor == PCI_VENDOR_ID_NATINST) {
-			unsigned i;
-
-			mite = kzalloc(sizeof(*mite), GFP_KERNEL);
+			mite = mite_alloc();
 			if (!mite) {
 				printk("mite: allocation failed\n");
 				pci_dev_put(pcidev);
 				return;
 			}
-			spin_lock_init(&mite->lock);
 			mite->pcidev = pci_dev_get(pcidev);
-			for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
-				mite->channels[i].mite = mite;
-				mite->channels[i].channel = i;
-				mite->channels[i].done = 1;
-			}
 			mite->next = mite_devices;
 			mite_devices = mite;
 		}
@@ -222,7 +231,7 @@ static void mite_cleanup(void)
 	for (mite = mite_devices; mite; mite = next) {
 		pci_dev_put(mite->pcidev);
 		next = mite->next;
-		kfree(mite);
+		mite_free(mite);
 	}
 }
 
@@ -834,6 +843,7 @@ static void __exit mite_exit_module(void)
 module_init(mite_init_module);
 module_exit(mite_exit_module);
 
+EXPORT_SYMBOL(mite_alloc);
 EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);
 EXPORT_SYMBOL(mite_dma_disarm);
