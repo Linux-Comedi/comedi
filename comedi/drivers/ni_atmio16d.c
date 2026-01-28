@@ -861,7 +861,8 @@ static int atmio16d_detach(comedi_device * dev)
 	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
 
-	reset_atmio16d(dev);
+	if (dev->private)
+		reset_atmio16d(dev);
 
 	if (dev->iobase)
 		release_region(dev->iobase, ATMIO16D_SIZE);
