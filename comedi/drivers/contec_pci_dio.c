@@ -39,7 +39,7 @@ Configuration Options:
 #include "comedi_pci.h"
 
 typedef enum contec_model {
-	PIO1616L = 0,
+	PIO1616L,
 } contec_model;
 
 typedef struct contec_board {
@@ -51,14 +51,25 @@ typedef struct contec_board {
 	int out_offs;
 	int out_boffs;
 } contec_board;
+
 static const contec_board contec_boards[] = {
-	{"PIO1616L", PIO1616L, 16, 16, 0, 2, 10},
+	[PIO1616L] = {
+		.name		= "PIO1616L",
+		.model		= PIO1616L,
+		.in_ports	= 16,
+		.out_ports	= 16,
+		.in_offs	= 0,
+		.out_offs	= 2,
+		.out_boffs	= 10,
+	},
 };
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 static DEFINE_PCI_DEVICE_TABLE(contec_pci_table) = {
-	{PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L, PCI_ANY_ID, PCI_ANY_ID,
-		0, 0, PIO1616L},
+	{
+		PCI_VDEVICE(CONTEC, PCI_DEVICE_ID_PIO1616L),
+		.driver_data = PIO1616L,
+	},
 	{0}
 };
 
@@ -78,10 +89,10 @@ typedef struct {
 static int contec_attach(comedi_device * dev, comedi_devconfig * it);
 static int contec_detach(comedi_device * dev);
 static comedi_driver driver_contec = {
-      driver_name:"contec_pci_dio",
-      module:THIS_MODULE,
-      attach:contec_attach,
-      detach:contec_detach,
+      .driver_name	= "contec_pci_dio",
+      .module		= THIS_MODULE,
+      .attach		= contec_attach,
+      .detach		= contec_detach,
 };
 
 /* Classic digital IO */
