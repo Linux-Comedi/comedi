@@ -87,11 +87,13 @@ typedef struct {
 #define devpriv ((contec_private *)dev->private)
 
 static int contec_attach(comedi_device * dev, comedi_devconfig * it);
+static int contec_auto_attach(comedi_device * dev, unsigned long context);
 static int contec_detach(comedi_device * dev);
 static comedi_driver driver_contec = {
       .driver_name	= "contec_pci_dio",
       .module		= THIS_MODULE,
       .attach		= contec_attach,
+      .auto_attach	= contec_auto_attach,
       .detach		= contec_detach,
 };
 
@@ -108,21 +110,54 @@ static int contec_cmdtest(comedi_device * dev, comedi_subdevice * s,
 static int contec_ns_to_timer(unsigned int *ns, int round);
 #endif
 
-static int contec_attach(comedi_device * dev, comedi_devconfig * it)
+static int contec_attach_common(comedi_device * dev)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	comedi_subdevice *s;
-
-	printk("comedi%d: contec: ", dev->minor);
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_private(dev, sizeof(contec_private)) < 0) {
+	if (alloc_subdevices(dev, 2) < 0) {
 		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
 	}
 
-	if (alloc_subdevices(dev, 2) < 0) {
+	if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
+		printk(KERN_CONT "error enabling PCI device and request regions!\n");
+		return -EIO;
+	}
+	dev->iobase = pci_resource_start(pcidev, 0);
+	printk(KERN_CONT " base addr %lx ", dev->iobase);
+
+	s = dev->subdevices + 0;
+
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = contec_di_insn_bits;
+
+	s = dev->subdevices + 1;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = contec_do_insn_bits;
+
+	printk(KERN_CONT "attached\n");
+
+	return 1;
+}
+
+static int contec_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pcidev;
+
+	printk("comedi%d: contec: ", dev->minor);
+
+	if (alloc_private(dev, sizeof(contec_private)) < 0) {
 		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
 	}
@@ -141,42 +176,38 @@ static int contec_attach(comedi_device * dev, comedi_devconfig * it)
 					continue;
 				}
 			}
-			devpriv->pci_dev = pcidev;
-			if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
-				printk(KERN_CONT "error enabling PCI device and request regions!\n");
-				return -EIO;
-			}
-			dev->iobase = pci_resource_start(pcidev, 0);
-			printk(KERN_CONT " base addr %lx ", dev->iobase);
-
-			dev->board_ptr = contec_boards + 0;
-
-			s = dev->subdevices + 0;
-
-			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags = SDF_READABLE;
-			s->n_chan = 16;
-			s->maxdata = 1;
-			s->range_table = &range_digital;
-			s->insn_bits = contec_di_insn_bits;
-
-			s = dev->subdevices + 1;
-			s->type = COMEDI_SUBD_DO;
-			s->subdev_flags = SDF_WRITABLE;
-			s->n_chan = 16;
-			s->maxdata = 1;
-			s->range_table = &range_digital;
-			s->insn_bits = contec_do_insn_bits;
-
-			printk(KERN_CONT "attached\n");
-
-			return 1;
+			dev->board_ptr = contec_boards + PIO1616L;
+			return contec_attach_common(dev);
 		}
 	}
 
 	printk(KERN_CONT "card not present!\n");
 
 	return -EIO;
+}
+
+static int contec_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: contect: auto-attach PCI %s: ",
+		dev->minor, pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(contec_private)) < 0) {
+		printk(KERN_CONT "Allocation error\n");
+		return -ENOMEM;
+	}
+
+	/* context_model is the index into contex_boards[] */
+	if (context_model >= ARRAY_SIZE(contec_boards)) {
+		printk(KERN_CONT "Bad context %lu\n", context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = contec_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in contec_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+	return contec_attach_common(dev);
 }
 
 static int contec_detach(comedi_device * dev)
