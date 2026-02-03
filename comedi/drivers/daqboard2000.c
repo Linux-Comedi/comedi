@@ -337,9 +337,6 @@ static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
 MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
 
 typedef struct {
-	enum {
-		card_daqboard_2000
-	} card;
 	struct pci_dev *pci_dev;
 	void *daq;
 	void *plx;
