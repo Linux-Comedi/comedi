@@ -44,7 +44,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 
 #include <linux/delay.h>
 #include <linux/ctype.h>
-#include <linux/firmware.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 
@@ -115,42 +114,6 @@ typedef struct {
 	u16 errors;
 	int retries;
 } jr3_pci_subdev_private;
-
-/* Hotplug firmware loading stuff */
-
-typedef int jr3_firmware_callback(comedi_device * dev,
-	const u8 * data, size_t size);
-
-static int jr3_load_firmware(comedi_device * dev,
-	char *name, jr3_firmware_callback cb)
-{
-	int result = 0;
-	const struct firmware *fw;
-	char *firmware_path;
-	static const char *prefix = "comedi/";
-	jr3_pci_dev_private *devpriv = dev->private;
-
-	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
-	if (!firmware_path) {
-		result = -ENOMEM;
-	} else {
-		firmware_path[0] = '\0';
-		strcat(firmware_path, prefix);
-		strcat(firmware_path, name);
-		result = request_firmware(&fw, firmware_path,
-			&devpriv->pci_dev->dev);
-		if (result == 0) {
-			if (!cb) {
-				result = -EINVAL;
-			} else {
-				result = cb(dev, fw->data, fw->size);
-			}
-			release_firmware(fw);
-		}
-		kfree(firmware_path);
-	}
-	return result;
-}
 
 static poll_delay_t poll_delay_min_max(int min, int max)
 {
@@ -415,7 +378,7 @@ static int read_idm_word(const u8 * data, size_t size, int *pos,
 }
 
 static int jr3_download_firmware(comedi_device * dev, const u8 * data,
-	size_t size)
+	size_t size, unsigned long context)
 {
 	/*
 	 * IDM file format is:
@@ -893,7 +856,8 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	// Reset DSP card
 	writel(0, &devpriv->iobase->channel[0].reset);
 
-	result = jr3_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
+	result = comedi_load_firmware(dev, &devpriv->pci_dev->dev,
+			"comedi/jr3pci.idm", jr3_download_firmware, 0);
 	printk("Firmare load %d\n", result);
 
 	if (result < 0) {
@@ -902,7 +866,8 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	// TODO: use firmware to load preferred offset tables. Suggested format:
 	// model serial Fx Fy Fz Mx My Mz\n
 	//
-	// jr3_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
+	// jr3_load_firmware(dev, &devpriv->pci_dev->dev,
+	//                   "jr3_offsets_table", jr3_download_offsets, 0);
 
 	// It takes a few milliseconds for software to settle
 	// as much as we can read firmware version
