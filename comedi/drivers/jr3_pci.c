@@ -118,11 +118,11 @@ typedef struct {
 
 /* Hotplug firmware loading stuff */
 
-typedef int comedi_firmware_callback(comedi_device * dev,
+typedef int jr3_firmware_callback(comedi_device * dev,
 	const u8 * data, size_t size);
 
-static int comedi_load_firmware(comedi_device * dev,
-	char *name, comedi_firmware_callback cb)
+static int jr3_load_firmware(comedi_device * dev,
+	char *name, jr3_firmware_callback cb)
 {
 	int result = 0;
 	const struct firmware *fw;
@@ -893,7 +893,7 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	// Reset DSP card
 	writel(0, &devpriv->iobase->channel[0].reset);
 
-	result = comedi_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
+	result = jr3_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
 	printk("Firmare load %d\n", result);
 
 	if (result < 0) {
@@ -902,7 +902,7 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	// TODO: use firmware to load preferred offset tables. Suggested format:
 	// model serial Fx Fy Fz Mx My Mz\n
 	//
-	// comedi_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
+	// jr3_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
 
 	// It takes a few milliseconds for software to settle
 	// as much as we can read firmware version
