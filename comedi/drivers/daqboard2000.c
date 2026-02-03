@@ -308,7 +308,7 @@ static comedi_driver driver_daqboard2000 = {
 
 typedef struct {
 	const char *name;
-	int id;
+	u32 id;
 } boardtype;
 static const boardtype boardtypes[] = {
 	{"ids2", DAQBOARD2000_SUBSYSTEM_IDS2},
