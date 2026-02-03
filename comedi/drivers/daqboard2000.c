@@ -308,12 +308,14 @@ typedef struct daqboard2000_hw {
 #define DAQBOARD2000_NegRefDacSelect             0x0000
 
 static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it);
+static int daqboard2000_auto_attach(comedi_device * dev, unsigned long context);
 static int daqboard2000_detach(comedi_device * dev);
 
 static comedi_driver driver_daqboard2000 = {
       .driver_name	= "daqboard2000",
       .module	 	= THIS_MODULE,
       .attach		= daqboard2000_attach,
+      .auto_attach	= daqboard2000_auto_attach,
       .detach		= daqboard2000_detach,
 };
 
@@ -322,22 +324,38 @@ typedef struct {
 	u32 id;
 } boardtype;
 
+enum daqboard2000_model {
+	daqboard2000_model_ids2,
+	daqboard2000_model_ids4,
+};
+
 static const boardtype boardtypes[] = {
-	{
+	[daqboard2000_model_ids2] = {
 		.name	= "ids2",
 		.id	= DAQBOARD2000_SUBSYSTEM_IDS2,
 	},
-	{
+	[daqboard2000_model_ids4] = {
 		.name	= "ids4",
 		.id	= DAQBOARD2000_SUBSYSTEM_IDS4
 	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
-	{0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_DEVICE_SUB(0x1616, 0x0409,
+			       DAQBOARD2000_SUBSYSTEM_IDS2 & 0xFFFF,
+			       DAQBOARD2000_SUBSYSTEM_IDS2 >> 16),
+		.driver_data = daqboard2000_model_ids2,
+	},
+	{
+		PCI_DEVICE_SUB(0x1616, 0x0409,
+			       DAQBOARD2000_SUBSYSTEM_IDS4 & 0xFFFF,
+			       DAQBOARD2000_SUBSYSTEM_IDS4 >> 16),
+		.driver_data = daqboard2000_model_ids4,
+	},
 	{0}
 };
 
@@ -735,69 +753,21 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
-static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
+static int daqboard2000_attach_common(comedi_device * dev)
 {
 	int result = 0;
 	comedi_subdevice *s;
-	struct pci_dev *card = NULL;
-	int bus, slot;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 
-	printk("comedi%d: daqboard2000: ", dev->minor);
-
-	bus = it->options[0];
-	slot = it->options[1];
-
-	result = alloc_private(dev, sizeof(daqboard2000_private));
-	if (result < 0) {
-		printk(KERN_CONT "Allocation error\n");
-		return -ENOMEM;
-	}
-	for (card = pci_get_device(0x1616, 0x0409, NULL);
-		card != NULL;
-		card = pci_get_device(0x1616, 0x0409, card)) {
-		if (bus || slot) {
-			/* requested particular bus/slot */
-			if (card->bus->number != bus ||
-				PCI_SLOT(card->devfn) != slot) {
-				continue;
-			}
-		}
-		break;  /* found one */
-	}
-	if (!card) {
-		if (bus || slot)
-			printk(KERN_CONT "no daqboard2000 found at bus/slot: %d/%d\n",
-				bus, slot);
-		else
-			printk(KERN_CONT "no daqboard2000 found\n");
-		return -EIO;
-	} else {
-		u32 id;
-		int i;
-		devpriv->pci_dev = card;
-		id = ((u32) card->subsystem_device << 16) | card->
-			subsystem_vendor;
-		for (i = 0; i < n_boardtypes; i++) {
-			if (boardtypes[i].id == id) {
-				printk(KERN_CONT " %s", boardtypes[i].name);
-				dev->board_ptr = boardtypes + i;
-			}
-		}
-		if (!dev->board_ptr) {
-			printk(KERN_CONT "unknown subsystem id %08x (pretend it is an ids2) ", id);
-			dev->board_ptr = boardtypes;
-		}
-	}
-
-	if ((result = comedi_pci_enable(card, "daqboard2000")) < 0) {
+	if ((result = comedi_pci_enable(pcidev, "daqboard2000")) < 0) {
 		printk(KERN_CONT "failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	devpriv->got_regions = 1;
 	devpriv->plx =
-		ioremap(pci_resource_start(card, 0), DAQBOARD2000_PLX_SIZE);
+		ioremap(pci_resource_start(pcidev, 0), DAQBOARD2000_PLX_SIZE);
 	devpriv->daq =
-		ioremap(pci_resource_start(card, 2), DAQBOARD2000_DAQ_SIZE);
+		ioremap(pci_resource_start(pcidev, 2), DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq) {
 		printk(KERN_CONT "failed to remap registers\n");
 		return -ENOMEM;
@@ -819,8 +789,7 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	 */
 
 	printk(KERN_CONT "\n");
-	result = comedi_load_firmware(dev, &devpriv->pci_dev->dev,
-				      DAQBOARD2000_FIRMWARE,
+	result = comedi_load_firmware(dev, &pcidev->dev, DAQBOARD2000_FIRMWARE,
 				      initialize_daqboard2000, 0);
 	if (result) {
 		printk("comedi%d: Failed to load FPGA initialization code, error %d\n",
@@ -864,6 +833,88 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 
       out:
 	return result;
+}
+
+static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int result = 0;
+	struct pci_dev *pcidev = NULL;
+	int bus, slot;
+
+	printk("comedi%d: daqboard2000: ", dev->minor);
+
+	bus = it->options[0];
+	slot = it->options[1];
+
+	result = alloc_private(dev, sizeof(daqboard2000_private));
+	if (result < 0) {
+		printk(KERN_CONT "Allocation error\n");
+		return -ENOMEM;
+	}
+	for (pcidev = pci_get_device(0x1616, 0x0409, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(0x1616, 0x0409, pcidev)) {
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (pcidev->bus->number != bus ||
+				PCI_SLOT(pcidev->devfn) != slot) {
+				continue;
+			}
+		}
+		break;  /* found one */
+	}
+	if (!pcidev) {
+		if (bus || slot)
+			printk(KERN_CONT "no daqboard2000 found at bus/slot: %d/%d\n",
+				bus, slot);
+		else
+			printk(KERN_CONT "no daqboard2000 found\n");
+		return -EIO;
+	} else {
+		u32 id;
+		int i;
+		devpriv->pci_dev = pcidev;
+		id = ((u32) pcidev->subsystem_device << 16) | pcidev->
+			subsystem_vendor;
+		for (i = 0; i < n_boardtypes; i++) {
+			if (boardtypes[i].id == id) {
+				printk(KERN_CONT " %s", boardtypes[i].name);
+				dev->board_ptr = boardtypes + i;
+			}
+		}
+		if (!dev->board_ptr) {
+			printk(KERN_CONT "unknown subsystem id %08x (pretend it is an ids2) ", id);
+			dev->board_ptr = boardtypes;
+		}
+	}
+
+	return daqboard2000_attach_common(dev);
+}
+
+static int daqboard2000_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int result;
+
+	printk("comedi%d: daqboard2000: auto-attach PCI %s: ", dev->minor,
+		pci_name(pcidev));
+
+	result = alloc_private(dev, sizeof(daqboard2000_private));
+	if (result < 0) {
+		printk(KERN_CONT "Allocation error\n");
+		return -ENOMEM;
+	}
+
+	/* context is the index into boardtypes[] */
+	if (context >= n_boardtypes) {
+		printk(KERN_CONT "Bad context %lu\n", context);
+		return -EINVAL;
+	}
+	dev->board_ptr = boardtypes + context;
+
+	/* pci_dev_get() call matches pci_dev_put() in daqboard2000_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+	return daqboard2000_attach_common(dev);
 }
 
 static int daqboard2000_detach(comedi_device * dev)
