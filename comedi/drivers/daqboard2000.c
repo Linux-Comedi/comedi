@@ -506,29 +506,29 @@ static void daqboard2000_resetLocalBus(comedi_device * dev)
 {
 	printk("daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 }
 
 static void daqboard2000_reloadPLX(comedi_device * dev)
 {
 	printk("daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 }
 
 static void daqboard2000_pulseProgPin(comedi_device * dev)
 {
 	printk("daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	msleep(10);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);	/* Not in the original code, but I like symmetry... */
+	msleep(10);	/* Not in the original code, but I like symmetry... */
 }
 
 static int daqboard2000_pollCPLD(comedi_device * dev, int mask)
