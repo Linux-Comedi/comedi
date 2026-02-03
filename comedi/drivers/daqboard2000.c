@@ -145,26 +145,30 @@ Configuration options:
 #define DAQBOARD2000_CPLD_DONE 		0x0004
 
 // Available ranges
-static const comedi_lrange range_daqboard2000_ai = { 13, {
-			RANGE(-10, 10),
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(-0.625, 0.625),
-			RANGE(-0.3125, 0.3125),
-			RANGE(-0.156, 0.156),
-			RANGE(0, 10),
-			RANGE(0, 5),
-			RANGE(0, 2.5),
-			RANGE(0, 1.25),
-			RANGE(0, 0.625),
-			RANGE(0, 0.3125)
-	}
+static const comedi_lrange range_daqboard2000_ai = {
+	13,
+	{
+		RANGE(-10, 10),
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(-0.625, 0.625),
+		RANGE(-0.3125, 0.3125),
+		RANGE(-0.156, 0.156),
+		RANGE(0, 10),
+		RANGE(0, 5),
+		RANGE(0, 2.5),
+		RANGE(0, 1.25),
+		RANGE(0, 0.625),
+		RANGE(0, 0.3125),
+	},
 };
 
-static const comedi_lrange range_daqboard2000_ao = { 1, {
-			RANGE(-10, 10)
-	}
+static const comedi_lrange range_daqboard2000_ao = {
+	1,
+	{
+		RANGE(-10, 10),
+	},
 };
 
 typedef struct daqboard2000_hw {
@@ -300,19 +304,26 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it);
 static int daqboard2000_detach(comedi_device * dev);
 
 static comedi_driver driver_daqboard2000 = {
-      driver_name:"daqboard2000",
-      module:THIS_MODULE,
-      attach:daqboard2000_attach,
-      detach:daqboard2000_detach,
+      .driver_name	= "daqboard2000",
+      .module	 	= THIS_MODULE,
+      .attach		= daqboard2000_attach,
+      .detach		= daqboard2000_detach,
 };
 
 typedef struct {
 	const char *name;
 	u32 id;
 } boardtype;
+
 static const boardtype boardtypes[] = {
-	{"ids2", DAQBOARD2000_SUBSYSTEM_IDS2},
-	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
+	{
+		.name	= "ids2",
+		.id	= DAQBOARD2000_SUBSYSTEM_IDS2,
+	},
+	{
+		.name	= "ids4",
+		.id	= DAQBOARD2000_SUBSYSTEM_IDS4
+	},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
