@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/comedidev.h>
 #include <linux/cdev.h>
+#include <linux/firmware.h>
 
 #include <asm/io.h>
 
@@ -276,6 +277,27 @@ void comedi_driver_unregister(comedi_driver * driver)
 		mutex_unlock(&dev->mutex);
 		comedi_dev_put(dev);
 	}
+}
+
+int comedi_load_firmware(comedi_device *dev, struct device *hw_dev,
+	const char *name, int (*cb)(comedi_device *dev, const u8 *data,
+				    size_t size, unsigned long context),
+	unsigned long context)
+{
+	const struct firmware *fw;
+	int ret;
+
+	if (!cb)
+		return -EINVAL;
+
+	ret = request_firmware(&fw, name, hw_dev);
+	if (ret == 0) {
+		ret = cb(dev, fw->data, fw->size, context);
+		release_firmware(fw);
+	}
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 static int postconfig(comedi_device * dev)

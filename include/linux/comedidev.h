@@ -440,6 +440,12 @@ static inline unsigned int comedi_samples_to_bytes(const comedi_subdevice *subd,
 	return nsamples << comedi_sample_shift(subd);
 }
 
+/* Requests firmware from system and passes firmware to a callback function. */
+int comedi_load_firmware(comedi_device *dev, struct device *hw_dev,
+	const char *name, int (*cb)(comedi_device *dev, const u8 *data,
+				    size_t size, unsigned long context),
+	unsigned long context);
+
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
 into comedi's buffer */
 int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev);
