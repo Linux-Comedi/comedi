@@ -373,33 +373,21 @@ struct comedi_lrange_struct {
 	comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };
 
+void *comedi_alloc_devpriv(comedi_device *dev, size_t size);
+int comedi_alloc_subdevices(comedi_device *dev, unsigned int num_subdevices);
+
+
 /* some silly little inline functions */
 
 static inline int alloc_subdevices(comedi_device * dev,
 	unsigned int num_subdevices)
 {
-	unsigned i;
-
-	dev->n_subdevices = num_subdevices;
-	dev->subdevices =
-		kcalloc(num_subdevices, sizeof(comedi_subdevice), GFP_KERNEL);
-	if (!dev->subdevices)
-		return -ENOMEM;
-	for (i = 0; i < num_subdevices; ++i) {
-		dev->subdevices[i].device = dev;
-		dev->subdevices[i].async_dma_dir = DMA_NONE;
-		spin_lock_init(&dev->subdevices[i].spin_lock);
-		dev->subdevices[i].minor = -1;
-	}
-	return 0;
+	return comedi_alloc_subdevices(dev, num_subdevices);
 }
 
 static inline int alloc_private(comedi_device * dev, int size)
 {
-	dev->private = kzalloc(size, GFP_KERNEL);
-	if (!dev->private)
-		return -ENOMEM;
-	return 0;
+	return comedi_alloc_devpriv(dev, size) ? 0 : -ENOMEM;
 }
 
 /*

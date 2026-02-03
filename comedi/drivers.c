@@ -68,6 +68,30 @@ static void comedi_clear_hw_dev(comedi_device * dev)
 	dev->hw_dev = NULL;
 }
 
+void *comedi_alloc_devpriv(comedi_device *dev, size_t size)
+{
+	dev->private = kzalloc(size, GFP_KERNEL);
+	return dev->private;
+}
+
+int comedi_alloc_subdevices(comedi_device *dev, unsigned int num_subdevices)
+{
+	unsigned i;
+
+	dev->n_subdevices = num_subdevices;
+	dev->subdevices =
+		kcalloc(num_subdevices, sizeof(comedi_subdevice), GFP_KERNEL);
+	if (!dev->subdevices)
+		return -ENOMEM;
+	for (i = 0; i < num_subdevices; ++i) {
+		dev->subdevices[i].device = dev;
+		dev->subdevices[i].async_dma_dir = DMA_NONE;
+		spin_lock_init(&dev->subdevices[i].spin_lock);
+		dev->subdevices[i].minor = -1;
+	}
+	return 0;
+}
+
 static int postconfig(comedi_device * dev);
 static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);

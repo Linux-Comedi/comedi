@@ -34,6 +34,8 @@ EXPORT_SYMBOL(comedi_error);
 //EXPORT_SYMBOL(comedi_eobuf);
 //EXPORT_SYMBOL(comedi_eos);
 EXPORT_SYMBOL(comedi_event);
+EXPORT_SYMBOL(comedi_alloc_devpriv);
+EXPORT_SYMBOL(comedi_alloc_subdevices);
 EXPORT_SYMBOL(comedi_get_subdevice_runflags);
 EXPORT_SYMBOL(comedi_update_subdevice_runflags);
 EXPORT_SYMBOL(comedi_is_subdevice_running);
