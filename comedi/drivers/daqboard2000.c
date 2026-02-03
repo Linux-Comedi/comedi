@@ -25,16 +25,21 @@ Driver: daqboard2000
 Description: IOTech DAQBoard/2000
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
-Updated: Mon, 14 Apr 2008 15:28:52 +0100
+Updated: Tue, 03 Feb 2026 14:18:10 +0000
 Devices: [IOTech] DAQBoard/2000 (daqboard2000)
 
 Much of the functionality of this driver was determined from reading
 the source code for the Windows driver.
 
-The FPGA on the board requires initialization code, which can
-be loaded by comedi_config using the -i
-option.  The initialization code is available from http://www.comedi.org
+The FPGA on the board requires initialization code from file
+"daqboard2000_firmware.bin" which should be placed in the /lib/firmware/
+directory.
+
+The initialization code is available from http://www.comedi.org
 in the comedi_nonfree_firmware tarball.
+
+The driver will request the initialization code file from the system
+during configuration of the COMEDI device.
 
 Configuration options:
   [0] - PCI bus of device (optional)
@@ -122,6 +127,8 @@ Configuration options:
 
 #include "comedi_pci.h"
 #include "8255.h"
+
+#define DAQBOARD2000_FIRMWARE		"daqboard2000_firmware.bin"
 
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616	/* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4 	0x00041616	/* Daqboard/2000 - 4 Dacs */
@@ -565,7 +572,7 @@ static int daqboard2000_writeCPLD(comedi_device * dev, int data)
 }
 
 static int initialize_daqboard2000(comedi_device * dev,
-	unsigned char *cpld_array, int len)
+	const u8 *cpld_array, size_t len, unsigned long context)
 {
 	int result = -EIO;
 	/* Read the serial EEPROM control register */
@@ -733,8 +740,6 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	int result = 0;
 	comedi_subdevice *s;
 	struct pci_dev *card = NULL;
-	void *aux_data;
-	unsigned int aux_len;
 	int bus, slot;
 
 	printk("comedi%d: daqboard2000: ", dev->minor);
@@ -813,17 +818,15 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	   printk("Interrupt before is: %x\n", interrupt);
 	 */
 
-	aux_data = comedi_aux_data(it->options, 0);
-	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-
-	if (aux_data && aux_len) {
-		result = initialize_daqboard2000(dev, aux_data, aux_len);
-	} else {
-		printk(KERN_CONT "no FPGA initialization code, aborting\n");
-		result = -EIO;
-	}
-	if (result < 0)
+	printk(KERN_CONT "\n");
+	result = comedi_load_firmware(dev, &devpriv->pci_dev->dev,
+				      DAQBOARD2000_FIRMWARE,
+				      initialize_daqboard2000, 0);
+	if (result) {
+		printk("comedi%d: Failed to load FPGA initialization code, error %d\n",
+			dev->minor, result);
 		goto out;
+	}
 	daqboard2000_initializeAdc(dev);
 	daqboard2000_initializeDac(dev);
 	/*
@@ -859,7 +862,6 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 		(unsigned long)(dev->iobase + 0x40));
 
-	printk(KERN_CONT "\n");
       out:
 	return result;
 }
