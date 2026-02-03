@@ -80,7 +80,7 @@ MODULE_DEVICE_TABLE(pci, jr3_pci_pci_table);
 typedef struct {
 	struct pci_dev *pci_dev;
 	int pci_enabled;
-	volatile jr3_t *iobase;
+	jr3_t __iomem *iobase;
 	int n_channels;
 	struct timer_list timer;
 	comedi_device *dev;
@@ -92,7 +92,7 @@ typedef struct {
 } poll_delay_t;
 
 typedef struct {
-	volatile jr3_channel_t *channel;
+	jr3_channel_t __iomem *channel;
 	unsigned long next_time_min;
 	unsigned long next_time_max;
 	enum { state_jr3_poll,
@@ -124,7 +124,7 @@ static poll_delay_t poll_delay_min_max(int min, int max)
 	return result;
 }
 
-static int is_complete(volatile jr3_channel_t * channel)
+static int is_complete(jr3_channel_t __iomem * channel)
 {
 	return get_s16(&channel->command_word0) == 0;
 }
@@ -136,7 +136,7 @@ typedef struct {
 	} link[8];
 } transform_t;
 
-static void set_transforms(volatile jr3_channel_t * channel,
+static void set_transforms(jr3_channel_t __iomem * channel,
 	transform_t transf, short num)
 {
 	int i;
@@ -156,17 +156,17 @@ static void set_transforms(volatile jr3_channel_t * channel,
 	}
 }
 
-static void use_transform(volatile jr3_channel_t * channel, short transf_num)
+static void use_transform(jr3_channel_t __iomem * channel, short transf_num)
 {
 	set_s16(&channel->command_word0, 0x0500 + (transf_num & 0x000f));
 }
 
-static void use_offset(volatile jr3_channel_t * channel, short offset_num)
+static void use_offset(jr3_channel_t __iomem * channel, short offset_num)
 {
 	set_s16(&channel->command_word0, 0x0600 + (offset_num & 0x000f));
 }
 
-static void set_offset(volatile jr3_channel_t * channel)
+static void set_offset(jr3_channel_t __iomem * channel)
 {
 	set_s16(&channel->command_word0, 0x0700);
 }
@@ -180,7 +180,7 @@ typedef struct {
 	s16 mz;
 } six_axis_t;
 
-static void set_full_scales(volatile jr3_channel_t * channel,
+static void set_full_scales(jr3_channel_t __iomem * channel,
 	six_axis_t full_scale)
 {
 	printk("%d %d %d %d %d %d\n",
@@ -196,7 +196,7 @@ static void set_full_scales(volatile jr3_channel_t * channel,
 	set_s16(&channel->command_word0, 0x0a00);
 }
 
-static six_axis_t get_min_full_scales(volatile jr3_channel_t * channel)
+static six_axis_t get_min_full_scales(jr3_channel_t __iomem * channel)
 {
 	six_axis_t result;
 	result.fx = get_s16(&channel->min_full_scale.fx);
@@ -208,7 +208,7 @@ static six_axis_t get_min_full_scales(volatile jr3_channel_t * channel)
 	return result;
 }
 
-static six_axis_t get_max_full_scales(volatile jr3_channel_t * channel)
+static six_axis_t get_max_full_scales(jr3_channel_t __iomem * channel)
 {
 	six_axis_t result;
 	result.fx = get_s16(&channel->max_full_scale.fx);
@@ -482,7 +482,7 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 	jr3_pci_subdev_private *p = s->private;
 
 	if (p) {
-		volatile jr3_channel_t *channel = p->channel;
+		jr3_channel_t __iomem *channel = p->channel;
 		int errors = get_u16(&channel->errors);
 
 		if (errors != p->errors) {
@@ -592,7 +592,7 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 					printk("state_jr3_init_set_full_scale_complete complete = %d\n", is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
-					volatile force_array_t *full_scale;
+					force_array_t __iomem *full_scale;
 
 					// Use ranges in kN or we will overflow arount 2000N!
 					full_scale = &channel->full_scale;

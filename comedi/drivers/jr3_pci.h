@@ -4,22 +4,22 @@ typedef u32 u_val_t;
 
 typedef s32 s_val_t;
 
-static inline u16 get_u16(volatile const u_val_t * p)
+static inline u16 get_u16(const u_val_t __iomem * p)
 {
 	return (u16) readl(p);
 }
 
-static inline void set_u16(volatile u_val_t * p, u16 val)
+static inline void set_u16(u_val_t __iomem * p, u16 val)
 {
 	writel(val, p);
 }
 
-static inline s16 get_s16(volatile const s_val_t * p)
+static inline s16 get_s16(const s_val_t __iomem * p)
 {
 	return (s16) readl(p);
 }
 
-static inline void set_s16(volatile s_val_t * p, s16 val)
+static inline void set_s16(s_val_t __iomem * p, s16 val)
 {
 	writel(val, p);
 }
