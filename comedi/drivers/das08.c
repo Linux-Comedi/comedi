@@ -867,13 +867,17 @@ static int das08_counter_config(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int das08_attach(comedi_device * dev, comedi_devconfig * it);
+#ifdef COMEDI_CONFIG_PCI
 static int das08_auto_attach(comedi_device * dev, unsigned long context);
+#endif
 
 static comedi_driver driver_das08 = {
 	.driver_name	= DRV_NAME,
 	.module		= THIS_MODULE,
 	.attach		= das08_attach,
+#ifdef COMEDI_CONFIG_PCI
 	.auto_attach	= das08_auto_attach,
+#endif
 	.detach		= das08_common_detach,
 	.board_name	= &das08_boards[0].name,
 	.num_names	= ARRAY_SIZE(das08_boards),
