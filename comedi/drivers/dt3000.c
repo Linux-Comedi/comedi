@@ -992,7 +992,6 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
 				return from;
 			}
 		}
-		printk("unknown Data Translation PCI device found with device_id=0x%04x\n", from->device);
 	}
 	*board = -1;
 	return from;
