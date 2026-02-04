@@ -805,7 +805,7 @@ static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt_pci_probe(comedi_device * dev, int bus, int slot);
+static int dt3k_pci_find_device(comedi_device * dev, int bus, int slot);
 static int setup_pci(comedi_device * dev);
 
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
@@ -823,7 +823,7 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;
 	}
 
-	ret = dt_pci_probe(dev, bus, slot);
+	ret = dt3k_pci_find_device(dev, bus, slot);
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
@@ -927,30 +927,31 @@ static int dt3000_detach(comedi_device * dev)
 	return 0;
 }
 
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board);
-
-static int dt_pci_probe(comedi_device * dev, int bus, int slot)
+static int dt3k_pci_find_device(comedi_device * dev, int bus, int slot)
 {
 	int board;
 	struct pci_dev *pcidev;
 
 	pcidev = NULL;
-	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
-		if ((bus == 0 && slot == 0) ||
-			(pcidev->bus->number == bus &&
-			 PCI_SLOT(pcidev->devfn) == slot)) {
-			break;
+	while ((pcidev =
+		pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, pcidev)) != NULL) {
+		if ((bus || slot) &&
+		    (bus != pcidev->bus->number ||
+		     slot != PCI_SLOT(pcidev->devfn))) {
+			continue;
+		}
+		for (board = 0; board < n_dt3k_boards; board++) {
+			if (pcidev->device == dt3k_boardtypes[board].device_id)
+				break;
+		}
+		if (board < n_dt3k_boards) {
+			devpriv->pci_dev = pcidev;
+			dev->board_ptr = dt3k_boardtypes + board;
+			return 1;
 		}
 	}
-	devpriv->pci_dev = pcidev;
 
-	if (board >= 0)
-		dev->board_ptr = dt3k_boardtypes + board;
-
-	if (!devpriv->pci_dev)
-		return 0;
-
-	return 1;
+	return 0;
 }
 
 static int setup_pci(comedi_device * dev)
@@ -977,22 +978,4 @@ static int setup_pci(comedi_device * dev)
 #endif
 
 	return 0;
-}
-
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
-{
-	int i;
-
-	for (from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from);
-		from != NULL;
-		from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from)) {
-		for (i = 0; i < n_dt3k_boards; i++) {
-			if (from->device == dt3k_boardtypes[i].device_id) {
-				*board = i;
-				return from;
-			}
-		}
-	}
-	*board = -1;
-	return from;
 }
