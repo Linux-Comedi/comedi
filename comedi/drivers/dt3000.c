@@ -806,7 +806,7 @@ static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt3k_pci_find_device(comedi_device * dev, int bus, int slot);
-static int setup_pci(comedi_device * dev);
+static int dt3k_setup_pci(comedi_device * dev);
 
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -831,7 +831,7 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 		return -ENODEV;
 	}
 
-	ret = setup_pci(dev);
+	ret = dt3k_setup_pci(dev);
 	if (ret < 0)
 		return ret;
 
@@ -954,7 +954,7 @@ static int dt3k_pci_find_device(comedi_device * dev, int bus, int slot)
 	return 0;
 }
 
-static int setup_pci(comedi_device * dev)
+static int dt3k_setup_pci(comedi_device * dev)
 {
 	resource_size_t addr;
 	int ret;
