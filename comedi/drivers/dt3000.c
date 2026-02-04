@@ -66,19 +66,22 @@ AO commands are not supported.
 
 #define PCI_VENDOR_ID_DT	0x1116
 
-static const comedi_lrange range_dt3000_ai = { 4, {
-			RANGE(-10, 10),
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25)
-	}
+static const comedi_lrange range_dt3000_ai = {
+	4, {
+		RANGE(-10, 10),
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+	},
 };
-static const comedi_lrange range_dt3000_ai_pgl = { 4, {
-			RANGE(-10, 10),
-			RANGE(-1, 1),
-			RANGE(-0.1, 0.1),
-			RANGE(-0.02, 0.02)
-	}
+
+static const comedi_lrange range_dt3000_ai_pgl = {
+	4, {
+		RANGE(-10, 10),
+		RANGE(-1, 1),
+		RANGE(-0.1, 0.1),
+		RANGE(-0.02, 0.02),
+	},
 };
 
 typedef struct {
@@ -93,72 +96,79 @@ typedef struct {
 } dt3k_boardtype;
 
 static const dt3k_boardtype dt3k_boardtypes[] = {
-      {name:"dt3001",
-	      device_id:0x22,
-	      adchan:	16,
-	      adbits:	12,
-	      adrange:	&range_dt3000_ai,
-	      ai_speed:3000,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt3001-pgl",
-	      device_id:0x27,
-	      adchan:	16,
-	      adbits:	12,
-	      adrange:	&range_dt3000_ai_pgl,
-	      ai_speed:3000,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt3002",
-	      device_id:0x23,
-	      adchan:	32,
-	      adbits:	12,
-	      adrange:	&range_dt3000_ai,
-	      ai_speed:3000,
-	      dachan:	0,
-	      dabits:	0,
-		},
-      {name:"dt3003",
-	      device_id:0x24,
-	      adchan:	64,
-	      adbits:	12,
-	      adrange:	&range_dt3000_ai,
-	      ai_speed:3000,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt3003-pgl",
-	      device_id:0x28,
-	      adchan:	64,
-	      adbits:	12,
-	      adrange:	&range_dt3000_ai_pgl,
-	      ai_speed:3000,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt3004",
-	      device_id:0x25,
-	      adchan:	16,
-	      adbits:	16,
-	      adrange:	&range_dt3000_ai,
-	      ai_speed:10000,
-	      dachan:	2,
-	      dabits:	12,
-		},
-      {name:"dt3005",		/* a.k.a. 3004-200 */
-	      device_id:0x26,
-	      adchan:	16,
-	      adbits:	16,
-	      adrange:	&range_dt3000_ai,
-	      ai_speed:5000,
-	      dachan:	2,
-	      dabits:	12,
-		},
+	{
+		.name		= "dt3001",
+		.device_id	= 0x22,
+		.adchan		= 16,
+		.adbits		= 12,
+		.adrange	= &range_dt3000_ai,
+		.ai_speed	= 3000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
+	{
+		.name		= "dt3001-pgl",
+		.device_id	= 0x27,
+		.adchan		= 16,
+		.adbits		= 12,
+		.adrange	= &range_dt3000_ai_pgl,
+		.ai_speed	= 3000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
+	{
+		.name		= "dt3002",
+		.device_id	= 0x23,
+		.adchan		= 32,
+		.adbits		= 12,
+		.adrange	= &range_dt3000_ai,
+		.ai_speed	= 3000,
+		.dachan		= 0,
+		.dabits		= 0,
+	},
+	{
+		.name		= "dt3003",
+		.device_id	= 0x24,
+		.adchan		= 64,
+		.adbits		= 12,
+		.adrange	= &range_dt3000_ai,
+		.ai_speed	= 3000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
+	{
+		.name		= "dt3003-pgl",
+		.device_id	= 0x28,
+		.adchan		= 64,
+		.adbits		= 12,
+		.adrange	= &range_dt3000_ai_pgl,
+		.ai_speed	= 3000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
+	{
+		.name		= "dt3004",
+		.device_id	= 0x25,
+		.adchan		= 16,
+		.adbits		= 16,
+		.adrange	= &range_dt3000_ai,
+		.ai_speed	= 10000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
+	{
+		.name		= "dt3005",	/* a.k.a. 3004-200 */
+		.device_id	= 0x26,
+		.adchan		= 16,
+		.adbits		= 16,
+		.adrange	= &range_dt3000_ai,
+		.ai_speed	= 5000,
+		.dachan		= 2,
+		.dabits		= 12,
+	},
 };
 
-#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype)
+#define n_dt3k_boards ARRAY_SIZE(dt3k_boardtypes)
 #define this_board ((const dt3k_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
@@ -274,10 +284,10 @@ typedef struct {
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt3000_detach(comedi_device * dev);
 static comedi_driver driver_dt3000 = {
-      driver_name:"dt3000",
-      module:THIS_MODULE,
-      attach:dt3000_attach,
-      detach:dt3000_detach,
+      .driver_name	= "dt3000",
+      .module		= THIS_MODULE,
+      .attach		= dt3000_attach,
+      .detach		= dt3000_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_dt3000, dt3k_pci_table);
