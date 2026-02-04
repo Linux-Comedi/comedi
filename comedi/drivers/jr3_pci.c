@@ -756,58 +756,45 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	if (result < 0) {
 		return result;
 	}
-	card = NULL;
 	devpriv = dev->private;
-	while (1) {
-		card = pci_get_device(PCI_VENDOR_ID_JR3, PCI_ANY_ID, card);
-		if (card == NULL) {
-			/* No card found */
+	card = NULL;
+	while ((card = pci_get_device(PCI_VENDOR_ID_JR3,
+				      PCI_ANY_ID, card)) != NULL) {
+		switch (card->device) {
+		case PCI_DEVICE_ID_JR3_1_CHANNEL:
+		case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
+			devpriv->n_channels = 1;
 			break;
-		} else {
-			switch (card->device) {
-			case PCI_DEVICE_ID_JR3_1_CHANNEL:{
-					devpriv->n_channels = 1;
-				}
+		case PCI_DEVICE_ID_JR3_2_CHANNEL:
+			devpriv->n_channels = 2;
+			break;
+		case PCI_DEVICE_ID_JR3_3_CHANNEL:
+			devpriv->n_channels = 3;
+			break;
+		case PCI_DEVICE_ID_JR3_4_CHANNEL:
+			devpriv->n_channels = 4;
+			break;
+		default:
+			devpriv->n_channels = 0;
+			break;
+		}
+		if (devpriv->n_channels >= 1) {
+			if (opt_bus == 0 && opt_slot == 0) {
+				/* Take first available card */
 				break;
-			case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:{
-					devpriv->n_channels = 1;
-				}
+			} else if (opt_bus == card->bus->number &&
+				   opt_slot == PCI_SLOT(card->devfn)) {
+				/* Take requested card */
 				break;
-			case PCI_DEVICE_ID_JR3_2_CHANNEL:{
-					devpriv->n_channels = 2;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_3_CHANNEL:{
-					devpriv->n_channels = 3;
-				}
-				break;
-			case PCI_DEVICE_ID_JR3_4_CHANNEL:{
-					devpriv->n_channels = 4;
-				}
-				break;
-			default:{
-					devpriv->n_channels = 0;
-				}
-			}
-			if (devpriv->n_channels >= 1) {
-				if (opt_bus == 0 && opt_slot == 0) {
-					/* Take first available card */
-					break;
-				} else if (opt_bus == card->bus->number &&
-					opt_slot == PCI_SLOT(card->devfn)) {
-					/* Take requested card */
-					break;
-				}
 			}
 		}
 	}
 	if (!card) {
 		printk(" no jr3_pci found\n");
 		return -EIO;
-	} else {
-		devpriv->pci_dev = card;
-		dev->board_name = "jr3_pci";
 	}
+	devpriv->pci_dev = card;
+	dev->board_name = "jr3_pci";
 	if ((result = comedi_pci_enable(card, "jr3_pci")) < 0) {
 		return -EIO;
 	}
