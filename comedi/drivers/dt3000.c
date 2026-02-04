@@ -95,8 +95,18 @@ typedef struct {
 	int dabits;
 } dt3k_boardtype;
 
+enum {
+	dt3001_model,
+	dt3001_pgl_model,
+	dt3002_model,
+	dt3003_model,
+	dt3003_pgl_model,
+	dt3004_model,
+	dt3005_model,
+};
+
 static const dt3k_boardtype dt3k_boardtypes[] = {
-	{
+	[dt3001_model] = {
 		.name		= "dt3001",
 		.device_id	= 0x22,
 		.adchan		= 16,
@@ -106,7 +116,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 2,
 		.dabits		= 12,
 	},
-	{
+	[dt3001_pgl_model] = {
 		.name		= "dt3001-pgl",
 		.device_id	= 0x27,
 		.adchan		= 16,
@@ -116,7 +126,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 2,
 		.dabits		= 12,
 	},
-	{
+	[dt3002_model] = {
 		.name		= "dt3002",
 		.device_id	= 0x23,
 		.adchan		= 32,
@@ -126,7 +136,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 0,
 		.dabits		= 0,
 	},
-	{
+	[dt3003_model] = {
 		.name		= "dt3003",
 		.device_id	= 0x24,
 		.adchan		= 64,
@@ -136,7 +146,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 2,
 		.dabits		= 12,
 	},
-	{
+	[dt3003_pgl_model] = {
 		.name		= "dt3003-pgl",
 		.device_id	= 0x28,
 		.adchan		= 64,
@@ -146,7 +156,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 2,
 		.dabits		= 12,
 	},
-	{
+	[dt3004_model] = {
 		.name		= "dt3004",
 		.device_id	= 0x25,
 		.adchan		= 16,
@@ -156,7 +166,7 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 		.dachan		= 2,
 		.dabits		= 12,
 	},
-	{
+	[dt3005_model] = {
 		.name		= "dt3005",	/* a.k.a. 3004-200 */
 		.device_id	= 0x26,
 		.adchan		= 16,
@@ -172,13 +182,13 @@ static const dt3k_boardtype dt3k_boardtypes[] = {
 #define this_board ((const dt3k_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
-	{PCI_VENDOR_ID_DT, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0027, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DT, 0x0026, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(DT, 0x0022), .driver_data = dt3001_model,		},
+	{ PCI_VDEVICE(DT, 0x0027), .driver_data = dt3001_pgl_model,	},
+	{ PCI_VDEVICE(DT, 0x0023), .driver_data = dt3002_model,		},
+	{ PCI_VDEVICE(DT, 0x0024), .driver_data = dt3003_model,		},
+	{ PCI_VDEVICE(DT, 0x0028), .driver_data = dt3003_pgl_model,	},
+	{ PCI_VDEVICE(DT, 0x0025), .driver_data = dt3004_model,		},
+	{ PCI_VDEVICE(DT, 0x0026), .driver_data = dt3005_model,		},
 	{0}
 };
 
@@ -282,11 +292,13 @@ typedef struct {
 #define devpriv ((dt3k_private *)dev->private)
 
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it);
+static int dt3000_auto_attach(comedi_device * dev, unsigned long context);
 static int dt3000_detach(comedi_device * dev);
 static comedi_driver driver_dt3000 = {
       .driver_name	= "dt3000",
       .module		= THIS_MODULE,
       .attach		= dt3000_attach,
+      .auto_attach	= dt3000_auto_attach,
       .detach		= dt3000_detach,
 };
 
@@ -808,28 +820,10 @@ static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
 static int dt3k_pci_find_device(comedi_device * dev, int bus, int slot);
 static int dt3k_setup_pci(comedi_device * dev);
 
-static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
+static int dt3k_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
-	int bus, slot;
 	int ret = 0;
-
-	printk("dt3000:");
-	bus = it->options[0];
-	slot = it->options[1];
-
-	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0) {
-		printk(KERN_CONT "allocation error\n");
-		return ret;
-	}
-
-	ret = dt3k_pci_find_device(dev, bus, slot);
-	if (ret < 0)
-		return ret;
-	if (ret == 0) {
-		printk(KERN_CONT " no DT board found\n");
-		return -ENODEV;
-	}
 
 	ret = dt3k_setup_pci(dev);
 	if (ret < 0)
@@ -905,6 +899,58 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "\n");
 
 	return 0;
+}
+
+static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int bus, slot;
+	int ret = 0;
+
+	printk("comedi%d: dt3000: ", dev->minor);
+	bus = it->options[0];
+	slot = it->options[1];
+
+	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0) {
+		printk(KERN_CONT "allocation error\n");
+		return ret;
+	}
+
+	ret = dt3k_pci_find_device(dev, bus, slot);
+	if (ret < 0)
+		return ret;
+	if (ret == 0) {
+		printk(KERN_CONT " no DT board found\n");
+		return -ENODEV;
+	}
+
+	return dt3k_attach_common(dev);
+}
+
+static int dt3000_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret = 0;
+
+	printk("comedi%d: dt3000: auto-attach PCI %s: ",
+		dev->minor, pci_name(pcidev));
+
+	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0) {
+		printk(KERN_CONT "allocation error\n");
+		return ret;
+	}
+
+	/* context_model is the index into dt3k_boardtypes[] */
+	if (context_model >= n_dt3k_boards) {
+		printk(KERN_CONT "BUG! bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = dt3k_boardtypes + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in dt3000_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return dt3k_attach_common(dev);
 }
 
 static int dt3000_detach(comedi_device * dev)
