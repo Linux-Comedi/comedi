@@ -725,6 +725,12 @@ static int jr3_pci_alloc_private(comedi_device * dev)
 {
 	jr3_pci_dev_private *devpriv;
 
+	if (sizeof(jr3_channel_t) != 0xc00) {
+		printk("sizeof(jr3_channel_t) = %x [expected %x]\n",
+			(unsigned)sizeof(jr3_channel_t), 0xc00);
+		return -EINVAL;
+	}
+
 	devpriv = comedi_alloc_devpriv(dev, sizeof(jr3_pci_dev_private));
 	if (!devpriv) {
 		return -ENOMEM;
@@ -745,12 +751,6 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
-
-	if (sizeof(jr3_channel_t) != 0xc00) {
-		printk("sizeof(jr3_channel_t) = %x [expected %x]\n",
-			(unsigned)sizeof(jr3_channel_t), 0xc00);
-		return -EINVAL;
-	}
 
 	result = jr3_pci_alloc_private(dev);
 	if (result < 0) {
