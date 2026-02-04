@@ -55,26 +55,38 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
 static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it);
+static int jr3_pci_auto_attach(comedi_device * dev, unsigned long context);
 static int jr3_pci_detach(comedi_device * dev);
 
 static comedi_driver driver_jr3_pci = {
 	.driver_name	= "jr3_pci",
 	.module		= THIS_MODULE,
 	.attach		= jr3_pci_attach,
+	.auto_attach	= jr3_pci_auto_attach,
 	.detach		= jr3_pci_detach,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
-	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_2_CHANNEL,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_3_CHANNEL,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_4_CHANNEL,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_VDEVICE(JR3, PCI_DEVICE_ID_JR3_1_CHANNEL),
+		.driver_data = 1,
+	},
+	{
+		PCI_VDEVICE(JR3, PCI_DEVICE_ID_JR3_1_CHANNEL_NEW),
+		.driver_data = 1,
+	},
+	{
+		PCI_VDEVICE(JR3, PCI_DEVICE_ID_JR3_2_CHANNEL),
+		.driver_data = 2,
+	},
+	{
+		PCI_VDEVICE(JR3, PCI_DEVICE_ID_JR3_3_CHANNEL),
+		.driver_data = 3,
+	},
+	{
+		PCI_VDEVICE(JR3, PCI_DEVICE_ID_JR3_4_CHANNEL),
+		.driver_data = 4,
+	},
 	{0}
 };
 
@@ -740,60 +752,13 @@ static int jr3_pci_alloc_private(comedi_device * dev)
 	return 0;
 }
 
-static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
+static int jr3_pci_attach_common(comedi_device * dev)
 {
+	jr3_pci_dev_private *devpriv = dev->private;
+	struct pci_dev *card = devpriv->pci_dev;
 	int result = 0;
-	struct pci_dev *card = NULL;
-	int opt_bus, opt_slot, i;
-	jr3_pci_dev_private *devpriv;
+	int i;
 
-	printk("comedi%d: jr3_pci\n", dev->minor);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	result = jr3_pci_alloc_private(dev);
-	if (result < 0) {
-		return result;
-	}
-	devpriv = dev->private;
-	card = NULL;
-	while ((card = pci_get_device(PCI_VENDOR_ID_JR3,
-				      PCI_ANY_ID, card)) != NULL) {
-		switch (card->device) {
-		case PCI_DEVICE_ID_JR3_1_CHANNEL:
-		case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
-			devpriv->n_channels = 1;
-			break;
-		case PCI_DEVICE_ID_JR3_2_CHANNEL:
-			devpriv->n_channels = 2;
-			break;
-		case PCI_DEVICE_ID_JR3_3_CHANNEL:
-			devpriv->n_channels = 3;
-			break;
-		case PCI_DEVICE_ID_JR3_4_CHANNEL:
-			devpriv->n_channels = 4;
-			break;
-		default:
-			devpriv->n_channels = 0;
-			break;
-		}
-		if (devpriv->n_channels >= 1) {
-			if (opt_bus == 0 && opt_slot == 0) {
-				/* Take first available card */
-				break;
-			} else if (opt_bus == card->bus->number &&
-				   opt_slot == PCI_SLOT(card->devfn)) {
-				/* Take requested card */
-				break;
-			}
-		}
-	}
-	if (!card) {
-		printk(" no jr3_pci found\n");
-		return -EIO;
-	}
-	devpriv->pci_dev = card;
 	dev->board_name = "jr3_pci";
 	if ((result = comedi_pci_enable(card, "jr3_pci")) < 0) {
 		return -EIO;
@@ -898,6 +863,91 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 
       out:
 	return result;
+}
+
+static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int result = 0;
+	struct pci_dev *card = NULL;
+	int opt_bus, opt_slot;
+	jr3_pci_dev_private *devpriv;
+
+	printk("comedi%d: jr3_pci\n", dev->minor);
+
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
+
+	result = jr3_pci_alloc_private(dev);
+	if (result < 0) {
+		return result;
+	}
+	devpriv = dev->private;
+	card = NULL;
+	while ((card = pci_get_device(PCI_VENDOR_ID_JR3,
+				      PCI_ANY_ID, card)) != NULL) {
+		switch (card->device) {
+		case PCI_DEVICE_ID_JR3_1_CHANNEL:
+		case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
+			devpriv->n_channels = 1;
+			break;
+		case PCI_DEVICE_ID_JR3_2_CHANNEL:
+			devpriv->n_channels = 2;
+			break;
+		case PCI_DEVICE_ID_JR3_3_CHANNEL:
+			devpriv->n_channels = 3;
+			break;
+		case PCI_DEVICE_ID_JR3_4_CHANNEL:
+			devpriv->n_channels = 4;
+			break;
+		default:
+			devpriv->n_channels = 0;
+			break;
+		}
+		if (devpriv->n_channels >= 1) {
+			if (opt_bus == 0 && opt_slot == 0) {
+				/* Take first available card */
+				break;
+			} else if (opt_bus == card->bus->number &&
+				   opt_slot == PCI_SLOT(card->devfn)) {
+				/* Take requested card */
+				break;
+			}
+		}
+	}
+	if (!card) {
+		printk(" no jr3_pci found\n");
+		return -EIO;
+	}
+	devpriv->pci_dev = card;
+	return jr3_pci_attach_common(dev);
+}
+
+static int jr3_pci_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *card = comedi_to_pci_dev(dev);
+	int result = 0;
+	jr3_pci_dev_private *devpriv;
+
+	printk("comedi%d: jr3_pci: auto-attach PCI %s\n",
+		dev->minor, pci_name(card));
+
+	result = jr3_pci_alloc_private(dev);
+	if (result < 0) {
+		return result;
+	}
+	devpriv = dev->private;
+
+	/* context is the number of channels, which should be in range 1 to 4 */
+	if (context < 1 || context > 4) {
+		printk("jr3_pci: BUG! Bad auto-attach context %lu\n", context);
+		return -EINVAL;
+	}
+	devpriv->n_channels = (int)context;
+
+	/* pci_dev_get() matches call to pci_dev_put() in jr3_pci_detach */
+	devpriv->pci_dev = pci_dev_get(card);
+
+	return jr3_pci_attach_common(dev);
 }
 
 static int jr3_pci_detach(comedi_device * dev)
