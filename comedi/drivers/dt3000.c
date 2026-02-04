@@ -806,6 +806,7 @@ static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int dt_pci_probe(comedi_device * dev, int bus, int slot);
+static int setup_pci(comedi_device * dev);
 
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -829,6 +830,10 @@ static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 		printk(KERN_CONT " no DT board found\n");
 		return -ENODEV;
 	}
+
+	ret = setup_pci(dev);
+	if (ret < 0)
+		return ret;
 
 	dev->board_name = this_board->name;
 
@@ -923,12 +928,10 @@ static int dt3000_detach(comedi_device * dev)
 }
 
 static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board);
-static int setup_pci(comedi_device * dev);
 
 static int dt_pci_probe(comedi_device * dev, int bus, int slot)
 {
 	int board;
-	int ret;
 	struct pci_dev *pcidev;
 
 	pcidev = NULL;
@@ -946,9 +949,6 @@ static int dt_pci_probe(comedi_device * dev, int bus, int slot)
 
 	if (!devpriv->pci_dev)
 		return 0;
-
-	if ((ret = setup_pci(dev)) < 0)
-		return ret;
 
 	return 1;
 }
