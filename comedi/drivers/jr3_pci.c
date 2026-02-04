@@ -721,6 +721,19 @@ static void jr3_pci_poll_dev(struct timer_list *t)
 	add_timer(&devpriv->timer);
 }
 
+static int jr3_pci_alloc_private(comedi_device * dev)
+{
+	jr3_pci_dev_private *devpriv;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(jr3_pci_dev_private));
+	if (!devpriv) {
+		return -ENOMEM;
+	}
+	devpriv->dev = dev;
+	timer_setup(&devpriv->timer, jr3_pci_poll_dev, 0);
+	return 0;
+}
+
 static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int result = 0;
@@ -739,14 +752,12 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EINVAL;
 	}
 
-	result = alloc_private(dev, sizeof(jr3_pci_dev_private));
+	result = jr3_pci_alloc_private(dev);
 	if (result < 0) {
-		return -ENOMEM;
+		return result;
 	}
 	card = NULL;
 	devpriv = dev->private;
-	devpriv->dev = dev;
-	timer_setup(&devpriv->timer, jr3_pci_poll_dev, 0);
 	while (1) {
 		card = pci_get_device(PCI_VENDOR_ID_JR3, PCI_ANY_ID, card);
 		if (card == NULL) {
