@@ -342,18 +342,18 @@ static inline unsigned char me4000_inb(comedi_device * dev, unsigned long port)
 static const comedi_lrange me4000_ai_range = {
 	4,
 	{
-			UNI_RANGE(2.5),
-			UNI_RANGE(10),
-			BIP_RANGE(2.5),
-			BIP_RANGE(10),
-		}
+		UNI_RANGE(2.5),
+		UNI_RANGE(10),
+		BIP_RANGE(2.5),
+		BIP_RANGE(10),
+	},
 };
 
 static const comedi_lrange me4000_ao_range = {
 	1,
 	{
-			BIP_RANGE(10),
-		}
+		BIP_RANGE(10),
+	},
 };
 
 static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
