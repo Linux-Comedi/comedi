@@ -25,8 +25,8 @@ Driver: me4000
 Description: Meilhaus ME-4000 series boards
 Devices: [Meilhaus] ME-4650 (me4000), ME-4670i, ME-4680, ME-4680i, ME-4680is
 Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
-Updated: Mon, 18 Mar 2002 15:34:01 -0800
-Status: broken (no support for loading firmware)
+Updated: Thu, 05 Feb 2026 14:33:16 +0000
+Status: experimental
 
 Supports:
 
@@ -45,11 +45,11 @@ Configuration Options:
 
 The firmware required by these boards is available in the
 comedi_nonfree_firmware tarball available from
-http://www.comedi.org.  However, the driver's support for
-loading the firmware through comedi_config is currently
-broken.
+<http://www.comedi.org>.  The firmware file is called
+"me4000_firmware.bin" and should be placed in the /lib/firmware/
+directory.
 
- */
+*/
 
 #include <linux/comedidev.h>
 
@@ -59,10 +59,8 @@ broken.
 
 #include "comedi_pci.h"
 #include "me4000.h"
-#if 0
-/* file removed due to GPL incompatibility */
-#include "me4000_fw.h"
-#endif
+
+#define ME4000_FIRMWARE		"me4000_firmware.bin"
 
 /*=============================================================================
   PCI device table.
@@ -137,7 +135,8 @@ static int init_ao_context(comedi_device * dev);
 static int init_ai_context(comedi_device * dev);
 static int init_dio_context(comedi_device * dev);
 static int init_cnt_context(comedi_device * dev);
-static int xilinx_download(comedi_device * dev);
+static int xilinx_download(comedi_device *dev, const u8 *xilinx_firm,
+	size_t xilinx_size, unsigned long context);
 static int reset_board(comedi_device * dev);
 
 static int me4000_dio_insn_bits(comedi_device * dev,
@@ -491,8 +490,9 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 		return result;
 	}
 
-	/* Download the xilinx firmware */
-	result = xilinx_download(dev);
+	/* Request and download the xilinx firmware */
+	result = comedi_load_firmware(dev, &pci_device->dev, ME4000_FIRMWARE,
+				      xilinx_download, 0);
 	if (result) {
 		printk(KERN_ERR
 			"comedi%d: me4000: me4000_probe(): Can't download firmware\n",
@@ -750,21 +750,27 @@ static int init_cnt_context(comedi_device * dev)
 	return 0;
 }
 
-#define FIRMWARE_NOT_AVAILABLE 1
-#if FIRMWARE_NOT_AVAILABLE
-extern unsigned char *xilinx_firm;
-#endif
-
-static int xilinx_download(comedi_device * dev)
+static int xilinx_download(comedi_device *dev, const u8 *xilinx_firm,
+	size_t xilinx_size, unsigned long context)
 {
 	u32 value = 0;
-	wait_queue_head_t queue;
 	int idx = 0;
-	int size = 0;
+	unsigned int size = 0;
 
 	CALL_PDEBUG("In xilinx_download()\n");
 
-	init_waitqueue_head(&queue);
+	if (xilinx_size >= 4) {
+		size = ((unsigned int)xilinx_firm[0] << 24) +
+		       ((unsigned int)xilinx_firm[1] << 16) +
+		       ((unsigned int)xilinx_firm[2] << 8) +
+		       (unsigned int)xilinx_firm[3];
+	}
+	if (xilinx_size < 16 || size > xilinx_size - 16) {
+		printk(KERN_ERR
+			"comedi%d: me4000: xilinx_download(): Firmware length inconsistency\n",
+			dev->minor);
+		return -EINVAL;
+	}
 
 	/*
 	 * Set PLX local interrupt 2 polarity to high.
@@ -793,27 +799,20 @@ static int xilinx_download(comedi_device * dev)
 	value = inl(info->plx_regbase + PLX_ICR);
 	value &= ~0x100;
 	outl(value, info->plx_regbase + PLX_ICR);
-	if (FIRMWARE_NOT_AVAILABLE) {
-		comedi_error(dev,
-			"xilinx firmware unavailable due to licensing, aborting");
-		return -EIO;
-	} else {
-		/* Download Xilinx firmware */
-		size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) +
-			(xilinx_firm[2] << 8) + xilinx_firm[3];
+
+	/* Download Xilinx firmware */
+	udelay(10);
+
+	for (idx = 0; idx < size; idx++) {
+		outb(xilinx_firm[16 + idx], info->program_regbase);
 		udelay(10);
 
-		for (idx = 0; idx < size; idx++) {
-			outb(xilinx_firm[16 + idx], info->program_regbase);
-			udelay(10);
-
-			/* Check if BUSY flag is low */
-			if (inl(info->plx_regbase + PLX_ICR) & 0x20) {
-				printk(KERN_ERR
-					"comedi%d: me4000: xilinx_download(): Xilinx is still busy (idx = %d)\n",
-					dev->minor, idx);
-				return -EIO;
-			}
+		/* Check if BUSY flag is low */
+		if (inl(info->plx_regbase + PLX_ICR) & 0x20) {
+			printk(KERN_ERR
+				"comedi%d: me4000: xilinx_download(): Xilinx is still busy (idx = %d)\n",
+				dev->minor, idx);
+			return -EIO;
 		}
 	}
 
