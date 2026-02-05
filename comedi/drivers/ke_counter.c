@@ -49,11 +49,18 @@ Kolter Electronic PCI Counter Card.
 /*-- function prototypes ----------------------------------------------------*/
 
 static int cnt_attach(comedi_device * dev, comedi_devconfig * it);
+static int cnt_auto_attach(comedi_device * dev, unsigned long context);
 static int cnt_detach(comedi_device * dev);
 
+enum {
+	pci_counter_timer_board,
+};
+
 static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
-	{PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
+	{
+		PCI_VDEVICE(KOLTER,CNT_CARD_DEVICE_ID),
+		.driver_data = pci_counter_timer_board,
+	},
 	{0}
 };
 
@@ -68,8 +75,9 @@ typedef struct {
 	int cnt_bits;
 } cnt_board_struct;
 
+
 static const cnt_board_struct cnt_boards[] = {
-	{
+	[pci_counter_timer_board] = {
 		.name			= CNT_DRIVER_NAME,
 		.device_id		= CNT_CARD_DEVICE_ID,
 		.cnt_channel_nbr	= 3,
@@ -77,7 +85,7 @@ static const cnt_board_struct cnt_boards[] = {
 	},
 };
 
-#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(cnt_board_struct))
+#define cnt_board_nbr ARRAY_SIZE(cnt_boards)
 
 /*-- device private structure -----------------------------------------------*/
 
@@ -91,6 +99,7 @@ static comedi_driver cnt_driver = {
 	.driver_name	= CNT_DRIVER_NAME,
 	.module		= THIS_MODULE,
 	.attach		= cnt_attach,
+	.auto_attach	= cnt_auto_attach,
 	.detach		= cnt_detach,
 };
 
@@ -149,14 +158,61 @@ static int cnt_rinsn(comedi_device * dev,
 	return 1;
 }
 
+/*-- common part of attach and auto_attach ----------------------------------*/
+
+static int cnt_attach_common(comedi_device * dev)
+{
+	comedi_subdevice *subdevice;
+	struct pci_dev *pci_device = devpriv->pcidev;
+	const cnt_board_struct *board = dev->board_ptr;
+	unsigned long io_base;
+	int error;
+
+	dev->board_name = board->name;
+
+	/* enable PCI device and request regions */
+	if ((error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME)) < 0) {
+		printk("comedi%d: failed to enable PCI device and request regions!\n", dev->minor);
+		return error;
+	}
+
+	/* read register base address [PCI_BASE_ADDRESS #0] */
+	io_base = pci_resource_start(pci_device, 0);
+	dev->iobase = io_base;
+
+	/* allocate the subdevice structures */
+	if ((error = alloc_subdevices(dev, 1)) < 0) {
+		return error;
+	}
+
+	subdevice = dev->subdevices + 0;
+	dev->read_subdev = subdevice;
+
+	subdevice->type = COMEDI_SUBD_COUNTER;
+	subdevice->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
+	subdevice->n_chan = board->cnt_channel_nbr;
+	subdevice->maxdata = (1 << board->cnt_bits) - 1;
+	subdevice->insn_read = cnt_rinsn;
+	subdevice->insn_write = cnt_winsn;
+
+	// select 20MHz clock
+	outb(3, dev->iobase + 248);
+
+	// reset all counters
+	outb(0, dev->iobase);
+	outb(0, dev->iobase + 0x20);
+	outb(0, dev->iobase + 0x40);
+
+	printk("comedi%d: " CNT_DRIVER_NAME " attached.\n", dev->minor);
+	return 0;
+}
+
 /*-- attach -----------------------------------------------------------------*/
 
 static int cnt_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	comedi_subdevice *subdevice;
 	struct pci_dev *pci_device;
-	cnt_board_struct *board;
-	unsigned long io_base;
+	const cnt_board_struct *board;
 	int error, i;
 
 	/* allocate device private structure */
@@ -198,48 +254,44 @@ static int cnt_attach(comedi_device * dev, comedi_devconfig * it)
 		dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
-      found:
+found:
 	printk("comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
 		board->name, pci_device->bus->number,
 		PCI_SLOT(pci_device->devfn));
 	devpriv->pcidev = pci_device;
-	dev->board_name = board->name;
 
-	/* enable PCI device and request regions */
-	if ((error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME)) < 0) {
-		printk("comedi%d: failed to enable PCI device and request regions!\n", dev->minor);
+	return cnt_attach_common(dev);
+}
+
+/*-- auto_attach ------------------------------------------------------------*/
+
+static int cnt_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pci_device = comedi_to_pci_dev(dev);
+	const cnt_board_struct *board;
+	int error;
+
+	/* allocate device private structure */
+	if ((error = alloc_private(dev, sizeof(cnt_device_private))) < 0) {
 		return error;
 	}
 
-	/* read register base address [PCI_BASE_ADDRESS #0] */
-	io_base = pci_resource_start(pci_device, 0);
-	dev->iobase = io_base;
-
-	/* allocate the subdevice structures */
-	if ((error = alloc_subdevices(dev, 1)) < 0) {
-		return error;
+	/* context_model is the index into cnt_boards[] */
+	if (context_model >= cnt_board_nbr) {
+		printk("comedi%d: " CNT_DRIVER_NAME
+			": BUG! bad auto-attach context %lu\n",
+			dev->minor, context_model);
+		return -EINVAL;
 	}
+	dev->board_ptr = cnt_boards + context_model;
+	board = dev->board_ptr;
+	printk("comedi%d: auto-attaching PCI %s as %s\n",
+		dev->minor, pci_name(pci_device), board->name);
 
-	subdevice = dev->subdevices + 0;
-	dev->read_subdev = subdevice;
+	/* pci_dev_get() call matches pci_dev_put() in cnt_detach() */
+	devpriv->pcidev = pci_dev_get(pci_device);
 
-	subdevice->type = COMEDI_SUBD_COUNTER;
-	subdevice->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
-	subdevice->n_chan = board->cnt_channel_nbr;
-	subdevice->maxdata = (1 << board->cnt_bits) - 1;
-	subdevice->insn_read = cnt_rinsn;
-	subdevice->insn_write = cnt_winsn;
-
-	// select 20MHz clock
-	outb(3, dev->iobase + 248);
-
-	// reset all counters
-	outb(0, dev->iobase);
-	outb(0, dev->iobase + 0x20);
-	outb(0, dev->iobase + 0x40);
-
-	printk("comedi%d: " CNT_DRIVER_NAME " attached.\n", dev->minor);
-	return 0;
+	return cnt_attach_common(dev);
 }
 
 /*-- detach -----------------------------------------------------------------*/
