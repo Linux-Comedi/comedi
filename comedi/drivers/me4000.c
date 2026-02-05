@@ -62,28 +62,44 @@ directory.
 
 #define ME4000_FIRMWARE		"me4000_firmware.bin"
 
+enum me4000_model {
+	me_4650_model,
+	me_4660_model,
+	me_4660i_model,
+	me_4660s_model,
+	me_4660is_model,
+	me_4670_model,
+	me_4670i_model,
+	me_4670s_model,
+	me_4670is_model,
+	me_4680_model,
+	me_4680i_model,
+	me_4680s_model,
+	me_4680is_model,
+};
+
 /*=============================================================================
   PCI device table.
   This is used by modprobe to translate PCI IDs to drivers.
   ===========================================================================*/
 
 static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
-	{PCI_VENDOR_ID_MEILHAUS, 0x4650, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(MEILHAUS, 0x4650), .driver_data = me_4650_model,   },
 
-	{PCI_VENDOR_ID_MEILHAUS, 0x4660, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4661, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4662, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4663, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(MEILHAUS, 0x4660), .driver_data = me_4660_model,   },
+	{ PCI_VDEVICE(MEILHAUS, 0x4661), .driver_data = me_4660i_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4662), .driver_data = me_4660s_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4663), .driver_data = me_4660is_model, },
 
-	{PCI_VENDOR_ID_MEILHAUS, 0x4670, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4671, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4672, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4673, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(MEILHAUS, 0x4670), .driver_data = me_4670_model,   },
+	{ PCI_VDEVICE(MEILHAUS, 0x4671), .driver_data = me_4670i_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4672), .driver_data = me_4670s_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4673), .driver_data = me_4670is_model, },
 
-	{PCI_VENDOR_ID_MEILHAUS, 0x4680, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4681, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4682, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_MEILHAUS, 0x4683, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(MEILHAUS, 0x4680), .driver_data = me_4680_model,   },
+	{ PCI_VDEVICE(MEILHAUS, 0x4681), .driver_data = me_4680i_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4682), .driver_data = me_4680s_model,  },
+	{ PCI_VDEVICE(MEILHAUS, 0x4683), .driver_data = me_4680is_model, },
 
 	{0}
 };
@@ -91,13 +107,13 @@ static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
 MODULE_DEVICE_TABLE(pci, me4000_pci_table);
 
 static const me4000_board_t me4000_boards[] = {
-	{
+	[me_4650_model] = {
 		.name			= "ME-4650",
 		.device_id		= 0x4650,
 		.ai.count		= 16,
 		.dio.count		= 4,
 	},
-	{
+	[me_4660_model] = {
 		.name			= "ME-4660",
 		.device_id		= 0x4660,
 		.ai.count		= 32,
@@ -105,7 +121,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4660i_model] = {
 		.name			= "ME-4660i",
 		.device_id		= 0x4661,
 		.ai.count		= 32,
@@ -113,7 +129,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4660s_model] = {
 		.name			= "ME-4660s",
 		.device_id		= 0x4662,
 		.ai.count		= 32,
@@ -122,7 +138,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4660is_model] = {
 		.name			= "ME-4660is",
 		.device_id		= 0x4663,
 		.ai.count		= 32,
@@ -131,7 +147,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4670_model] = {
 		.name			= "ME-4670",
 		.device_id		= 0x4670,
 		.ao.count		= 4,
@@ -141,7 +157,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4670i_model] = {
 		.name			= "ME-4670i",
 		.device_id		= 0x4671,
 		.ao.count		= 4,
@@ -151,7 +167,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4670s_model] = {
 		.name			= "ME-4670s",
 		.device_id		= 0x4672,
 		.ao.count		= 4,
@@ -162,7 +178,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4670is_model] = {
 		.name			= "ME-4670is",
 		.device_id		= 0x4673,
 		.ao.count		= 4,
@@ -173,7 +189,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4680_model] = {
 		.name			= "ME-4680",
 		.device_id		= 0x4680,
 		.ao.count		= 4,
@@ -184,7 +200,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4680i_model] = {
 		.name			= "ME-4680i",
 		.device_id		= 0x4681,
 		.ao.count		= 4,
@@ -195,7 +211,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4680s_model] = {
 		.name			= "ME-4680s",
 		.device_id		= 0x4682,
 		.ao.count		= 4,
@@ -207,7 +223,7 @@ static const me4000_board_t me4000_boards[] = {
 		.dio.count		= 4,
 		.cnt.count		= 3,
 	},
-	{
+	[me_4680is_model] = {
 		.name			= "ME-4680is",
 		.device_id		= 0x4683,
 		.ao.count		= 4,
@@ -227,11 +243,13 @@ static const me4000_board_t me4000_boards[] = {
   Comedi function prototypes
   ---------------------------------------------------------------------------*/
 static int me4000_attach(comedi_device * dev, comedi_devconfig * it);
+static int me4000_auto_attach(comedi_device * dev, unsigned long context);
 static int me4000_detach(comedi_device * dev);
 static comedi_driver driver_me4000 = {
 	.driver_name	= "me4000",
 	.module		= THIS_MODULE,
 	.attach		= me4000_attach,
+	.auto_attach	= me4000_auto_attach,
 	.detach		= me4000_detach,
 };
 
@@ -357,21 +375,12 @@ static const comedi_lrange me4000_ao_range = {
 	},
 };
 
-static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
+static int me4000_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int result;
 
-	CALL_PDEBUG("In me4000_attach()\n");
-
-	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
-		return -ENOMEM;
-	}
-
-	result = me4000_find(dev, it->options[0], it->options[1]);
-	if (result)
-		return result;
+	CALL_PDEBUG("In me4000_attach_common()\n");
 
 	result = me4000_init(dev);
 	if (result)
@@ -486,6 +495,53 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	return 0;
+}
+
+static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int result;
+
+	CALL_PDEBUG("In me4000_attach()\n");
+
+	/* Allocate private memory */
+	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
+		return -ENOMEM;
+	}
+
+	result = me4000_find(dev, it->options[0], it->options[1]);
+	if (result)
+		return result;
+
+	return me4000_attach_common(dev);
+}
+
+static int me4000_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pci_device = comedi_to_pci_dev(dev);
+
+	CALL_PDEBUG("In me4000_auto_attach()\n");
+
+	/* Allocate private memory */
+	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
+		return -ENOMEM;
+	}
+
+	/* context_model is the index into me4000_boards[] */
+	if (context_model >= ME4000_BOARD_VERSIONS) {
+		printk(KERN_ERR
+			"comedi%d: me4000: BUG! bad auto-attach context %lu\n",
+			dev->minor, context_model);
+	}
+	dev->board_ptr = me4000_boards + context_model;
+
+	printk(KERN_INFO
+		"comedi%d: me4000: auto-attaching PCI %s as %s\n",
+		dev->minor, pci_name(pci_device), thisboard->name);
+
+	/* pci_dev_get() call matches pci_dev_put() in * me4000_detach */
+	info->pci_dev_p = pci_dev_get(pci_device);
+
+	return me4000_attach_common(dev);
 }
 
 static int me4000_find(comedi_device * dev, int bus, int slot)
