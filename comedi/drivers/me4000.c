@@ -238,7 +238,8 @@ static comedi_driver driver_me4000 = {
 /*-----------------------------------------------------------------------------
   Meilhaus function prototypes
   ---------------------------------------------------------------------------*/
-static int me4000_probe(comedi_device * dev, comedi_devconfig * it);
+static int me4000_find(comedi_device * dev, int bus, int slot);
+static int me4000_init(comedi_device * dev);
 static int get_registers(comedi_device * dev, struct pci_dev *pci_dev_p);
 static int init_board_info(comedi_device * dev, struct pci_dev *pci_dev_p);
 static int init_ao_context(comedi_device * dev);
@@ -363,7 +364,16 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 
 	CALL_PDEBUG("In me4000_attach()\n");
 
-	result = me4000_probe(dev, it);
+	/* Allocate private memory */
+	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
+		return -ENOMEM;
+	}
+
+	result = me4000_find(dev, it->options[0], it->options[1]);
+	if (result)
+		return result;
+
+	result = me4000_init(dev);
 	if (result)
 		return result;
 
@@ -478,18 +488,13 @@ static int me4000_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
+static int me4000_find(comedi_device * dev, int bus, int slot)
 {
 	struct pci_dev *pci_device;
-	int result, i;
-	me4000_board_t *board;
+	int i;
 
-	CALL_PDEBUG("In me4000_probe()\n");
+	CALL_PDEBUG("In me4000_find()\n");
 
-	/* Allocate private memory */
-	if (alloc_private(dev, sizeof(me4000_info_t)) < 0) {
-		return -ENOMEM;
-	}
 	/*
 	 * Probe the device to determine what device in the series it is.
 	 */
@@ -498,25 +503,17 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 		pci_device =
 		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
+			/* Was a particular bus/slot requested? */
+			if ((bus || slot) &&
+			    (bus != pci_device->bus->number ||
+			     slot != PCI_SLOT(pci_device->devfn))) {
+				/* On the wrong bus/slot. */
+				continue;
+			}
 			for (i = 0; i < ME4000_BOARD_VERSIONS; i++) {
 				if (me4000_boards[i].device_id ==
 					pci_device->device) {
-					/* Was a particular bus/slot requested? */
-					if ((it->options[0] != 0)
-						|| (it->options[1] != 0)) {
-						/* Are we on the wrong bus/slot? */
-						if (pci_device->bus->number !=
-							it->options[0]
-							|| PCI_SLOT(pci_device->
-								devfn) !=
-							it->options[1]) {
-							continue;
-						}
-					}
 					dev->board_ptr = me4000_boards + i;
-					board = (me4000_board_t *) dev->
-						board_ptr;
-					info->pci_dev_p = pci_device;
 					goto found;
 				}
 			}
@@ -524,25 +521,36 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	printk(KERN_ERR
-		"comedi%d: me4000: me4000_probe(): No supported board found (req. bus/slot : %d/%d)\n",
-		dev->minor, it->options[0], it->options[1]);
+		"comedi%d: me4000: me4000_find(): No supported board found (req. bus/slot : %d/%d)\n",
+		dev->minor, bus, slot);
 	return -ENODEV;
 
-      found:
+found:
 
+	info->pci_dev_p = pci_device;
+	bus = pci_device->bus->number;
+	slot = PCI_SLOT(pci_device->devfn);
 	printk(KERN_INFO
-		"comedi%d: me4000: me4000_probe(): Found %s at PCI bus %d, slot %d\n",
-		dev->minor, me4000_boards[i].name, pci_device->bus->number,
-		PCI_SLOT(pci_device->devfn));
+		"comedi%d: me4000: me4000_find(): Found %s at PCI bus %d, slot %d\n",
+		dev->minor, thisboard->name, bus, slot);
+	return 0;
+}
+
+static int me4000_init(comedi_device * dev)
+{
+	struct pci_dev *pci_device = info->pci_dev_p;
+	int result;
+
+	CALL_PDEBUG("In me4000_init()\n");
 
 	/* Set data in device structure */
-	dev->board_name = board->name;
+	dev->board_name = thisboard->name;
 
 	/* Enable PCI device and request regions */
 	result = comedi_pci_enable(pci_device, dev->board_name);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot enable PCI device and request I/O regions\n",
+			"comedi%d: me4000: me4000_init(): Cannot enable PCI device and request I/O regions\n",
 			dev->minor);
 		return result;
 	}
@@ -551,7 +559,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = get_registers(dev, pci_device);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot get registers\n",
+			"comedi%d: me4000: me4000_init(): Cannot get registers\n",
 			dev->minor);
 		return result;
 	}
@@ -559,7 +567,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = init_board_info(dev, pci_device);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot init baord info\n",
+			"comedi%d: me4000: me4000_init(): Cannot init board info\n",
 			dev->minor);
 		return result;
 	}
@@ -568,7 +576,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = init_ao_context(dev);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot init ao context\n",
+			"comedi%d: me4000: me4000_init(): Cannot init ao context\n",
 			dev->minor);
 		return result;
 	}
@@ -577,7 +585,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = init_ai_context(dev);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot init ai context\n",
+			"comedi%d: me4000: me4000_init(): Cannot init ai context\n",
 			dev->minor);
 		return result;
 	}
@@ -586,7 +594,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = init_dio_context(dev);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot init dio context\n",
+			"comedi%d: me4000: me4000_init(): Cannot init dio context\n",
 			dev->minor);
 		return result;
 	}
@@ -595,7 +603,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = init_cnt_context(dev);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Cannot init cnt context\n",
+			"comedi%d: me4000: me4000_init(): Cannot init cnt context\n",
 			dev->minor);
 		return result;
 	}
@@ -605,7 +613,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 				      xilinx_download, 0);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Can't download firmware\n",
+			"comedi%d: me4000: me4000_init(): Can't download firmware\n",
 			dev->minor);
 		return result;
 	}
@@ -614,7 +622,7 @@ static int me4000_probe(comedi_device * dev, comedi_devconfig * it)
 	result = reset_board(dev);
 	if (result) {
 		printk(KERN_ERR
-			"comedi%d: me4000: me4000_probe(): Can't reset board\n",
+			"comedi%d: me4000: me4000_init(): Can't reset board\n",
 			dev->minor);
 		return result;
 	}
