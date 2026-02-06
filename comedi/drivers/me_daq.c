@@ -153,6 +153,7 @@ directory.
 //
 
 static int me_attach(comedi_device * dev, comedi_devconfig * it);
+static int me_auto_attach(comedi_device * dev, unsigned long context);
 static int me_detach(comedi_device * dev);
 
 static const comedi_lrange me2000_ai_range = {
@@ -192,11 +193,20 @@ static const comedi_lrange me2600_ao_range = {
 	},
 };
 
+enum me_daq_model {
+	me_2600i_model,
+	me_2000i_model,
+};
+
 static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
-	{PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
-	{PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
+	{
+		PCI_VDEVICE(MEILHAUS, ME2600_DEVICE_ID),
+		.driver_data = me_2600i_model,
+	},
+	{
+		PCI_VDEVICE(MEILHAUS, ME2000_DEVICE_ID),
+		.driver_data = me_2000i_model,
+	},
 	{0}
 };
 
@@ -221,7 +231,7 @@ typedef struct {
 } me_board_struct;
 
 static const me_board_struct me_boards[] = {
-	{	// -- ME-2600i --
+	[me_2600i_model] = {	// -- ME-2600i --
 		.name			= "me-2600i",
 		.device_id		= ME2600_DEVICE_ID,
 		.ao_channel_nbr		= 4,
@@ -234,7 +244,7 @@ static const me_board_struct me_boards[] = {
 		.ai_range_list		= &me2600_ai_range,
 		.dio_channel_nbr	= 32,
 	},
-	{	// -- ME-2000i --
+	[me_2000i_model] = {	// -- ME-2000i --
 		.name			= "me-2000i",
 		.device_id		= ME2000_DEVICE_ID,
 		.ai_channel_nbr		= 16,
@@ -245,12 +255,13 @@ static const me_board_struct me_boards[] = {
 	},
 };
 
-#define me_board_nbr (sizeof(me_boards)/sizeof(me_board_struct))
+#define me_board_nbr ARRAY_SIZE(me_boards)
 
 static comedi_driver me_driver = {
 	.driver_name	= ME_DRIVER_NAME,
 	.module		= THIS_MODULE,
 	.attach		= me_attach,
+	.auto_attach	= me_auto_attach,
 	.detach		= me_detach,
 };
 
@@ -634,17 +645,14 @@ static int me_reset(comedi_device * dev)
 }
 
 //
-// Attach
-//
-//  - Register PCI device
-//  - Declare device driver capability
+// Common part of Attach and Auto-attach
 //
 
-static int me_attach(comedi_device * dev, comedi_devconfig * it)
+static int me_attach_common(comedi_device * dev)
 {
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = dev_private->pci_device;
 	comedi_subdevice *subdevice;
-	me_board_struct *board;
+	const me_board_struct *board = dev->board_ptr;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
 	resource_size_t me_regbase_tmp;
@@ -652,55 +660,7 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 	resource_size_t swap_regbase_tmp;
 	unsigned long swap_regbase_size_tmp;
 	resource_size_t regbase_tmp;
-	int result, i;
-
-	// Allocate private memory
-	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0) {
-		return -ENOMEM;
-	}
-//
-// Probe the device to determine what device in the series it is.
-//
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_device != NULL;
-		pci_device =
-		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
-		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
-			for (i = 0; i < me_board_nbr; i++) {
-				if (me_boards[i].device_id ==
-					pci_device->device) {
-					// was a particular bus/slot requested?
-					if ((it->options[0] != 0)
-						|| (it->options[1] != 0)) {
-						// are we on the wrong bus/slot?
-						if (pci_device->bus->number !=
-							it->options[0]
-							|| PCI_SLOT(pci_device->
-								devfn) !=
-							it->options[1]) {
-							continue;
-						}
-					}
-
-					dev->board_ptr = me_boards + i;
-					board = (me_board_struct *) dev->
-						board_ptr;
-					dev_private->pci_device = pci_device;
-					goto found;
-				}
-			}
-		}
-	}
-
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, it->options[0], it->options[1]);
-	return -EIO;
-
-      found:
-
-	printk("comedi%d: found %s at PCI bus %d, slot %d\n",
-		dev->minor, me_boards[i].name,
-		pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+	int result;
 
 	// Enable PCI device and request PCI regions
 	if (comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0) {
@@ -823,6 +783,101 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: " ME_DRIVER_NAME " attached.\n", dev->minor);
 	return 0;
+}
+
+//
+// Attach
+//
+//  - Register PCI device
+//  - Declare device driver capability
+//
+
+static int me_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pci_device;
+	const me_board_struct *board;
+	int i;
+
+	// Allocate private memory
+	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0) {
+		return -ENOMEM;
+	}
+//
+// Probe the device to determine what device in the series it is.
+//
+	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pci_device != NULL;
+		pci_device =
+		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
+			for (i = 0; i < me_board_nbr; i++) {
+				if (me_boards[i].device_id ==
+					pci_device->device) {
+					// was a particular bus/slot requested?
+					if ((it->options[0] != 0)
+						|| (it->options[1] != 0)) {
+						// are we on the wrong bus/slot?
+						if (pci_device->bus->number !=
+							it->options[0]
+							|| PCI_SLOT(pci_device->
+								devfn) !=
+							it->options[1]) {
+							continue;
+						}
+					}
+
+					dev->board_ptr = me_boards + i;
+					board = dev->board_ptr;
+					dev_private->pci_device = pci_device;
+					goto found;
+				}
+			}
+		}
+	}
+
+	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, it->options[0], it->options[1]);
+	return -EIO;
+
+found:
+
+	printk("comedi%d: found %s at PCI bus %d, slot %d\n",
+		dev->minor, me_boards[i].name,
+		pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+
+	return me_attach_common(dev);
+}
+
+//
+// Auto-Attach
+//
+
+static int me_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pci_device = comedi_to_pci_dev(dev);
+	const me_board_struct *board;
+
+	// Allocate private memory
+	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0) {
+		return -ENOMEM;
+	}
+
+	// context_model is the index into me_boards[] */
+	if (context_model >= me_board_nbr) {
+		printk("comedi%d: " ME_DRIVER_NAME ": BUG! Bad auto-attach context %lu\n",
+			dev->minor, context_model);
+	}
+
+	dev->board_ptr = me_boards + context_model;
+	board = dev->board_ptr;
+
+	/* pci_dev_get() call matches pci_dev_put() in me_detach() */
+	dev_private->pci_device = pci_dev_get(pci_device);
+
+	printk("comedi%d: auto-attaching PCI %s as %s\n", dev->minor,
+		pci_name(pci_device), board->name);
+
+	return me_attach_common(dev);
 }
 
 //
