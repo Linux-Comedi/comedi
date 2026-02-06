@@ -146,7 +146,7 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 	if (alloc_private(dev, sizeof(ni_670x_private)) < 0 ||
 		!(devpriv->mite = mite_alloc())) {
 		printk(KERN_CONT "allocation failure\n");
-		return ret;
+		return -ENOMEM;
 	}
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
