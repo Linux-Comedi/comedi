@@ -24,8 +24,8 @@
 Driver: ni_670x
 Description: National Instruments 670x
 Author: Bart Joris <bjoris@advalvas.be>
-Updated: Wed, 11 Dec 2002 18:25:35 -0800
-Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
+Updated: Fri, 06 Feb 2026 15:11:06 +0000
+Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704, PXI-6704
 Status: unknown
 
 Commands are not supported.
