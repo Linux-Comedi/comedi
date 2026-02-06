@@ -493,6 +493,7 @@ static int ni6527_auto_attach(comedi_device *dev, unsigned long context_model)
 	/* pci_dev_get() call matches pci_dev_put() in ni6527_detach() */
 	devpriv->mite->pcidev = pci_dev_get(pcidev);
 
+	printk(KERN_CONT "\n");
 	return ni6527_attach_common(dev);
 }
 
