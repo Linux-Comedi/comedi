@@ -77,11 +77,13 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
 
 static int ni6527_attach(comedi_device * dev, comedi_devconfig * it);
+static int ni6527_auto_attach(comedi_device * dev, unsigned long context);
 static int ni6527_detach(comedi_device * dev);
 static comedi_driver driver_ni6527 = {
 	.driver_name	= "ni6527",
 	.module		= THIS_MODULE,
 	.attach		= ni6527_attach,
+	.auto_attach	= ni6527_auto_attach,
 	.detach		= ni6527_detach,
 };
 
@@ -90,12 +92,17 @@ typedef struct {
 	const char *name;
 } ni6527_board;
 
+enum ni6527_model {
+	pci_6527_model,
+	pxi_6527_model,
+};
+
 static const ni6527_board ni6527_boards[] = {
-	{
+	[pci_6527_model] = {
 		.dev_id	= 0x2b20,
 		.name	= "pci-6527",
 	},
-	{
+	[pxi_6527_model] = {
 		.dev_id	= 0x2b10,
 		.name	= "pxi-6527",
 	},
@@ -105,8 +112,8 @@ static const ni6527_board ni6527_boards[] = {
 #define this_board ((const ni6527_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x2b10, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x2b20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(NATINST, 0x2b10), .driver_data = pxi_6527_model, },
+	{ PCI_VDEVICE(NATINST, 0x2b20), .driver_data = pci_6527_model, },
 	{0}
 };
 
@@ -363,24 +370,11 @@ static int ni6527_intr_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
+static int ni6527_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int ret;
 
-	printk("comedi%d: ni6527:", dev->minor);
-
-	if (alloc_private(dev, sizeof(ni6527_private)) < 0 ||
-		!(devpriv->mite = mite_alloc())) {
-		printk(KERN_CONT " allocation failure\n");
-		return -ENOMEM;
-	}
-
-	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
-
-	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -445,6 +439,61 @@ static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "\n");
 
 	return 0;
+}
+
+static int ni6527_alloc_private(comedi_device *dev)
+{
+	if (!comedi_alloc_devpriv(dev, sizeof(ni6527_private)) ||
+	    !(devpriv->mite = mite_alloc())) {
+		printk(KERN_CONT " allocation failure\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int ni6527_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+
+	printk("comedi%d: ni6527:", dev->minor);
+
+	ret = ni6527_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
+	if (ret < 0)
+		return ret;
+
+	printk(KERN_CONT "\n");
+	return ni6527_attach_common(dev);
+}
+
+static int ni6527_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk("comedi%d: ni6527: auto-attach PCI %s:", dev->minor,
+		pci_name(pcidev));
+
+	ret = ni6527_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	/* context_model is the index into ni6527_boards[] */
+	if (context_model >= n_ni6527_boards) {
+		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+
+	dev->board_ptr = ni6527_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in ni6527_detach() */
+	devpriv->mite->pcidev = pci_dev_get(pcidev);
+
+	return ni6527_attach_common(dev);
 }
 
 static int ni6527_detach(comedi_device * dev)
