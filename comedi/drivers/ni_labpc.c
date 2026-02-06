@@ -414,6 +414,7 @@ static const labpc_board labpc_boards[] = {
 	// dummy entry so pci board works when comedi_config is passed driver name
 	{
 		.name			= DRV_NAME,
+		.device_id		= 0xffff,	/* invalid PCI ID */
 		.bustype		= pci_bustype,
 	},
 #endif
@@ -702,6 +703,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 static int labpc_find_device(comedi_device *dev, int bus, int slot)
 {
 	struct pci_dev *pcidev = NULL;
+	const labpc_board *found_board = NULL;
 	int ret;
 	int i;
 
@@ -713,15 +715,25 @@ static int labpc_find_device(comedi_device *dev, int bus, int slot)
 				slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
-		for (i = 0; i < driver_labpc.num_names; i++) {
-			if (labpc_boards[i].bustype != pci_bustype)
-				continue;
-			if (pcidev->device == labpc_boards[i].device_id) {
-				break;
+		if (thisboard->device_id == 0xffff) {
+			/* Match any supported model. */
+			for (i = 0; i < driver_labpc.num_names; i++) {
+				if (labpc_boards[i].bustype != pci_bustype)
+					continue;
+				if (pcidev->device ==
+				    labpc_boards[i].device_id) {
+					break;
+				}
 			}
+			if (i == driver_labpc.num_names)
+				continue;
+			found_board = &labpc_boards[i];
+		} else {
+			/* Match specific model. */
+			if (pcidev->device != thisboard->device_id)
+				continue;
+			found_board = thisboard;
 		}
-		if (i == driver_labpc.num_names)
-			continue;
 		/* Temporarily enable PCI device to check if in use. */
 		ret = comedi_pci_enable(pcidev, DRV_NAME);
 		if (ret) {
@@ -731,7 +743,7 @@ static int labpc_find_device(comedi_device *dev, int bus, int slot)
 		/* Undo temporary enable of PCI device. */
 		comedi_pci_disable(pcidev);
 		// fixup board pointer, in case we were using the dummy "ni_labpc" entry
-		dev->board_ptr = &labpc_boards[i];
+		dev->board_ptr = found_board;
 		devpriv->mite->pcidev = pcidev;
 		return 0;
 	}
