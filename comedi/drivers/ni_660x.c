@@ -384,38 +384,48 @@ typedef struct {
 	unsigned n_chips;	/* total number of TIO chips */
 } ni_660x_board;
 
+enum ni_660x_model {
+	pci_6601_model,
+	pci_6602_model,
+	pxi_6602_model,
+	pci_6608_model,
+	pxi_6608_model,
+	pci_6624_model,
+	pxi_6624_model,
+};
+
 static const ni_660x_board ni_660x_boards[] = {
-	{
+	[pci_6601_model] = {
 		.dev_id		= 0x2c60,
 		.name		= "PCI-6601",
 		.n_chips	= 1,
 	},
-	{
+	[pci_6602_model] = {
 		.dev_id		= 0x1310,
 		.name		= "PCI-6602",
 		.n_chips	= 2,
 	},
-	{
+	[pxi_6602_model] = {
 		.dev_id		= 0x1360,
 		.name		= "PXI-6602",
 		.n_chips	= 2,
 	},
-	{
+	[pci_6608_model] = {
 		.dev_id		= 0x2db0,
 		.name		= "PCI-6608",
 		.n_chips	= 2,
 	},
-	{
+	[pxi_6608_model] = {
 		.dev_id		= 0x2cc0,
 		.name		= "PXI-6608",
 		.n_chips	= 2,
 	},
-	{
+	[pci_6624_model] = {
 		.dev_id		= 0x1e30,
 		.name		= "PCI-6624",
 		.n_chips	= 2,
 	},
-	{
+	[pxi_6624_model] = {
 		.dev_id		= 0x1e40,
 		.name		= "PXI-6624",
 		.n_chips	= 2,
@@ -426,13 +436,13 @@ static const ni_660x_board ni_660x_boards[] = {
 #define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * counters_per_chip)
 
 static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x2db0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x2cc0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1e30, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1e40, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(NATINST, 0x2c60), .driver_data = pci_6601_model, },
+	{ PCI_VDEVICE(NATINST, 0x1310), .driver_data = pci_6602_model, },
+	{ PCI_VDEVICE(NATINST, 0x1360), .driver_data = pxi_6602_model, },
+	{ PCI_VDEVICE(NATINST, 0x2db0), .driver_data = pci_6608_model, },
+	{ PCI_VDEVICE(NATINST, 0x2cc0), .driver_data = pxi_6608_model, },
+	{ PCI_VDEVICE(NATINST, 0x1e30), .driver_data = pci_6624_model, },
+	{ PCI_VDEVICE(NATINST, 0x1e40), .driver_data = pxi_6624_model, },
 	{0}
 };
 
@@ -463,9 +473,10 @@ static inline const ni_660x_board *board(comedi_device * dev)
 	return dev->board_ptr;
 }
 
-#define n_ni_660x_boards (sizeof(ni_660x_boards)/sizeof(ni_660x_boards[0]))
+#define n_ni_660x_boards ARRAY_SIZE(ni_660x_boards)
 
 static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it);
+static int ni_660x_auto_attach(comedi_device * dev, unsigned long context);
 static int ni_660x_detach(comedi_device * dev);
 static void init_tio_chip(comedi_device * dev, int chipset);
 static void ni_660x_select_pfi_output(comedi_device * dev, unsigned pfi_channel,
@@ -475,6 +486,7 @@ static comedi_driver driver_ni_660x = {
 	.driver_name	= "ni_660x",
 	.module		= THIS_MODULE,
 	.attach		= ni_660x_attach,
+	.auto_attach	= ni_660x_auto_attach,
 	.detach		= ni_660x_detach,
 };
 
@@ -1020,23 +1032,12 @@ static void ni_660x_free_mite_rings(comedi_device * dev)
 	}
 }
 
-static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
+static int ni_660x_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int ret;
 	unsigned i;
 	unsigned global_interrupt_config_bits;
-
-	printk("comedi%d: ni_660x: ", dev->minor);
-
-	ret = ni_660x_allocate_private(dev);
-	if (ret < 0) {
-		printk(KERN_CONT "allocation failure\n");
-		return ret;
-	}
-	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
 
 	dev->board_name = board(dev)->name;
 
@@ -1142,6 +1143,52 @@ static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
 		GlobalInterruptConfigRegister);
 	printk(KERN_CONT "attached\n");
 	return 0;
+}
+
+static int ni_660x_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+
+	printk("comedi%d: ni_660x: ", dev->minor);
+
+	ret = ni_660x_allocate_private(dev);
+	if (ret < 0) {
+		printk(KERN_CONT "allocation failure\n");
+		return ret;
+	}
+	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
+	if (ret < 0)
+		return ret;
+
+	return ni_660x_attach_common(dev);
+}
+
+static int ni_660x_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk("comedi%d: ni_660x: auto-attach PCI %s: ", dev->minor,
+		pci_name(pcidev));
+
+	ret = ni_660x_allocate_private(dev);
+	if (ret < 0) {
+		printk(KERN_CONT "allocation failure\n");
+		return ret;
+	}
+
+	/* context_model is the index into ni_660x_boards[] */
+	if (context_model >= n_ni_660x_boards) {
+		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = ni_660x_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in ni_660x_detach() */
+	private(dev)->mite->pcidev = pci_dev_get(pcidev);
+
+	return ni_660x_attach_common(dev);
 }
 
 static int ni_660x_detach(comedi_device * dev)
