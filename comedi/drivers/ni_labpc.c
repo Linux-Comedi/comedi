@@ -190,6 +190,7 @@ static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
 #ifdef COMEDI_CONFIG_PCI
+static int labpc_auto_attach(comedi_device * dev, unsigned long context);
 static int labpc_find_device(comedi_device *dev, int bus, int slot);
 #endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
@@ -360,8 +361,18 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void *)address);
 }
 
+enum labpc_models {
+	lab_pc_1200_model,
+	lab_pc_1200ai_model,
+	lab_pcplus_model,
+#ifdef COMEDI_CONFIG_PCI
+	pci_1200_model,
+	anypci_model,
+#endif
+};
+
 static const labpc_board labpc_boards[] = {
-	{
+	[lab_pc_1200_model] = {
 		.name			= "lab-pc-1200",
 		.ai_speed		= 10000,
 		.bustype		= isa_bustype,
@@ -373,7 +384,7 @@ static const labpc_board labpc_boards[] = {
 		.ai_scan_up		= 1,
 		.memory_mapped_io	= 0,
 	},
-	{
+	[lab_pc_1200ai_model] = {
 		.name			= "lab-pc-1200ai",
 		.ai_speed		= 10000,
 		.bustype		= isa_bustype,
@@ -385,7 +396,7 @@ static const labpc_board labpc_boards[] = {
 		.ai_scan_up		= 1,
 		.memory_mapped_io	= 0,
 	},
-	{
+	[lab_pcplus_model] = {
 		.name			= "lab-pc+",
 		.ai_speed		= 12000,
 		.bustype		= isa_bustype,
@@ -398,7 +409,7 @@ static const labpc_board labpc_boards[] = {
 		.memory_mapped_io	= 0,
 	},
 #ifdef COMEDI_CONFIG_PCI
-	{
+	[pci_1200_model] = {
 		.name			= "pci-1200",
 		.device_id		= 0x161,
 		.ai_speed		= 10000,
@@ -412,7 +423,7 @@ static const labpc_board labpc_boards[] = {
 		.memory_mapped_io	= 1,
 	},
 	// dummy entry so pci board works when comedi_config is passed driver name
-	{
+	[anypci_model] = {
 		.name			= DRV_NAME,
 		.device_id		= 0xffff,	/* invalid PCI ID */
 		.bustype		= pci_bustype,
@@ -434,6 +445,9 @@ static comedi_driver driver_labpc = {
 	.driver_name	= DRV_NAME,
 	.module		= THIS_MODULE,
 	.attach		= labpc_attach,
+#ifdef COMEDI_CONFIG_PCI
+	.auto_attach	= labpc_auto_attach,
+#endif
 	.detach		= labpc_common_detach,
 	.num_names	= ARRAY_SIZE(labpc_boards),
 	.board_name	= &labpc_boards[0].name,
@@ -442,7 +456,7 @@ static comedi_driver driver_labpc = {
 
 #ifdef COMEDI_CONFIG_PCI
 static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(NATINST, 0x161), .driver_data = pci_1200_model, },
 	{0}
 };
 
@@ -697,6 +711,56 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 
 	return labpc_common_attach(dev, iobase, irq, dma_chan);
 }
+
+#ifdef COMEDI_CONFIG_PCI
+static int labpc_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const labpc_board *board = NULL;
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
+	int retval;
+
+	/*
+	 * context_model is an index into labpc_boards[].
+	 * Make sure it indexes a board entry for a legitimate PCI board.
+	 */
+	if (context_model < ARRAY_SIZE(labpc_boards)) {
+		board = labpc_boards + context_model;
+		if (board->bustype != pci_bustype ||
+		    board->device_id == 0xffff ||
+		    board->device_id != pcidev->device) {
+			board = NULL;
+		}
+	}
+	if (!board) {
+		printk("ni_labpc: bug! invalid auto-attach context %lu for PCI %s\n",
+			context_model, pci_name(pcidev));
+		return -EINVAL;
+	}
+	dev->board_ptr = board;
+
+	/* allocate and initialize dev->private */
+	if (alloc_private(dev, sizeof(labpc_private)) < 0)
+		return -ENOMEM;
+
+	devpriv->mite = mite_alloc();
+	if (!devpriv->mite) {
+		return -ENOMEM;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in labpc_common_detach() */
+	devpriv->mite->pcidev = pci_dev_get(pcidev);
+
+	retval = mite_setup(devpriv->mite);
+	if (retval < 0)
+		return retval;
+	iobase = (unsigned long)devpriv->mite->daq_io_addr;
+	irq = mite_irq(devpriv->mite);
+
+	return labpc_common_attach(dev, iobase, irq, 0);
+}
+#endif
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
 #ifdef COMEDI_CONFIG_PCI
