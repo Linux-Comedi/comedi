@@ -652,7 +652,7 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 	resource_size_t swap_regbase_tmp;
 	unsigned long swap_regbase_size_tmp;
 	resource_size_t regbase_tmp;
-	int result, error, i;
+	int result, i;
 
 	// Allocate private memory
 	if (alloc_private(dev, sizeof(me_private_data_struct)) < 0) {
@@ -785,8 +785,8 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 
 	// device driver capabilities
 
-	if ((error = alloc_subdevices(dev, 3)) < 0)
-		return error;
+	if ((result = alloc_subdevices(dev, 3)) < 0)
+		return result;
 
 	subdevice = dev->subdevices + 0;
 	subdevice->type = COMEDI_SUBD_AI;
