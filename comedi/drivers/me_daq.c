@@ -28,6 +28,7 @@ Driver: me_daq
 Description: Meilhaus PCI data acquisition cards
 Author: Michael Hillmann <hillmann@syscongroup.de>
 Devices: [Meilhaus] ME-2600i (me_daq), ME-2000i
+Updated: Fri, 06 Feb 2026 11:24:10 +0000
 Status: experimental
 
 Supports:
@@ -42,11 +43,12 @@ Configuration options:
     If bus/slot is not specified, the first available PCI
     device will be used.
 
-The 2600 requires a firmware upload, which can be accomplished
-using the -i or --init-data option of comedi_config.
-The firmware can be
-found in the comedi_nonfree_firmware tarball available
-from http://www.comedi.org
+The 2600 requires a firmware upload, which will be attempted
+automatically when the device is attached.  The firmware can be
+found in the comedi_nonfree_firmware tarball available from
+<http://www.comedi.org>.  The firmware file is called
+/"me2600_firmware.bin" and should be placed in the /lib/firmware/
+directory.
 
 */
 
@@ -58,6 +60,8 @@ from http://www.comedi.org
 //#include "me2600_fw.h"
 
 #define ME_DRIVER_NAME                 "me_daq"
+
+#define ME2600_FIRMWARE                "me2600_firmware.bin"
 
 #define ME2000_DEVICE_ID               0x2000
 #define ME2600_DEVICE_ID               0x2600
@@ -537,12 +541,32 @@ static int me_ao_insn_read(comedi_device * dev,
 // Xilinx firmware download for card: ME-2600i
 //
 
-static int me2600_xilinx_download(comedi_device * dev, unsigned char
-	*me2600_firmware, unsigned int length)
+static int me2600_xilinx_download(comedi_device *dev, const u8 *me2600_firmware,
+	size_t length, unsigned long context)
 {
 	unsigned int value;
 	unsigned int file_length;
 	unsigned int i;
+
+	/*
+	 * Format of the firmware
+	 * Build longs from the byte-wise coded header
+	 * Byte 0-3:   length of the array
+	 * Byte 4-7:   version
+	 * Byte 8-11:  date
+	 * Byte 12-15: reserved
+	 */
+	if (length >= 4) {
+		file_length =
+			(((unsigned int)me2600_firmware[0] & 0xff) << 24) +
+			(((unsigned int)me2600_firmware[1] & 0xff) << 16) +
+			(((unsigned int)me2600_firmware[2] & 0xff) << 8) +
+			((unsigned int)me2600_firmware[3] & 0xff);
+	}
+	if (length < 16 || file_length > length - 16) {
+		printk("comedi%d: Firmware length inconsistency\n", dev->minor);
+		return -EINVAL;
+	}
 
 	/* disable irq's on PLX */
 	writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
@@ -556,22 +580,6 @@ static int me2600_xilinx_download(comedi_device * dev, unsigned char
 	/* Write a dummy value to Xilinx */
 	writeb(0x00, dev_private->me_regbase + 0x0);
 	ssleep(1);
-
-	/*
-	 * Format of the firmware
-	 * Build longs from the byte-wise coded header
-	 * Byte 1-3:   length of the array
-	 * Byte 4-7:   version
-	 * Byte 8-11:  date
-	 * Byte 12-15: reserved
-	 */
-	if (length < 16)
-		return -EINVAL;
-	file_length =
-		(((unsigned int)me2600_firmware[0] & 0xff) << 24) +
-		(((unsigned int)me2600_firmware[1] & 0xff) << 16) +
-		(((unsigned int)me2600_firmware[2] & 0xff) << 8) +
-		((unsigned int)me2600_firmware[3] & 0xff);
 
 	/*
 	 * Loop for writing firmware byte by byte to xilinx
@@ -763,18 +771,14 @@ static int me_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	// Download firmware and reset card
 	if (board->device_id == ME2600_DEVICE_ID) {
-		unsigned char *aux_data;
-		int aux_len;
 
-		aux_data = comedi_aux_data(it->options, 0);
-		aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
-
-		if (!aux_data || aux_len < 1) {
-			comedi_error(dev,
-				"You must provide me2600 firmware using the --init-data option of comedi_config");
-			return -EINVAL;
+		result = comedi_load_firmware(dev, &pci_device->dev,
+					      ME2600_FIRMWARE,
+					      me2600_xilinx_download, 0);
+		if (result < 0) {
+			comedi_error(dev, "Failed to download firmware\n");
+			return result;
 		}
-		me2600_xilinx_download(dev, aux_data, aux_len);
 	}
 
 	me_reset(dev);
