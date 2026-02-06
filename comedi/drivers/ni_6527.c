@@ -79,28 +79,29 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 static int ni6527_attach(comedi_device * dev, comedi_devconfig * it);
 static int ni6527_detach(comedi_device * dev);
 static comedi_driver driver_ni6527 = {
-      driver_name:"ni6527",
-      module:THIS_MODULE,
-      attach:ni6527_attach,
-      detach:ni6527_detach,
+	.driver_name	= "ni6527",
+	.module		= THIS_MODULE,
+	.attach		= ni6527_attach,
+	.detach		= ni6527_detach,
 };
 
 typedef struct {
 	int dev_id;
 	const char *name;
 } ni6527_board;
+
 static const ni6527_board ni6527_boards[] = {
 	{
-	      dev_id:	0x2b20,
-	      name:	"pci-6527",
-		},
+		.dev_id	= 0x2b20,
+		.name	= "pci-6527",
+	},
 	{
-	      dev_id:	0x2b10,
-	      name:	"pxi-6527",
-		},
+		.dev_id	= 0x2b10,
+		.name	= "pxi-6527",
+	},
 };
 
-#define n_ni6527_boards (sizeof(ni6527_boards)/sizeof(ni6527_boards[0]))
+#define n_ni6527_boards ARRAY_SIZE(ni6527_boards)
 #define this_board ((const ni6527_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
