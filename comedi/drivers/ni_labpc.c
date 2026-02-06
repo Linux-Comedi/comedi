@@ -256,23 +256,23 @@ static const int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] = {
 static const comedi_lrange range_labpc_plus_ai = {
 	NUM_LABPC_PLUS_AI_RANGES,
 	{
-			BIP_RANGE(5),
-			BIP_RANGE(4),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.25),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.05),
-			UNI_RANGE(10),
-			UNI_RANGE(8),
-			UNI_RANGE(5),
-			UNI_RANGE(2),
-			UNI_RANGE(1),
-			UNI_RANGE(0.5),
-			UNI_RANGE(0.2),
-			UNI_RANGE(0.1),
-		}
+		BIP_RANGE(5),
+		BIP_RANGE(4),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(8),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
+	},
 };
 
 #define NUM_LABPC_1200_AI_RANGES 14
@@ -314,21 +314,21 @@ const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
 const comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.25),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.05),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2),
-			UNI_RANGE(1),
-			UNI_RANGE(0.5),
-			UNI_RANGE(0.2),
-			UNI_RANGE(0.1),
-		}
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
+	},
 };
 
 //analog output ranges
@@ -336,9 +336,9 @@ const comedi_lrange range_labpc_1200_ai = {
 static const comedi_lrange range_labpc_ao = {
 	2,
 	{
-			BIP_RANGE(5),
-			UNI_RANGE(10),
-		}
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+	},
 };
 
 /* functions that do inb/outb and readb/writeb so we can use
