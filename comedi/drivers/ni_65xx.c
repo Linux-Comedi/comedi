@@ -103,11 +103,13 @@ static inline unsigned Filter_Enable(unsigned port)
 #define EdgeIntEnable			0x01
 
 static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it);
+static int ni_65xx_auto_attach(comedi_device * dev, unsigned long context);
 static int ni_65xx_detach(comedi_device * dev);
 static comedi_driver driver_ni_65xx = {
 	.driver_name	= "ni_65xx",
 	.module		= THIS_MODULE,
 	.attach		= ni_65xx_attach,
+	.auto_attach	= ni_65xx_auto_attach,
 	.detach		= ni_65xx_detach,
 };
 
@@ -120,135 +122,160 @@ typedef struct {
 	unsigned invert_outputs:1;
 } ni_65xx_board;
 
+enum ni_65xx_model {
+	pci_6509_model,
+	pxi_6509_model,
+	pci_6510_model,
+	pci_6511_model,
+	pxi_6511_model,
+	pci_6512_model,
+	pxi_6512_model,
+	pci_6513_model,
+	pxi_6513_model,
+	pci_6514_model,
+	pxi_6514_model,
+	pci_6515_model,
+	pxi_6515_model,
+	pci_6516_model,
+	pci_6517_model,
+	pci_6518_model,
+	pci_6519_model,
+	pci_6520_model,
+	pci_6521_model,
+	pxi_6521_model,
+	pci_6528_model,
+	pxi_6528_model,
+};
+
 static const ni_65xx_board ni_65xx_boards[] = {
-	{
+	[pci_6509_model] = {
 		.dev_id			= 0x7085,
 		.name			= "pci-6509",
 		.num_dio_ports		= 12,
 		.invert_outputs		= 0,
 	},
-	{
+	[pxi_6509_model] = {
 		.dev_id			= 0x1710,
 		.name			= "pxi-6509",
 		.num_dio_ports		= 12,
 		.invert_outputs		= 0,
 	},
-	{
+	[pci_6510_model] = {
 		.dev_id			= 0x7124,
 		.name			= "pci-6510",
 		.num_di_ports		= 4,
 	},
-	{
+	[pci_6511_model] = {
 		.dev_id			= 0x70c3,
 		.name			= "pci-6511",
 		.num_di_ports		= 8,
 	},
-	{
+	[pxi_6511_model] = {
 		.dev_id			= 0x70d3,
 		.name			= "pxi-6511",
 		.num_di_ports		= 8,
 	},
-	{
+	[pci_6512_model] = {
 		.dev_id			= 0x70cc,
 		.name			= "pci-6512",
 		.num_do_ports		= 8,
 	},
-	{
+	[pxi_6512_model] = {
 		.dev_id			= 0x70d2,
 		.name			= "pxi-6512",
 		.num_do_ports		= 8,
 	},
-	{
+	[pci_6513_model] = {
 		.dev_id			= 0x70c8,
 		.name			= "pci-6513",
 		.num_do_ports		= 8,
 		.invert_outputs		= 1,
 	},
-	{
+	[pxi_6513_model] = {
 		.dev_id			= 0x70d1,
 		.name			= "pxi-6513",
 		.num_do_ports		= 8,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6514_model] = {
 		.dev_id			= 0x7088,
 		.name			= "pci-6514",
 		.num_di_ports		= 4,
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pxi_6514_model] = {
 		.dev_id			= 0x70CD,
 		.name			= "pxi-6514",
 		.num_di_ports		= 4,
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6515_model] = {
 		.dev_id			= 0x7087,
 		.name			= "pci-6515",
 		.num_di_ports		= 4,
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pxi_6515_model] = {
 		.dev_id			= 0x70c9,
 		.name			= "pxi-6515",
 		.num_di_ports		= 4,
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6516_model] = {
 		.dev_id			= 0x7125,
 		.name			= "pci-6516",
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6517_model] = {
 		.dev_id			= 0x7126,
 		.name			= "pci-6517",
 		.num_do_ports		= 4,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6518_model] = {
 		.dev_id			= 0x7127,
 		.name			= "pci-6518",
 		.num_di_ports		= 2,
 		.num_do_ports		= 2,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6519_model] = {
 		.dev_id			= 0x7128,
 		.name			= "pci-6519",
 		.num_di_ports		= 2,
 		.num_do_ports		= 2,
 		.invert_outputs		= 1,
 	},
-	{
+	[pci_6520_model] = {
 		.dev_id			= 0x71c5,
 		.name			= "pci-6520",
 		.num_di_ports		= 1,
 		.num_do_ports		= 1,
 	},
-	{
+	[pci_6521_model] = {
 		.dev_id			= 0x718b,
 		.name			= "pci-6521",
 		.num_di_ports		= 1,
 		.num_do_ports		= 1,
 	},
-	{
+	[pxi_6521_model] = {
 		.dev_id			= 0x718c,
 		.name			= "pxi-6521",
 		.num_di_ports		= 1,
 		.num_do_ports		= 1,
 	},
-	{
+	[pci_6528_model] = {
 		.dev_id			= 0x70a9,
 		.name			= "pci-6528",
 		.num_di_ports		= 3,
 		.num_do_ports		= 3,
 	},
-	{
+	[pxi_6528_model] = {
 		.dev_id			= 0x7086,
 		.name			= "pxi-6528",
 		.num_di_ports		= 3,
@@ -275,28 +302,28 @@ static inline unsigned ni_65xx_num_input_ports(const ni_65xx_board * board)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7085, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7086, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7087, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7088, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70a9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70c3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70c8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70c9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70cc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70CD, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70d1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70d2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x70d3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7125, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7126, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7127, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x7128, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x718b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x718c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x71c5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(NATINST, 0x1710), .driver_data = pxi_6509_model, },
+	{ PCI_VDEVICE(NATINST, 0x7085), .driver_data = pci_6509_model, },
+	{ PCI_VDEVICE(NATINST, 0x7086), .driver_data = pxi_6528_model, },
+	{ PCI_VDEVICE(NATINST, 0x7087), .driver_data = pci_6515_model, },
+	{ PCI_VDEVICE(NATINST, 0x7088), .driver_data = pci_6514_model, },
+	{ PCI_VDEVICE(NATINST, 0x70a9), .driver_data = pci_6528_model, },
+	{ PCI_VDEVICE(NATINST, 0x70c3), .driver_data = pci_6511_model, },
+	{ PCI_VDEVICE(NATINST, 0x70c8), .driver_data = pci_6513_model, },
+	{ PCI_VDEVICE(NATINST, 0x70c9), .driver_data = pxi_6515_model, },
+	{ PCI_VDEVICE(NATINST, 0x70cc), .driver_data = pci_6512_model, },
+	{ PCI_VDEVICE(NATINST, 0x70CD), .driver_data = pxi_6514_model, },
+	{ PCI_VDEVICE(NATINST, 0x70d1), .driver_data = pxi_6513_model, },
+	{ PCI_VDEVICE(NATINST, 0x70d2), .driver_data = pxi_6512_model, },
+	{ PCI_VDEVICE(NATINST, 0x70d3), .driver_data = pxi_6511_model, },
+	{ PCI_VDEVICE(NATINST, 0x7124), .driver_data = pci_6510_model, },
+	{ PCI_VDEVICE(NATINST, 0x7125), .driver_data = pci_6516_model, },
+	{ PCI_VDEVICE(NATINST, 0x7126), .driver_data = pci_6517_model, },
+	{ PCI_VDEVICE(NATINST, 0x7127), .driver_data = pci_6518_model, },
+	{ PCI_VDEVICE(NATINST, 0x7128), .driver_data = pci_6519_model, },
+	{ PCI_VDEVICE(NATINST, 0x718b), .driver_data = pci_6521_model, },
+	{ PCI_VDEVICE(NATINST, 0x718c), .driver_data = pxi_6521_model, },
+	{ PCI_VDEVICE(NATINST, 0x71c5), .driver_data = pci_6520_model, },
 	{0}
 };
 
@@ -668,25 +695,12 @@ static int ni_65xx_intr_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
+static int ni_65xx_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	unsigned i;
 	int ret;
 
-	printk("comedi%d: ni_65xx:", dev->minor);
-
-	if (alloc_private(dev, sizeof(ni_65xx_private)) < 0 ||
-		!(private(dev)->mite = mite_alloc())) {
-		printk(KERN_CONT " allocation failure\n");
-		return -ENOMEM;
-	}
-
-	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
-
-	printk(KERN_CONT "\n");
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
@@ -819,6 +833,62 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "\n");
 
 	return 0;
+}
+
+static int ni_65xx_alloc_private(comedi_device *dev)
+{
+	if (!comedi_alloc_devpriv(dev, sizeof(ni_65xx_private)) ||
+	    !(private(dev)->mite = mite_alloc())) {
+		printk(KERN_CONT " allocation failure\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+
+	printk("comedi%d: ni_65xx:", dev->minor);
+
+	ret = ni_65xx_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = ni_65xx_find_device(dev, it->options[0], it->options[1]);
+	if (ret < 0)
+		return ret;
+
+	printk(KERN_CONT "\n");
+	return ni_65xx_attach_common(dev);
+}
+
+static int ni_65xx_auto_attach(comedi_device *dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk("comedi%d: ni_65xx: auto-attach PCI %s:", dev->minor,
+		pci_name(pcidev));
+
+	ret = ni_65xx_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	/* context_model is the index into ni_65xx_boards[] */
+	if (context_model >= n_ni_65xx_boards) {
+		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+
+	dev->board_ptr = ni_65xx_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in ni6527_detach() */
+	private(dev)->mite->pcidev = pci_dev_get(pcidev);
+
+	printk(KERN_CONT "\n");
+	return ni_65xx_attach_common(dev);
 }
 
 static int ni_65xx_detach(comedi_device * dev)
