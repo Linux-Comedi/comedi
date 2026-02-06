@@ -154,38 +154,38 @@ static int me_detach(comedi_device * dev);
 static const comedi_lrange me2000_ai_range = {
 	8,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
 static const comedi_lrange me2600_ai_range = {
 	8,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
 static const comedi_lrange me2600_ao_range = {
 	3,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			UNI_RANGE(10)
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
@@ -217,43 +217,37 @@ typedef struct {
 } me_board_struct;
 
 static const me_board_struct me_boards[] = {
-	{			// -- ME-2600i --
-	      name:	ME_DRIVER_NAME,
-	      device_id:ME2600_DEVICE_ID,
-	      ao_channel_nbr:4,// Analog Output
-	      ao_resolution:12,
-	      ao_resolution_mask:0x0fff,
-	      ao_range_list:&me2600_ao_range,
-	      ai_channel_nbr:16,
-			// Analog Input
-	      ai_resolution:12,
-	      ai_resolution_mask:0x0fff,
-	      ai_range_list:&me2600_ai_range,
-	      dio_channel_nbr:32,
-		},
-	{			// -- ME-2000i --
-	      name:	ME_DRIVER_NAME,
-	      device_id:ME2000_DEVICE_ID,
-	      ao_channel_nbr:0,// Analog Output
-	      ao_resolution:0,
-	      ao_resolution_mask:0,
-	      ao_range_list:0,
-	      ai_channel_nbr:16,
-			// Analog Input
-	      ai_resolution:12,
-	      ai_resolution_mask:0x0fff,
-	      ai_range_list:&me2000_ai_range,
-	      dio_channel_nbr:32,
-		}
+	{	// -- ME-2600i --
+		.name			= ME_DRIVER_NAME,
+		.device_id		= ME2600_DEVICE_ID,
+		.ao_channel_nbr		= 4,
+		.ao_resolution		= 12,
+		.ao_resolution_mask	= 0x0fff,
+		.ao_range_list		= &me2600_ao_range,
+		.ai_channel_nbr		= 16,
+		.ai_resolution		= 12,
+		.ai_resolution_mask	= 0x0fff,
+		.ai_range_list		= &me2600_ai_range,
+		.dio_channel_nbr	= 32,
+	},
+	{	// -- ME-2000i --
+		.name			= ME_DRIVER_NAME,
+		.device_id		= ME2000_DEVICE_ID,
+		.ai_channel_nbr		= 16,
+		.ai_resolution		= 12,
+		.ai_resolution_mask	= 0x0fff,
+		.ai_range_list		= &me2000_ai_range,
+		.dio_channel_nbr	= 32,
+	},
 };
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(me_board_struct))
 
 static comedi_driver me_driver = {
-      driver_name:ME_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:me_attach,
-      detach:me_detach,
+	.driver_name	= ME_DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= me_attach,
+	.detach		= me_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
