@@ -67,25 +67,26 @@ typedef struct ni_670x_board_struct {
 	unsigned short ao_chans;
 	unsigned short ao_bits;
 } ni_670x_board;
+
 static const ni_670x_board ni_670x_boards[] = {
 	{
-	      dev_id:	0x2c90,
-	      name:	"PCI-6703",
-	      ao_chans:16,
-	      ao_bits:	16,
-		},
+		.dev_id		= 0x2c90,
+		.name		= "PCI-6703",
+		.ao_chans	= 16,
+		.ao_bits	= 16,
+	},
 	{
-	      dev_id:	0x1920,
-	      name:	"PXI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
-		},
+		.dev_id		= 0x1920,
+		.name		= "PXI-6704",
+		.ao_chans	= 32,
+		.ao_bits	= 16,
+	},
 	{
-	      dev_id:	0x1290,
-	      name:	"PCI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
-		},
+		.dev_id		= 0x1290,
+		.name		= "PCI-6704",
+		.ao_chans	= 32,
+		.ao_bits	= 16,
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
@@ -108,16 +109,16 @@ typedef struct {
 } ni_670x_private;
 
 #define devpriv ((ni_670x_private *)dev->private)
-#define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
+#define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
 
 static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it);
 static int ni_670x_detach(comedi_device * dev);
 
 static comedi_driver driver_ni_670x = {
-      driver_name:"ni_670x",
-      module:THIS_MODULE,
-      attach:ni_670x_attach,
-      detach:ni_670x_detach,
+	.driver_name	= "ni_670x",
+	.module		= THIS_MODULE,
+	.attach		= ni_670x_attach,
+	.detach		= ni_670x_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);
