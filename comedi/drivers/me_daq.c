@@ -203,7 +203,7 @@ MODULE_DEVICE_TABLE(pci, me_pci_table);
 //
 
 typedef struct {
-	const char *name;	// driver name
+	const char *name;	// board name
 	int device_id;
 	int ao_channel_nbr;	// DA config
 	int ao_resolution;
@@ -218,7 +218,7 @@ typedef struct {
 
 static const me_board_struct me_boards[] = {
 	{	// -- ME-2600i --
-		.name			= ME_DRIVER_NAME,
+		.name			= "me-2600i",
 		.device_id		= ME2600_DEVICE_ID,
 		.ao_channel_nbr		= 4,
 		.ao_resolution		= 12,
@@ -231,7 +231,7 @@ static const me_board_struct me_boards[] = {
 		.dio_channel_nbr	= 32,
 	},
 	{	// -- ME-2000i --
-		.name			= ME_DRIVER_NAME,
+		.name			= "me-2000i",
 		.device_id		= ME2000_DEVICE_ID,
 		.ai_channel_nbr		= 16,
 		.ai_resolution		= 12,
