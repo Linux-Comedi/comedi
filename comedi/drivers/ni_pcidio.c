@@ -1203,7 +1203,7 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 	if (alloc_private(dev, sizeof(nidio96_private)) < 0 ||
 		!(devpriv->mite = mite_alloc())) {
 		printk(KERN_CONT " allocation failure\n");
-		return ret;
+		return -ENOMEM;
 	}
 	spin_lock_init(&devpriv->mite_channel_lock);
 
