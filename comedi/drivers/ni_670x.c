@@ -68,20 +68,26 @@ typedef struct ni_670x_board_struct {
 	unsigned short ao_bits;
 } ni_670x_board;
 
+enum ni_670x_model {
+	pci_6703_model,
+	pxi_6704_model,
+	pci_6704_model,
+};
+
 static const ni_670x_board ni_670x_boards[] = {
-	{
+	[pci_6703_model] = {
 		.dev_id		= 0x2c90,
 		.name		= "PCI-6703",
 		.ao_chans	= 16,
 		.ao_bits	= 16,
 	},
-	{
+	[pxi_6704_model] = {
 		.dev_id		= 0x1920,
 		.name		= "PXI-6704",
 		.ao_chans	= 32,
 		.ao_bits	= 16,
 	},
-	{
+	[pci_6704_model] = {
 		.dev_id		= 0x1290,
 		.name		= "PCI-6704",
 		.ao_chans	= 32,
@@ -90,10 +96,9 @@ static const ni_670x_board ni_670x_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1290, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	//{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(NATINST, 0x2c90), .driver_data = pci_6703_model, },
+	{ PCI_VDEVICE(NATINST, 0x1920), .driver_data = pxi_6704_model, },
+	{ PCI_VDEVICE(NATINST, 0x1290), .driver_data = pci_6704_model, },
 	{0}
 };
 
@@ -112,12 +117,14 @@ typedef struct {
 #define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
 
 static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it);
+static int ni_670x_auto_attach(comedi_device * dev, unsigned long context);
 static int ni_670x_detach(comedi_device * dev);
 
 static comedi_driver driver_ni_670x = {
 	.driver_name	= "ni_670x",
 	.module		= THIS_MODULE,
 	.attach		= ni_670x_attach,
+	.auto_attach	= ni_670x_auto_attach,
 	.detach		= ni_670x_detach,
 };
 
@@ -136,23 +143,11 @@ static int ni_670x_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int ni_670x_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 
-static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
+static int ni_670x_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int ret;
 	int i;
-
-	printk("comedi%d: ni_670x: ", dev->minor);
-
-	if (alloc_private(dev, sizeof(ni_670x_private)) < 0 ||
-		!(devpriv->mite = mite_alloc())) {
-		printk(KERN_CONT "allocation failure\n");
-		return -ENOMEM;
-	}
-
-	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
 
 	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
@@ -210,6 +205,60 @@ static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
 	printk(KERN_CONT "attached\n");
 
 	return 1;
+}
+
+static int ni_670x_alloc_private(comedi_device * dev)
+{
+	if (!comedi_alloc_devpriv(dev, sizeof(ni_670x_private)) ||
+	    !(devpriv->mite = mite_alloc())) {
+		printk(KERN_CONT "allocation failure\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int ni_670x_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+
+	printk("comedi%d: ni_670x: ", dev->minor);
+
+	ret = ni_670x_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
+	if (ret < 0)
+		return ret;
+
+	return ni_670x_attach_common(dev);
+}
+
+static int ni_670x_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk("comedi%d: ni_670x: auto-attach PCI %s: ", dev->minor,
+		pci_name(pcidev));
+
+	ret = ni_670x_alloc_private(dev);
+	if (ret < 0) {
+		return ret;
+	}
+
+	/* context_model is the index into ni_670x_boards[] */
+	if (context_model >= n_ni_670x_boards) {
+		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = ni_670x_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in ni_670x_detach() */
+	devpriv->mite->pcidev = pci_dev_get(pcidev);
+
+	return ni_670x_attach_common(dev);
 }
 
 static int ni_670x_detach(comedi_device * dev)
