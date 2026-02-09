@@ -302,6 +302,7 @@ enum FPGA_Control_Bits {
 #endif
 
 static int nidio_attach(comedi_device * dev, comedi_devconfig * it);
+static int nidio_auto_attach(comedi_device * dev, unsigned long context);
 static int nidio_detach(comedi_device * dev);
 static int ni_pcidio_cancel(comedi_device * dev, comedi_subdevice * s);
 
@@ -309,6 +310,7 @@ static comedi_driver driver_pcidio = {
 	.driver_name	= "ni_pcidio",
 	.module		= THIS_MODULE,
 	.attach		= nidio_attach,
+	.auto_attach	= nidio_auto_attach,
 	.detach		= nidio_detach,
 };
 
@@ -319,63 +321,77 @@ typedef struct {
 	unsigned int is_diodaq:1;
 	unsigned int uses_firmware:1;
 } nidio_board;
+
+enum nidio_model {
+	pci_dio_32hs_model,
+	pxi_6533_model,
+	pci_6534_model,
+	pci_dio_96_model,
+	pci_dio_96b_model,
+	pxi_6508_model,
+	pci_6503_model,
+	pci_6503b_model,
+	pci_6503x_model,
+	pxi_6503_model,
+};
+
 static const nidio_board nidio_boards[] = {
-	{
+	[pci_dio_32hs_model] = {
 		.dev_id		= 0x1150,
 		.name		= "pci-dio-32hs",
 		.n_8255		= 0,
 		.is_diodaq	= 1,
 	},
-	{
+	[pxi_6533_model] = {
 		.dev_id		= 0x1320,
 		.name		= "pxi-6533",
 		.n_8255		= 0,
 		.is_diodaq	= 1,
 	},
-	{
+	[pci_6534_model] = {
 		.dev_id		= 0x12b0,
 		.name		= "pci-6534",
 		.n_8255		= 0,
 		.is_diodaq	= 1,
 		.uses_firmware	= 1,
 	},
-	{
+	[pci_dio_96_model] = {
 		.dev_id		= 0x0160,
 		.name		= "pci-dio-96",
 		.n_8255		= 4,
 		.is_diodaq	= 0,
 	},
-	{
+	[pci_dio_96b_model] = {
 		.dev_id		= 0x1630,
 		.name		= "pci-dio-96b",
 		.n_8255		= 4,
 		.is_diodaq	= 0,
 	},
-	{
+	[pxi_6508_model] = {
 		.dev_id		= 0x13c0,
 		.name		= "pxi-6508",
 		.n_8255		= 4,
 		.is_diodaq	= 0,
 	},
-	{
+	[pci_6503_model] = {
 		.dev_id		= 0x0400,
 		.name		= "pci-6503",
 		.n_8255		= 1,
 		.is_diodaq	= 0,
 	},
-	{
+	[pci_6503b_model] = {
 		.dev_id		= 0x1250,
 		.name		= "pci-6503b",
 		.n_8255		= 1,
 		.is_diodaq	= 0,
 	},
-	{
+	[pci_6503x_model] = {
 		.dev_id		= 0x17d0,
 		.name		= "pci-6503x",
 		.n_8255		= 1,
 		.is_diodaq	= 0,
 	},
-	{
+	[pxi_6503_model] = {
 		.dev_id		= 0x1800,
 		.name		= "pxi-6503",
 		.n_8255		= 1,
@@ -387,16 +403,16 @@ static const nidio_board nidio_boards[] = {
 #define this_board ((const nidio_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
-	{PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x12b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x0160, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1630, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x13c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x0400, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x17d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_NATINST, 0x1800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(NATINST, 0x1150), .driver_data = pci_dio_32hs_model, },
+	{ PCI_VDEVICE(NATINST, 0x1320), .driver_data = pxi_6533_model, },
+	{ PCI_VDEVICE(NATINST, 0x12b0), .driver_data = pci_6534_model, },
+	{ PCI_VDEVICE(NATINST, 0x0160), .driver_data = pci_dio_96_model, },
+	{ PCI_VDEVICE(NATINST, 0x1630), .driver_data = pci_dio_96b_model, },
+	{ PCI_VDEVICE(NATINST, 0x13c0), .driver_data = pxi_6508_model, },
+	{ PCI_VDEVICE(NATINST, 0x0400), .driver_data = pci_6503_model, },
+	{ PCI_VDEVICE(NATINST, 0x1250), .driver_data = pci_6503b_model, },
+	{ PCI_VDEVICE(NATINST, 0x17d0), .driver_data = pci_6503x_model, },
+	{ PCI_VDEVICE(NATINST, 0x1800), .driver_data = pxi_6503_model, },
 	{0}
 };
 
@@ -1196,7 +1212,7 @@ static int pci_6534_upload_firmware(comedi_device *dev)
 	return ret;
 }
 
-static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
+static int nidio_attach_common(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	int i;
@@ -1204,26 +1220,12 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 	int n_subdevices;
 	unsigned int irq;
 
-	printk("comedi%d: nidio:", dev->minor);
-
-	if (alloc_private(dev, sizeof(nidio96_private)) < 0 ||
-		!(devpriv->mite = mite_alloc())) {
-		printk(KERN_CONT " allocation failure\n");
-		return -ENOMEM;
-	}
-	spin_lock_init(&devpriv->mite_channel_lock);
-
-	ret = nidio_find_device(dev, it->options[0], it->options[1]);
-	if (ret < 0)
-		return ret;
-
 	printk(KERN_CONT "\n");
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
 		printk("error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (devpriv->di_mite_ring == NULL)
 		return -ENOMEM;
@@ -1298,6 +1300,60 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
+static int nidio_alloc_private(comedi_device * dev)
+{
+	if (!comedi_alloc_devpriv(dev, sizeof(nidio96_private)) ||
+	    !(devpriv->mite = mite_alloc())) {
+		printk(KERN_CONT " allocation failure\n");
+		return -ENOMEM;
+	}
+	spin_lock_init(&devpriv->mite_channel_lock);
+	return 0;
+}
+
+static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+
+	printk("comedi%d: ni_pcidio:", dev->minor);
+
+	ret = nidio_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	ret = nidio_find_device(dev, it->options[0], it->options[1]);
+	if (ret < 0)
+		return ret;
+
+	return nidio_attach_common(dev);
+}
+
+static int nidio_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+	printk("comedi%d: ni_pcidio: auto-attach PCI %s:", dev->minor,
+		pci_name(pcidev));
+
+	ret = nidio_alloc_private(dev);
+	if (ret < 0)
+		return ret;
+
+	/* context_model is the index into nidio_boards[] */
+	if (context_model >= n_nidio_boards) {
+		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
+			context_model);
+		return -EINVAL;
+	}
+	dev->board_ptr = nidio_boards + context_model;
+
+	/* pci_dev_get() call matches pci_dev_put() in nidio_detach() */
+	devpriv->mite->pcidev = pci_dev_get(pcidev);
+
+	return nidio_attach_common(dev);
+}
+
 static int nidio_detach(comedi_device * dev)
 {
 	int i;
@@ -1358,6 +1414,8 @@ static int nidio_find_device(comedi_device * dev, int bus, int slot)
 		comedi_pci_disable(pcidev);
 		dev->board_ptr = nidio_boards + i;
 		devpriv->mite->pcidev = pcidev;
+		/* Need to set COMEDI hardware device to use bus-master DMA. */
+		comedi_set_hw_dev(dev, &pcidev->dev);
 		return 0;
 	}
 	printk(KERN_CONT "no device found\n");
