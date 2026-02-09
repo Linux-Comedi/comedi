@@ -1405,7 +1405,7 @@ typedef struct ni_board_struct {
 
 #define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
 
-#define boardtype (*(ni_board *)dev->board_ptr)
+#define boardtype (*(const ni_board *)dev->board_ptr)
 
 #define MAX_N_AO_CHAN 8
 #define NUM_GPCT 2
