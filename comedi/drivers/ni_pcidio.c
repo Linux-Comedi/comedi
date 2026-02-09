@@ -306,10 +306,10 @@ static int nidio_detach(comedi_device * dev);
 static int ni_pcidio_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static comedi_driver driver_pcidio = {
-      driver_name:"ni_pcidio",
-      module:THIS_MODULE,
-      attach:nidio_attach,
-      detach:nidio_detach,
+	.driver_name	= "ni_pcidio",
+	.module		= THIS_MODULE,
+	.attach		= nidio_attach,
+	.detach		= nidio_detach,
 };
 
 typedef struct {
@@ -321,69 +321,69 @@ typedef struct {
 } nidio_board;
 static const nidio_board nidio_boards[] = {
 	{
-	      dev_id:	0x1150,
-	      name:	"pci-dio-32hs",
-	      n_8255:	0,
-	      is_diodaq:1,
-		},
+		.dev_id		= 0x1150,
+		.name		= "pci-dio-32hs",
+		.n_8255		= 0,
+		.is_diodaq	= 1,
+	},
 	{
-	      dev_id:	0x1320,
-	      name:	"pxi-6533",
-	      n_8255:	0,
-	      is_diodaq:1,
-		},
+		.dev_id		= 0x1320,
+		.name		= "pxi-6533",
+		.n_8255		= 0,
+		.is_diodaq	= 1,
+	},
 	{
-	      dev_id:	0x12b0,
-	      name:	"pci-6534",
-	      n_8255:	0,
-	      is_diodaq:1,
-	      uses_firmware:1,
-		},
+		.dev_id		= 0x12b0,
+		.name		= "pci-6534",
+		.n_8255		= 0,
+		.is_diodaq	= 1,
+		.uses_firmware	= 1,
+	},
 	{
-	      dev_id:	0x0160,
-	      name:	"pci-dio-96",
-	      n_8255:	4,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x0160,
+		.name		= "pci-dio-96",
+		.n_8255		= 4,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x1630,
-	      name:	"pci-dio-96b",
-	      n_8255:	4,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x1630,
+		.name		= "pci-dio-96b",
+		.n_8255		= 4,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x13c0,
-	      name:	"pxi-6508",
-	      n_8255:	4,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x13c0,
+		.name		= "pxi-6508",
+		.n_8255		= 4,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x0400,
-	      name:	"pci-6503",
-	      n_8255:	1,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x0400,
+		.name		= "pci-6503",
+		.n_8255		= 1,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x1250,
-	      name:	"pci-6503b",
-	      n_8255:	1,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x1250,
+		.name		= "pci-6503b",
+		.n_8255		= 1,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x17d0,
-	      name:	"pci-6503x",
-	      n_8255:	1,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x17d0,
+		.name		= "pci-6503x",
+		.n_8255		= 1,
+		.is_diodaq	= 0,
+	},
 	{
-	      dev_id:	0x1800,
-	      name:	"pxi-6503",
-	      n_8255:	1,
-	      is_diodaq:0,
-		},
+		.dev_id		= 0x1800,
+		.name		= "pxi-6503",
+		.n_8255		= 1,
+		.is_diodaq	= 0,
+	},
 };
 
-#define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
+#define n_nidio_boards ARRAY_SIZE(nidio_boards)
 #define this_board ((const nidio_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
