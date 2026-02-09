@@ -30,7 +30,7 @@ Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
   PXI-6503, PCI-6533, PCI-6534
-Updated: Sun, 21 Apr 2002 21:03:38 -0700
+Updated: Mon, 09 Feb 2026 11:02:09 +0000
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
 driver notes for details.
@@ -50,10 +50,12 @@ trailing edge.
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
 
-The PCI-6534 requires a firmware upload after power-up to work, the
-firmware data and instructions for loading it with comedi_config
-it are contained in the
-comedi_nonfree_firmware tarball available from http://www.comedi.org
+The PCI-6534 requires a firmware upload after power-up to work.  This
+will be attempted automatically when the device is attached.  It,
+requires three firmware files "ni6534a.bin", "niscrb01.bin", and
+"niscrb02.bin" which should be placed in the "/lib/firmware/"
+directory.  They are contained in the comedi-nonfree-firmware tarball
+available from <http://www.comedi.org>.
 */
 
 /*
@@ -258,6 +260,11 @@ static inline unsigned secondary_DMAChannel_bits(unsigned channel)
 
 #define Protocol_Register_8		88	/* 32 bit */
 #define StartDelay			Protocol_Register_8
+
+/* Firmware files for PCI-6524 */
+#define FW_PCI_6534_MAIN		"ni6534a.bin"
+#define FW_PCI_6534_SCARAB_DI		"niscrb01.bin"
+#define FW_PCI_6534_SCARAB_DO		"niscrb02.bin"
 
 enum pci_6534_firmware_registers {	/* 16 bit */
 	Firmware_Control_Register = 0x100,
@@ -1078,11 +1085,14 @@ static int ni_pcidio_change(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pci_6534_load_fpga(comedi_device * dev, int fpga_index, u8 * data,
-	int data_len)
+static int pci_6534_load_fpga(comedi_device * dev, const u8 * data,
+	size_t data_len, unsigned long context)
 {
 	static const int timeout = 1000;
-	int i, j;
+	unsigned int fpga_index = context;
+	int i;
+	size_t j;
+
 	writew(0x80 | fpga_index,
 		devpriv->mite->daq_io_addr + Firmware_Control_Register);
 	writew(0xc0 | fpga_index,
@@ -1133,7 +1143,7 @@ static int pci_6534_load_fpga(comedi_device * dev, int fpga_index, u8 * data,
 
 static int pci_6534_reset_fpga(comedi_device * dev, int fpga_index)
 {
-	return pci_6534_load_fpga(dev, fpga_index, NULL, 0);
+	return pci_6534_load_fpga(dev, NULL, 0, fpga_index);
 }
 
 static int pci_6534_reset_fpgas(comedi_device * dev)
@@ -1160,34 +1170,30 @@ static void pci_6534_init_main_fpga(comedi_device * dev)
 	writel(0, devpriv->mite->daq_io_addr + FPGA_SCBMS_Counter_Register);
 }
 
-static int pci_6534_upload_firmware(comedi_device * dev, int options[])
+static int pci_6534_upload_firmware(comedi_device *dev)
 {
+	static const char *const fw_file[3] = {
+		FW_PCI_6534_SCARAB_DI,	/* loaded into scarab A for DI */
+		FW_PCI_6534_SCARAB_DO,	/* loaded into scarab B for DO */
+		FW_PCI_6534_MAIN,	/* loaded into main FPGA */
+	};
 	int ret;
-	void *main_fpga_data, *scarab_a_data, *scarab_b_data;
-	int main_fpga_data_len, scarab_a_data_len, scarab_b_data_len;
+	int n;
 
-	if (options[COMEDI_DEVCONF_AUX_DATA_LENGTH] == 0)
-		return 0;
 	ret = pci_6534_reset_fpgas(dev);
 	if (ret < 0)
 		return ret;
-	main_fpga_data = comedi_aux_data(options, 0);
-	main_fpga_data_len = options[COMEDI_DEVCONF_AUX_DATA0_LENGTH];
-	ret = pci_6534_load_fpga(dev, 2, main_fpga_data, main_fpga_data_len);
-	if (ret < 0)
-		return ret;
-	pci_6534_init_main_fpga(dev);
-	scarab_a_data = comedi_aux_data(options, 1);
-	scarab_a_data_len = options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];
-	ret = pci_6534_load_fpga(dev, 0, scarab_a_data, scarab_a_data_len);
-	if (ret < 0)
-		return ret;
-	scarab_b_data = comedi_aux_data(options, 2);
-	scarab_b_data_len = options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];
-	ret = pci_6534_load_fpga(dev, 1, scarab_b_data, scarab_b_data_len);
-	if (ret < 0)
-		return ret;
-	return 0;
+	/* load main FPGA first, then the two scarabs */
+	for (n = 2; n >= 0; n--) {
+		ret = comedi_load_firmware(dev, &devpriv->mite->pcidev->dev,
+					   fw_file[n],
+					   pci_6534_load_fpga, n);
+		if (ret == 0 && n == 2)
+			pci_6534_init_main_fpga(dev);
+		if (ret < 0)
+			break;
+	}
+	return ret;
 }
 
 static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
@@ -1226,7 +1232,7 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 	irq = mite_irq(devpriv->mite);
 	printk(" %s\n", dev->board_name);
 	if (this_board->uses_firmware) {
-		ret = pci_6534_upload_firmware(dev, it->options);
+		ret = pci_6534_upload_firmware(dev);
 		if (ret < 0)
 			return ret;
 	}
