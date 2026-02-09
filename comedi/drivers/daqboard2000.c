@@ -36,7 +36,7 @@ The FPGA on the board requires initialization code from file
 directory.
 
 The initialization code is available from http://www.comedi.org
-in the comedi_nonfree_firmware tarball.
+in the comedi-nonfree-firmware tarball.
 
 The driver will request the initialization code file from the system
 during configuration of the COMEDI device.
