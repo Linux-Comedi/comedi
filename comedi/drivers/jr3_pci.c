@@ -31,7 +31,7 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
   be loaded by placing it in /lib/firmware/comedi.
   The initialization code should be somewhere on the media you got
   with your card. One version is available from http://www.comedi.org
-  in the comedi_nonfree_firmware tarball.
+  in the comedi-nonfree-firmware tarball.
 
   Configuration options:
   [0] - PCI bus number - if bus number and slot number are 0,
