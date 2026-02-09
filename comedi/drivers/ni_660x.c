@@ -1047,7 +1047,6 @@ static int ni_660x_attach_common(comedi_device * dev)
 		printk("error setting up mite\n");
 		return ret;
 	}
-	comedi_set_hw_dev(dev, &private(dev)->mite->pcidev->dev);
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
 		return ret;
@@ -1286,6 +1285,8 @@ static int ni_660x_find_device(comedi_device * dev, int bus, int slot)
 		comedi_pci_disable(pcidev);
 		dev->board_ptr = ni_660x_boards + i;
 		private(dev)->mite->pcidev = pcidev;
+		/* Need to set COMEDI hardware device to use bus-master DMA. */
+		comedi_set_hw_dev(dev, &pcidev->dev);
 		return 0;
 	}
 	printk(KERN_CONT "no device found\n");
