@@ -45,7 +45,7 @@ Configuration options:
 
 The 2600 requires a firmware upload, which will be attempted
 automatically when the device is attached.  The firmware can be
-found in the comedi_nonfree_firmware tarball available from
+found in the comedi-nonfree-firmware tarball available from
 <http://www.comedi.org>.  The firmware file is called
 /"me2600_firmware.bin" and should be placed in the /lib/firmware/
 directory.
