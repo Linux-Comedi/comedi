@@ -44,7 +44,7 @@ Configuration Options:
     device will be used.
 
 The firmware required by these boards is available in the
-comedi_nonfree_firmware tarball available from
+comedi-nonfree-firmware tarball available from
 <http://www.comedi.org>.  The firmware file is called
 "me4000_firmware.bin" and should be placed in the /lib/firmware/
 directory.
