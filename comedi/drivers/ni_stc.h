@@ -1403,7 +1403,7 @@ typedef struct ni_board_struct {
 	enum caldac_enum caldac[3];
 } ni_board;
 
-#define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
+#define n_ni_boards  ARRAY_SIZE(ni_boards)
 
 #define boardtype (*(const ni_board *)dev->board_ptr)
 
