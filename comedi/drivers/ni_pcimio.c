@@ -1536,8 +1536,6 @@ static const ni_board ni_boards[] = {
 	},
 };
 
-#define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
-
 static int pcimio_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcimio_auto_attach(comedi_device * dev, unsigned long context);
 static int pcimio_detach(comedi_device * dev);
@@ -2074,7 +2072,7 @@ static int pcimio_auto_attach(comedi_device * dev, unsigned long context_model)
 		return ret;
 
 	/* context_model is the index into ni_boards[] */
-	if (context_model >= n_pcimio_boards) {
+	if (context_model >= n_ni_boards) {
 		printk(KERN_CONT " BUG! Bad auto-attach context %lu\n",
 			context_model);
 		return -EINVAL;
@@ -2101,12 +2099,12 @@ static int pcimio_find_device(comedi_device * dev, int bus, int slot)
 				continue;
 			}
 		}
-		for (i = 0; i < n_pcimio_boards; i++) {
+		for (i = 0; i < n_ni_boards; i++) {
 			if (pcidev->device == ni_boards[i].device_id) {
 				break;
 			}
 		}
-		if (i == n_pcimio_boards) {
+		if (i == n_ni_boards) {
 			continue;
 		}
 		/* Temporarily enable PCI device to check if in use. */
