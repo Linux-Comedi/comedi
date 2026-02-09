@@ -278,8 +278,13 @@ typedef struct rtdBoard_struct {
 	int rangeUniStart;	/* start of +10V range */
 } rtdBoard;
 
+enum rtd520_model {
+	dm7520_model,
+	pci4520_model,
+};
+
 static const rtdBoard rtd520Boards[] = {
-	{
+	[dm7520_model] = {
 		.name		= "DM7520",
 		.device_id	= 0x7520,
 		.aiChans	= 16,
@@ -288,7 +293,7 @@ static const rtdBoard rtd520Boards[] = {
 		.range10Start	= 6,
 		.rangeUniStart	= 12,
 	},
-	{
+	[pci4520_model] = {
 		.name		= "PCI4520",
 		.device_id	= 0x4520,
 		.aiChans	= 16,
@@ -300,8 +305,8 @@ static const rtdBoard rtd520Boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
-	{PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(RTD, 0x7520), .driver_data = dm7520_model,	},
+	{ PCI_VDEVICE(RTD, 0x4520), .driver_data = pci4520_model,	},
 	{0}
 };
 
@@ -683,12 +688,14 @@ typedef struct {
  * the device code.
  */
 static int rtd_attach(comedi_device * dev, comedi_devconfig * it);
+static int rtd_auto_attach(comedi_device * dev, unsigned long context);
 static int rtd_detach(comedi_device * dev);
 
 static comedi_driver rtd520Driver = {
 	.driver_name	= DRV_NAME,
 	.module		= THIS_MODULE,
 	.attach		= rtd_attach,
+	.auto_attach	= rtd_auto_attach,
 	.detach		= rtd_detach,
 };
 
@@ -711,16 +718,10 @@ static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
 static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
 static int rtd520_probe_fifo_depth(comedi_device *dev);
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
+static int rtd_attach_common(comedi_device * dev)
 {				/* board name and options flags */
 	comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	int ret;
 	resource_size_t physLas0;	/* configuation */
 	resource_size_t physLas1;	/* data area */
@@ -729,50 +730,6 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	int index;
 #endif
 
-	printk("comedi%d: rtd520 attaching.\n", dev->minor);
-
-	/*
-	 * Allocate the private structure area.  alloc_private() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_private(dev, sizeof(rtdPrivate)) < 0)
-		return -ENOMEM;
-
-	/*
-	 * Probe the device to determine what device in the series it is.
-	 */
-	for (pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
-		int i;
-
-		if (it->options[0] || it->options[1]) {
-			if (pcidev->bus->number != it->options[0]
-				|| PCI_SLOT(pcidev->devfn) !=
-				it->options[1]) {
-				continue;
-			}
-		}
-		for(i = 0; i < sizeof(rtd520Boards) / sizeof(rtd520Boards[0]); ++i)
-		{
-			if(pcidev->device == rtd520Boards[i].device_id)
-			{
-				dev->board_ptr = &rtd520Boards[i];
-				break;
-			}
-		}
-		if(dev->board_ptr) break;	/* found one */
-	}
-	if (!pcidev) {
-		if (it->options[0] && it->options[1]) {
-			printk("No RTD card at bus=%d slot=%d.\n",
-				it->options[0], it->options[1]);
-		} else {
-			printk("No RTD card found.\n");
-		}
-		return -EIO;
-	}
-	devpriv->pci_dev = pcidev;
 	dev->board_name = thisboard->name;
 
 	if ((ret = comedi_pci_enable(pcidev, DRV_NAME)) < 0) {
@@ -1046,6 +1003,88 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	return ret;
 #endif
+}
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
+{				/* board name and options flags */
+	struct pci_dev *pcidev;
+
+	printk("comedi%d: rtd520 attaching.\n", dev->minor);
+
+	/*
+	 * Allocate the private structure area.  alloc_private() is a
+	 * convenient macro defined in comedidev.h.
+	 */
+	if (alloc_private(dev, sizeof(rtdPrivate)) < 0)
+		return -ENOMEM;
+
+	/*
+	 * Probe the device to determine what device in the series it is.
+	 */
+	for (pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
+		int i;
+
+		if (it->options[0] || it->options[1]) {
+			if (pcidev->bus->number != it->options[0]
+				|| PCI_SLOT(pcidev->devfn) !=
+				it->options[1]) {
+				continue;
+			}
+		}
+		for(i = 0; i < ARRAY_SIZE(rtd520Boards); ++i)
+		{
+			if(pcidev->device == rtd520Boards[i].device_id)
+			{
+				dev->board_ptr = &rtd520Boards[i];
+				break;
+			}
+		}
+		if(dev->board_ptr) break;	/* found one */
+	}
+	if (!pcidev) {
+		if (it->options[0] && it->options[1]) {
+			printk("No RTD card at bus=%d slot=%d.\n",
+				it->options[0], it->options[1]);
+		} else {
+			printk("No RTD card found.\n");
+		}
+		return -EIO;
+	}
+	devpriv->pci_dev = pcidev;
+
+	return rtd_attach_common(dev);
+}
+
+static int rtd_auto_attach(comedi_device * dev, unsigned long context_model)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: rtd520 auto-attaching PCI %s.\n",
+		dev->minor, pci_name(pcidev));
+
+	/* Allocate the private structure area. */
+	if (alloc_private(dev, sizeof(rtdPrivate)) < 0)
+		return -ENOMEM;
+
+	/* context_model is an index into rtd520Boards[] */
+	if (context_model >= ARRAY_SIZE(rtd520Boards)) {
+		printk("comedi%d: rtd520: BUG! bad auto-attach context %lu\n",
+			dev->minor, context_model);
+		return -EINVAL;
+	}
+
+	/* pci_dev_get() call matches pci_dev_put() in rtd_detach() */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+	return rtd_attach_common(dev);
 }
 
 /*
