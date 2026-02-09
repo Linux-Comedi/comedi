@@ -280,23 +280,23 @@ typedef struct rtdBoard_struct {
 
 static const rtdBoard rtd520Boards[] = {
 	{
-	      name:	"DM7520",
-	      device_id:0x7520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:32,
-	      range10Start:6,
-	      rangeUniStart:12,
-		},
+		.name		= "DM7520",
+		.device_id	= 0x7520,
+		.aiChans	= 16,
+		.aiBits		= 12,
+		.aiMaxGain	= 32,
+		.range10Start	= 6,
+		.rangeUniStart	= 12,
+	},
 	{
-	      name:	"PCI4520",
-	      device_id:0x4520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:128,
-	      range10Start:8,
-	      rangeUniStart:16,
-		},
+		.name		= "PCI4520",
+		.device_id	= 0x4520,
+		.aiChans	= 16,
+		.aiBits		= 12,
+		.aiMaxGain	= 128,
+		.range10Start	= 8,
+		.rangeUniStart	= 16,
+	},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
@@ -686,10 +686,10 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it);
 static int rtd_detach(comedi_device * dev);
 
 static comedi_driver rtd520Driver = {
-      driver_name: DRV_NAME,
-      module:THIS_MODULE,
-      attach:rtd_attach,
-      detach:rtd_detach,
+	.driver_name	= DRV_NAME,
+	.module		= THIS_MODULE,
+	.attach		= rtd_attach,
+	.detach		= rtd_detach,
 };
 
 static int rtd_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
