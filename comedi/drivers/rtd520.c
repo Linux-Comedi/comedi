@@ -729,12 +729,6 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: rtd520 attaching.\n", dev->minor);
 
-#if defined (COMEDI_CONFIG_DEBUG) && defined (USE_DMA)
-	/* You can set this a load time: modprobe comedi comedi_debug=1 */
-	if (0 == comedi_debug)	/* force DMA debug printks */
-		comedi_debug = 1;
-#endif
-
 	/*
 	 * Allocate the private structure area.  alloc_private() is a
 	 * convenient macro defined in comedidev.h.
