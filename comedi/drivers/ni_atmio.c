@@ -493,7 +493,7 @@ static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* generic E series stuff in ni_mio_common.c */
 
-	if ((ret = ni_E_init(dev, it)) < 0) {
+	if ((ret = ni_E_init(dev)) < 0) {
 		return ret;
 	}
 

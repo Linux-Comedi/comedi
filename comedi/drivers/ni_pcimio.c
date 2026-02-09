@@ -1954,7 +1954,7 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	}
 
-	ret = ni_E_init(dev, it);
+	ret = ni_E_init(dev);
 	if (ret < 0)
 		return ret;
 

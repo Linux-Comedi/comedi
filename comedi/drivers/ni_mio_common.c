@@ -4357,7 +4357,7 @@ static int ni_alloc_private(comedi_device * dev)
 	return 0;
 };
 
-static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
+static int ni_E_init(comedi_device * dev)
 {
 	comedi_subdevice *s;
 	unsigned j;
