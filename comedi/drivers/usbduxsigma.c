@@ -2385,8 +2385,9 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbduxsub_tmp->interface,
-			       &driver_usbduxsigma, 0);
+	/* Use pointer to usbduxsub entry as the auto-attach context */
+	comedi_usb_auto_config(usbduxsub_tmp->interface, &driver_usbduxsigma,
+			       (unsigned long)usbduxsub_tmp);
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -2691,47 +2692,21 @@ static void usbduxsigma_disconnect(struct usb_interface *intf)
 	dev_info(&intf->dev, "comedi_: disconnected from the usb\n");
 }
 
-/* is called when comedi-config is called */
-static int usbduxsigma_attach(comedi_device *dev,
-			      comedi_devconfig *it)
+static int usbduxsigma_attach_common(comedi_device *dev)
 {
+	struct usbduxsub *usbduxsub_tmp = dev->private;
 	int ret;
-	int index;
-	int i;
-	struct usbduxsub *udev;
-
 	int offset;
 
 	comedi_subdevice *s = NULL;
-	dev->private = NULL;
 
-	mutex_lock(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR "comedi%d: usbduxsigma: error: attach failed,"
-		       "dev not connected to the usb bus.\n", dev->minor);
-		mutex_unlock(&start_stop_sem);
-		return -ENODEV;
-	}
-
-	udev = &usbduxsub[index];
-	mutex_lock(&udev->sem);
 	/* pointer back to the corresponding comedi device */
-	udev->comedidev = dev;
+	usbduxsub_tmp->comedidev = dev;
 
 	dev->board_name = BOARDNAME;
 
 	/* set number of subdevices */
-	if (udev->high_speed) {
+	if (usbduxsub_tmp->high_speed) {
 		/* with pwm */
 		dev->n_subdevices = 4;
 	} else {
@@ -2742,14 +2717,10 @@ static int usbduxsigma_attach(comedi_device *dev,
 	/* allocate space for the subdevices */
 	ret = alloc_subdevices(dev, dev->n_subdevices);
 	if (ret < 0) {
-		dev_err(&udev->interface->dev,
+		dev_err(&usbduxsub_tmp->interface->dev,
 			"comedi%d: no space for subdev\n", dev->minor);
-		mutex_unlock(&start_stop_sem);
 		return ret;
 	}
-
-	/* private structure is also simply the usb-structure */
-	dev->private = udev;
 
 	/* the first subdevice is the A/D converter */
 	s = dev->subdevices + SUBDEV_AD;
@@ -2818,36 +2789,105 @@ static int usbduxsigma_attach(comedi_device *dev,
 	/* we don't use it */
 	s->private = NULL;
 
-	if (udev->high_speed) {
+	if (usbduxsub_tmp->high_speed) {
 		/* timer / pwm */
 		s = dev->subdevices + SUBDEV_PWM;
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan = 8;
 		/* this defines the max duty cycle resolution */
-		s->maxdata = udev->sizePwmBuf;
+		s->maxdata = usbduxsub_tmp->sizePwmBuf;
 		s->insn_write = usbdux_pwm_write;
 		s->insn_read = usbdux_pwm_read;
 		s->insn_config = usbdux_pwm_config;
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
 	/* finally decide that it's attached */
-	udev->attached = 1;
-
-	mutex_unlock(&udev->sem);
-
-	mutex_unlock(&start_stop_sem);
+	usbduxsub_tmp->attached = 1;
 
 	offset = usbdux_getstatusinfo(dev, 0);
 	if (offset < 0)
-		dev_err(&udev->interface->dev,
+		dev_err(&usbduxsub_tmp->interface->dev,
 			"Communication to USBDUXSIGMA failed!"
 			"Check firmware and cabling.");
 
-	dev_info(&udev->interface->dev,
+	dev_info(&usbduxsub_tmp->interface->dev,
 		 "comedi%d: attached, ADC_zero = %x", dev->minor, offset);
 
 	return 0;
+}
+
+/* is called when comedi-config is called */
+static int usbduxsigma_attach(comedi_device *dev,
+			      comedi_devconfig *it)
+{
+	int ret;
+	int i;
+	struct usbduxsub *usbduxsub_tmp;
+
+	mutex_lock(&start_stop_sem);
+	/* find a valid device which has been detected by the probe function of
+	 * the usb */
+	for (i = 0; i < NUMUSBDUX; i++) {
+		usbduxsub_tmp = &usbduxsub[i];
+		mutex_lock(&usbduxsub_tmp->sem);
+		if (usbduxsub_tmp->probed && !usbduxsub_tmp->attached) {
+			break;
+		}
+		mutex_unlock(&usbduxsub_tmp->sem);
+	}
+
+	if (i == NUMUSBDUX) {
+		printk(KERN_ERR "comedi%d: usbduxsigma: error: attach failed,"
+		       "dev not connected to the usb bus.\n", dev->minor);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	/* private structure is also simply the usb-structure */
+	dev->private = usbduxsub_tmp;
+	ret = usbduxsigma_attach_common(dev);
+	mutex_unlock(&usbduxsub_tmp->sem);
+
+out:
+	mutex_unlock(&start_stop_sem);
+	return ret;
+}
+
+static int usbduxsigma_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct usbduxsub *usbduxsub_tmp = (struct usbduxsub *)context;
+	int ret;
+
+	if (!usbduxsub_tmp) {
+		printk("comedi%d: usbduxsigma: error: auto-attach failed, no context.\n",
+			dev->minor);
+		return -ENODEV;
+	}
+
+	mutex_lock(&start_stop_sem);
+	mutex_lock(&usbduxsub_tmp->sem);
+	if (!usbduxsub_tmp->probed) {
+		printk("comedi%d: usbduxsigma: error: auto-attach failed, usb-device not probed.\n",
+			dev->minor);
+		ret = -ENODEV;
+		goto out;
+	}
+	if (usbduxsub_tmp->attached) {
+		printk("comedi%d: usbduxsigma: error: auto-attach failed, usb-device already attached.\n",
+			dev->minor);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/* private structure is also simply the usb-structure */
+	dev->private = usbduxsub_tmp;
+	ret = usbduxsigma_attach_common(dev);
+
+out:
+	mutex_unlock(&usbduxsub_tmp->sem);
+	mutex_unlock(&start_stop_sem);
+	return ret;
 }
 
 static int usbduxsigma_detach(comedi_device *dev)
@@ -2862,9 +2902,8 @@ static int usbduxsigma_detach(comedi_device *dev)
 
 	usbduxsub_tmp = dev->private;
 	if (!usbduxsub_tmp) {
-		printk(KERN_ERR
-		       "comedi?: usbduxsigma detach: private=NULL\n");
-		return -EFAULT;
+		/* This can happen if could not find an unattached device. */
+		return 0;
 	}
 
 	dev_dbg(&usbduxsub_tmp->interface->dev,
@@ -2888,6 +2927,7 @@ static comedi_driver driver_usbduxsigma = {
 	.driver_name	= "usbduxsigma",
 	.module		= THIS_MODULE,
 	.attach		= usbduxsigma_attach,
+	.auto_attach	= usbduxsigma_auto_attach,
 	.detach		= usbduxsigma_detach,
 };
 
