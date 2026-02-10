@@ -157,10 +157,11 @@ Configuration options:
 
 /////////////////////////////////////////////
 // comedi constants
-static const comedi_lrange range_usbduxfast_ai_range = { 2, {
-			BIP_RANGE(0.75),
-			BIP_RANGE(0.5),
-	}
+static const comedi_lrange range_usbduxfast_ai_range = {
+	2, {
+		BIP_RANGE(0.75),
+		BIP_RANGE(0.5),
+	},
 };
 
 /*
@@ -1748,10 +1749,10 @@ static int usbduxfast_detach(comedi_device * dev)
 
 /* main driver struct */
 static comedi_driver driver_usbduxfast = {
-      driver_name:"usbduxfast",
-      module:THIS_MODULE,
-      attach:usbduxfast_attach,
-      detach:usbduxfast_detach,
+	.driver_name	= "usbduxfast",
+	.module		= THIS_MODULE,
+	.attach		= usbduxfast_attach,
+	.detach		= usbduxfast_detach,
 };
 
 static void init_usb_devices(void)
@@ -1795,12 +1796,12 @@ MODULE_DEVICE_TABLE(usb, usbduxfastsub_table);
 // The usbduxfastsub-driver
 static struct usb_driver usbduxfastsub_driver = {
 #ifdef COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER
-      owner:THIS_MODULE,
+	.owner		= THIS_MODULE,
 #endif
-      name:BOARDNAME,
-      probe:usbduxfastsub_probe,
-      disconnect:usbduxfastsub_disconnect,
-      id_table:usbduxfastsub_table,
+	.name		= BOARDNAME,
+	.probe		= usbduxfastsub_probe,
+	.disconnect	= usbduxfastsub_disconnect,
+	.id_table	= usbduxfastsub_table,
 };
 
 // Can't use the nice macro as I have also to initialise the USB
