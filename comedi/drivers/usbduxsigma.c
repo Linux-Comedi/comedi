@@ -25,7 +25,7 @@ Driver: usbduxsigma
 Description: Driver for USB-DUX-SIGMA of INCITE Technology Limited
 Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
 Author: Bernd Porr <tech@linux-usb-daq.co.uk>
-Updated: 13 May 2012
+Updated: Tue, 10 Feb 2026 16:51:39 +0000
 Status: Stable
 
 The following subdevices are available
@@ -65,13 +65,14 @@ The following subdevices are available
     max data value: 512
 
 Configuration options:
-  The device requires firmware which is usually
-  uploaded automatically by udev/hotplug at the moment
-  the driver module is loaded.
-  In case udev/hotplug is not enabled you need to upload 
-  the firmware with comedi_config -i usbdux_firmware.bin.
-  The firmware is usually installed under /lib/firmware
-  or can be downloaded form http://www.linux-usb-daq.co.uk.
+  None
+
+The device requires firmware which is usually uploaded automatically
+by udev/hotplug at the moment the USB device is detected by the
+driver.  The firmware file is called "usbduxsigma_firmware.bin" and
+should be placed in the "/lib/firmware/" directory.  The firmware is
+available from the Linux firmware project at
+<https://gitlab.com/kernel-firmware/linux-firmware>.
 */
 /*
  * I must give credit here to Chris Baugher who
