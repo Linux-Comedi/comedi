@@ -249,18 +249,20 @@ Configuration options
 
 /////////////////////////////////////////////
 // comedi constants
-static const comedi_lrange range_usbdux_ai_range = { 4, {
-			BIP_RANGE(4.096),
-			BIP_RANGE(4.096 / 2),
-			UNI_RANGE(4.096),
-			UNI_RANGE(4.096 / 2)
-	}
+static const comedi_lrange range_usbdux_ai_range = {
+	4, {
+		BIP_RANGE(4.096),
+		BIP_RANGE(4.096 / 2),
+		UNI_RANGE(4.096),
+		UNI_RANGE(4.096 / 2),
+	},
 };
 
-static const comedi_lrange range_usbdux_ao_range = { 2, {
-			BIP_RANGE(4.096),
-			UNI_RANGE(4.096),
-	}
+static const comedi_lrange range_usbdux_ao_range = {
+	2, {
+		BIP_RANGE(4.096),
+		UNI_RANGE(4.096),
+	},
 };
 
 /*
@@ -2934,10 +2936,10 @@ static int usbdux_detach(comedi_device * dev)
 
 /* main driver struct */
 static comedi_driver driver_usbdux = {
-      driver_name:"usbdux",
-      module:THIS_MODULE,
-      attach:usbdux_attach,
-      detach:usbdux_detach,
+	.driver_name	= "usbdux",
+	.module		= THIS_MODULE,
+	.attach		= usbdux_attach,
+	.detach		= usbdux_detach,
 };
 
 static void init_usb_devices(void)
@@ -2978,12 +2980,12 @@ MODULE_DEVICE_TABLE(usb, usbduxsub_table);
 // The usbduxsub-driver
 static struct usb_driver usbduxsub_driver = {
 #ifdef COMEDI_COMPAT_HAVE_USB_DRIVER_OWNER
-      owner:THIS_MODULE,
+	.owner		= THIS_MODULE,
 #endif
-      name:BOARDNAME,
-      probe:usbduxsub_probe,
-      disconnect:usbduxsub_disconnect,
-      id_table:usbduxsub_table,
+	.name		= BOARDNAME,
+	.probe		= usbduxsub_probe,
+	.disconnect	= usbduxsub_disconnect,
+	.id_table	= usbduxsub_table,
 };
 
 // Can't use the nice macro as I have also to initialise the USB
