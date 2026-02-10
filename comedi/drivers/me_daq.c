@@ -265,6 +265,7 @@ static comedi_driver me_driver = {
 	.detach		= me_detach,
 };
 
+MODULE_FIRMWARE(ME2600_FIRMWARE);
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 
 //
