@@ -2769,14 +2769,6 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 	// pointer back to the corresponding comedi device
 	usbduxsub[index].comedidev = dev;
 
-	// trying to upload the firmware into the chip
-	if (comedi_aux_data(it->options, 0) &&
-		it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		read_firmware(usbduxsub + index,
-			      comedi_aux_data(it->options, 0),
-			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
-
 	dev->board_name = BOARDNAME;
 
 	/* set number of subdevices */
