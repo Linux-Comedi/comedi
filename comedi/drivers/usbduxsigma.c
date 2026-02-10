@@ -116,6 +116,9 @@ available from the Linux firmware project at
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
 
+/* firmware file */
+#define USBDUXSIGMA_FIRMWARE_BIN	"usbduxsigma_firmware.bin"
+
 /* constants for "firmware" upload and download */
 #define USBDUXSUB_FIRMWARE 0xA0
 #define VENDOR_DIR_IN  0xC0
@@ -2646,7 +2649,7 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxsigma_firmware.bin",
+				      USBDUXSIGMA_FIRMWARE_BIN,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxsub + index,
@@ -3014,3 +3017,4 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
+MODULE_FIRMWARE(USBDUXSIGMA_FIRMWARE_BIN);
