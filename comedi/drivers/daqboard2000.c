@@ -942,4 +942,5 @@ static int daqboard2000_detach(comedi_device * dev)
 	return 0;
 }
 
+MODULE_FIRMWARE(DAQBOARD2000_FIRMWARE);
 COMEDI_PCI_INITCLEANUP(driver_daqboard2000, daqboard2000_pci_table);
