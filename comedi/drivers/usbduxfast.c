@@ -1466,8 +1466,10 @@ static void usbduxfast_firmware_request_complete_handler(
 		goto out;
 	}
 
+	// Use pointer to usbduxfastsub entry as the auto-attach context
 	comedi_usb_auto_config(usbduxfastsub_tmp->interface,
-			       &driver_usbduxfast, 0);
+			       &driver_usbduxfast,
+			       (unsigned long)usbduxfastsub_tmp);
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -1619,34 +1621,14 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 #endif
 }
 
-// is called when comedi-config is called
-static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
+static int usbduxfast_attach_common(comedi_device * dev)
 {
 	int ret;
-	int index;
-	int i;
 	comedi_subdevice *s = NULL;
-	dev->private = NULL;
+	usbduxfastsub_t *usbduxfastsub_tmp = dev->private;
 
-	mutex_lock(&start_stop_mutex);
-	// find a valid device which has been detected by the probe function of the usb
-	index = -1;
-	for (i = 0; i < NUMUSBDUXFAST; i++) {
-		if ((usbduxfastsub[i].probed) && (!usbduxfastsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk("comedi%d: usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n", dev->minor);
-		mutex_unlock(&start_stop_mutex);
-		return -ENODEV;
-	}
-
-	mutex_lock(&(usbduxfastsub[index].mutex));
 	// pointer back to the corresponding comedi device
-	usbduxfastsub[index].comedidev = dev;
+	usbduxfastsub_tmp->comedidev = dev;
 
 	dev->board_name = BOARDNAME;
 
@@ -1657,14 +1639,9 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_subdevices(dev, N_SUBDEVICES)) < 0) {
 		printk("comedi%d: usbduxfast: error alloc space for subdev\n",
 			dev->minor);
-		mutex_unlock(&start_stop_mutex);
 		return ret;
 	}
 
-	printk("comedi%d: usbduxfast: usb-device %d is attached to comedi.\n",
-		dev->minor, index);
-	// private structure is also simply the usb-structure
-	dev->private = usbduxfastsub + index;
 	// the first subdevice is the A/D converter
 	s = dev->subdevices + SUBDEV_AD;
 	// the URBs get the comedi subdevice
@@ -1693,15 +1670,82 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	s->range_table = &range_usbduxfast_ai_range;
 
 	// finally decide that it's attached
-	usbduxfastsub[index].attached = 1;
+	usbduxfastsub_tmp->attached = 1;
 
-	mutex_unlock(&(usbduxfastsub[index].mutex));
-
-	mutex_unlock(&start_stop_mutex);
-
-	printk("comedi%d: successfully attached to usbduxfast.\n", dev->minor);
+	printk("comedi%d: usbduxfast: usb-device %s is attached to comedi.\n",
+		dev->minor, dev_name(&usbduxfastsub_tmp->interface->dev));
 
 	return 0;
+}
+
+// is called when comedi-config is called
+static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+	int i;
+	usbduxfastsub_t *usbduxfastsub_tmp;
+
+	mutex_lock(&start_stop_mutex);
+	// find a valid device which has been detected by the probe function of the usb
+	for (i = 0; i < NUMUSBDUXFAST; i++) {
+		usbduxfastsub_tmp = &usbduxfastsub[i];
+		mutex_lock(&usbduxfastsub_tmp->mutex);
+		if (usbduxfastsub_tmp->probed && !usbduxfastsub_tmp->attached) {
+			break;
+		}
+		mutex_unlock(&usbduxfastsub_tmp->mutex);
+	}
+
+	if (i == NUMUSBDUXFAST) {
+		printk("comedi%d: usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n", dev->minor);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	// private structure is also simply the usb-structure
+	dev->private = usbduxfastsub_tmp;
+	ret = usbduxfast_attach_common(dev);
+	mutex_unlock(&usbduxfastsub_tmp->mutex);
+
+out:
+	mutex_unlock(&start_stop_mutex);
+	return ret;
+}
+
+static int usbduxfast_auto_attach(comedi_device * dev, unsigned long context)
+{
+	usbduxfastsub_t *usbduxfastsub_tmp = (usbduxfastsub_t *)context;
+	int ret;
+
+	if (!usbduxfastsub_tmp) {
+		printk("comedi%d: usbduxfast: error: auto-attach failed, no context.\n",
+			dev->minor);
+		return -ENODEV;
+	}
+
+	mutex_lock(&start_stop_mutex);
+	mutex_lock(&usbduxfastsub_tmp->mutex);
+	if (!usbduxfastsub_tmp->probed) {
+		printk("comedi%d: usbduxfast: error: auto-attach failed, usb-device not probed.\n",
+			dev->minor);
+		ret = -ENODEV;
+		goto out;
+	}
+	if (usbduxfastsub_tmp->attached) {
+		printk("comedi%d: usbduxfast: error: auto-attach failed, usb-device already attached.\n",
+			dev->minor);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	// private structure is also simply the usb-structure
+	dev->private = usbduxfastsub_tmp;
+	ret = usbduxfast_attach_common(dev);
+
+out:
+	mutex_unlock(&usbduxfastsub_tmp->mutex);
+	mutex_unlock(&start_stop_mutex);
+	return ret;
 }
 
 static int usbduxfast_detach(comedi_device * dev)
@@ -1719,8 +1763,8 @@ static int usbduxfast_detach(comedi_device * dev)
 
 	usbduxfastsub_tmp = dev->private;
 	if (!usbduxfastsub_tmp) {
-		printk("comedi?: usbduxfast: detach without ptr to usbduxfastsub[]\n");
-		return -EFAULT;
+		/* This can happen if could not find an unattached device. */
+		return 0;
 	}
 
 	mutex_lock(&usbduxfastsub_tmp->mutex);
@@ -1744,6 +1788,7 @@ static comedi_driver driver_usbduxfast = {
 	.driver_name	= "usbduxfast",
 	.module		= THIS_MODULE,
 	.attach		= usbduxfast_attach,
+	.auto_attach	= usbduxfast_auto_attach,
 	.detach		= usbduxfast_detach,
 };
 
