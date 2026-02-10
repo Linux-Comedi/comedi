@@ -97,6 +97,10 @@ Configuration options:
 // timeout for the USB-transfer
 #define BULK_TIMEOUT 1000
 
+// firmware files - the .bin format will be tried first, then .hex
+#define USBDUXFAST_FIRMWARE_BIN		"usbduxfast_firmware.bin"
+#define USBDUXFAST_FIRMWARE_HEX		"usbduxfast_firmware.hex"
+
 // constants for "firmware" upload and download
 #define USBDUXFASTSUB_FIRMWARE 0xA0
 #define VENDOR_DIR_IN  0xC0
@@ -534,7 +538,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 }
 
 static int firmwareUpload(usbduxfastsub_t * usbduxfastsub,
-	unsigned char *firmwareBinary, int sizeFirmware)
+	uint8_t *firmwareBinary, unsigned int sizeFirmware)
 {
 	int ret;
 
@@ -1306,20 +1310,18 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 // taken from David Brownell's fxload and adjusted for this driver
-static int read_firmware(usbduxfastsub_t * usbduxfastsub,
-			 const void *firmwarePtr,
-			 long size)
+static uint8_t *read_hex_firmware(const void *firmwarePtr, size_t size,
+				  unsigned int *bin_size)
 {
 	int i = 0;
-	unsigned char *fp = (char *)firmwarePtr;
+	const unsigned char *fp = firmwarePtr;
 	unsigned char *firmwareBinary = NULL;
-	int res = 0;
 	int maxAddr = 0;
 
 	firmwareBinary = kmalloc(FIRMWARE_MAX_LEN, GFP_KERNEL);
 	if (!firmwareBinary) {
 		printk("comedi_: usbduxfast: mem alloc for firmware failed\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	for (;;) {
@@ -1336,7 +1338,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 			j++;
 			if (j >= sizeof(buf)) {
 				printk("comedi_: usbduxfast: bogus firmware file!\n");
-				return -1;
+				goto out_invalid;
 			}
 		}
 		// get rid of LF/CR/...
@@ -1354,7 +1356,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 
 		if (buf[0] != ':') {
 			printk("comedi_: usbduxfast: upload: not an ihex record: %s\n", buf);
-			return -EFAULT;
+			goto out_invalid;
 		}
 
 		/* Read the length field (up to 16 bytes) */
@@ -1369,7 +1371,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 
 		if (maxAddr >= FIRMWARE_MAX_LEN) {
 			printk("comedi_: usbduxfast: firmware upload goes beyond FX2 RAM boundaries.\n");
-			return -EFAULT;
+			goto out_invalid;
 		}
 		//printk("comedi_: usbduxfast: off=%x, len=%x:\n",off,len);
 
@@ -1383,7 +1385,7 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 
 		if (type != 0) {
 			printk("comedi_: usbduxfast: unsupported record type: %u\n", type);
-			return -EFAULT;
+			goto out_invalid;
 		}
 
 		for (idx = 0, cp = buf + 9; idx < len; idx += 1, cp += 2) {
@@ -1398,9 +1400,12 @@ static int read_firmware(usbduxfastsub_t * usbduxfastsub,
 		}
 
 	}
-	res = firmwareUpload(usbduxfastsub, firmwareBinary, maxAddr + 1);
+	*bin_size = maxAddr + 1;
+	return firmwareBinary;
+
+out_invalid:
 	kfree(firmwareBinary);
-	return res;
+	return ERR_PTR(-EINVAL);
 }
 
 static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
@@ -1441,35 +1446,109 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 	usbduxfastsub_tmp->ai_cmd_running = 0;
 }
 
-static void usbduxfast_firmware_request_complete_handler(
-	const struct firmware *fw,
-	void *context)
+static void usbduxfast_firmware_upload_common(usbduxfastsub_t * usbduxfastsub,
+	uint8_t * firmwareBinary, unsigned int sizeFirmware)
 {
-	usbduxfastsub_t * usbduxfastsub_tmp = (usbduxfastsub_t *)context;
-	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	struct usb_device *usbdev = usbduxfastsub->usbdev;
 	int ret;
 
-	if(fw == NULL) {
-		return;
-	}
+	// upload the binary firmware
+	ret = firmwareUpload(usbduxfastsub, firmwareBinary, sizeFirmware);
 
-	// we need to upload the firmware here because fw will be
-	// freed one we've left this function
-	ret=read_firmware(usbduxfastsub_tmp,
-			  fw->data,
-			  fw->size);
+	// free the temporary copy
+	kfree(firmwareBinary);
 
 	if (ret) {
 		dev_err(&usbdev->dev,
 			"Could not upload firmware (err=%d)\n",
 			ret);
+		return;
+	}
+	// Use pointer to usbduxsub entry as the auto-attach context
+	comedi_usb_auto_config(usbduxfastsub->interface, &driver_usbduxfast,
+			       (unsigned long)usbduxfastsub);
+}
+
+static void usbduxfast_firmware_request_complete_handler_hex(
+	const struct firmware *fw,
+	void *context)
+{
+	usbduxfastsub_t * usbduxfastsub_tmp = (usbduxfastsub_t *)context;
+	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	uint8_t *bin_firmware;
+	unsigned int bin_size;
+	int ret;
+
+	if(fw == NULL) {
+		dev_err(&usbdev->dev,
+			"Firmware complete handler without firmware!\n");
+		return;
+	}
+
+	// we need to upload the firmware here because fw will be
+	// freed one we've left this function
+
+	// read and decode the hex firmware to binary format in allocated buffer
+	bin_firmware = read_hex_firmware(fw->data, fw->size, &bin_size);
+	if (IS_ERR(bin_firmware)) {
+		ret = PTR_ERR(bin_firmware);
 		goto out;
 	}
 
-	// Use pointer to usbduxfastsub entry as the auto-attach context
-	comedi_usb_auto_config(usbduxfastsub_tmp->interface,
-			       &driver_usbduxfast,
-			       (unsigned long)usbduxfastsub_tmp);
+	// continue firmware upload and free the allocated buffer
+	usbduxfast_firmware_upload_common(usbduxfastsub_tmp, bin_firmware,
+					  bin_size);
+
+out:
+	/*
+	 * in more recent versions the completion handler
+	 * had to release the firmware whereas in older
+	 * versions this has been done by the caller
+	 */
+	COMEDI_RELEASE_FIRMWARE_NOWAIT(fw);
+}
+
+static void usbduxfast_firmware_request_complete_handler_bin(
+	const struct firmware *fw,
+	void *context)
+{
+	usbduxfastsub_t * usbduxfastsub_tmp = (usbduxfastsub_t *)context;
+	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	uint8_t *bin_firmware;
+	int ret;
+
+	if (fw == NULL) {
+		/* Fall back to requesting old hex format firmware. */
+		ret = request_firmware_nowait(THIS_MODULE,
+					      FW_ACTION_HOTPLUG,
+					      USBDUXFAST_FIRMWARE_HEX,
+					      &usbdev->dev,
+					      GFP_KERNEL,
+					      usbduxfastsub_tmp,
+					      usbduxfast_firmware_request_complete_handler_hex);
+		if (ret) {
+			dev_err(&usbdev->dev,
+				"Could not load fallback hex firmware (err=%d)\n",
+				ret);
+		}
+		return;
+	}
+
+	if (fw->size > FIRMWARE_MAX_LEN) {
+		printk("comedi_: usbduxfast: firmware upload goes beyond FX2 RAM boundaries.\n");
+		goto out;
+	}
+
+	/* we generate a local buffer for the firmware */
+	bin_firmware = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!bin_firmware) {
+		printk("comedi_: usbduxfast: mem alloc for firmware failed\n");
+		goto out;
+	}
+
+	// continue firmware upload and free the allocated buffer
+	usbduxfast_firmware_upload_common(usbduxfastsub_tmp, bin_firmware, fw->size);
+
 out:
 	/*
 	 * in more recent versions the completion handler
@@ -1576,11 +1655,11 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxfast_firmware.hex",
+				      USBDUXFAST_FIRMWARE_BIN,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxfastsub + index,
-				      usbduxfast_firmware_request_complete_handler);
+				      usbduxfast_firmware_request_complete_handler_bin);
 
 	if (ret) {
 		dev_err(&udev->dev,
