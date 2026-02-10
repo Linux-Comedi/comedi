@@ -2976,12 +2976,26 @@ static void uninit_usb_devices(void)
 /* registering the usb-system _and_ the comedi-driver */
 static int __init init_usbduxsigma(void)
 {
+	int ret;
+
 	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
 	init_usb_devices();
-	usb_register(&usbduxsigma_driver);
-	comedi_driver_register(&driver_usbduxsigma);
+	ret = usb_register(&usbduxsigma_driver);
+	if (ret < 0) {
+		goto uninit_usb;
+	}
+	ret = comedi_driver_register(&driver_usbduxsigma);
+	if (ret < 0) {
+		goto unregister_usb;
+	}
 	return 0;
+
+unregister_usb:
+	usb_deregister(&usbduxsigma_driver);
+uninit_usb:
+	uninit_usb_devices();
+	return ret;
 }
 
 /* deregistering the comedi driver and the usb-subsystem */
