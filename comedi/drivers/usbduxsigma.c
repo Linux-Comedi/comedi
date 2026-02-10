@@ -2429,8 +2429,6 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 	dev_dbg(dev, "comedi_: usbdux: "
 		"usbduxsub[%d] is ready to connect to comedi.\n", index);
 
-	mutex_init(&(usbduxsub[index].sem));
-
 	/* save a pointer to the usb device */
 	usbduxsub[index].usbdev = udev;
 
@@ -2949,6 +2947,30 @@ static struct usb_driver usbduxsigma_driver = {
 	.id_table	= usbduxsigma_table,
 };
 
+static void init_usb_devices(void)
+{
+	int index;
+#ifdef COMEDI_CONFIG_DEBUG
+	printk("comedi_: usbduxsigma: setting all possible devs to invalid\n");
+#endif
+	// all devices entries are invalid to begin with
+	// they will become valid by the probe function
+	// and then finally by the attach-function
+	for (index = 0; index < NUMUSBDUX; index++) {
+		memset(&(usbduxsub[index]), 0x00, sizeof(usbduxsub[index]));
+		mutex_init(&(usbduxsub[index].sem));
+	}
+}
+
+static void uninit_usb_devices(void)
+{
+	int index;
+
+	for (index = 0; index < NUMUSBDUX; index++) {
+		mutex_destroy(&(usbduxsub[index].sem));
+	}
+}
+
 /* Can't use the nice macro as I have also to initialise the USB */
 /* subsystem: */
 /* registering the usb-system _and_ the comedi-driver */
@@ -2956,6 +2978,7 @@ static int __init init_usbduxsigma(void)
 {
 	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
+	init_usb_devices();
 	usb_register(&usbduxsigma_driver);
 	comedi_driver_register(&driver_usbduxsigma);
 	return 0;
@@ -2966,6 +2989,7 @@ static void __exit exit_usbduxsigma(void)
 {
 	comedi_driver_unregister(&driver_usbduxsigma);
 	usb_deregister(&usbduxsigma_driver);
+	uninit_usb_devices();
 }
 
 module_init(init_usbduxsigma);
