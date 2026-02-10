@@ -54,6 +54,8 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_3_CHANNEL 0x3113
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
+#define JR3_FIRMWARE_FILE	"comedi/jr3pci.idm"
+
 static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it);
 static int jr3_pci_auto_attach(comedi_device * dev, unsigned long context);
 static int jr3_pci_detach(comedi_device * dev);
@@ -827,7 +829,7 @@ static int jr3_pci_attach_common(comedi_device * dev)
 	writel(0, &devpriv->iobase->channel[0].reset);
 
 	result = comedi_load_firmware(dev, &devpriv->pci_dev->dev,
-			"comedi/jr3pci.idm", jr3_download_firmware, 0);
+			JR3_FIRMWARE_FILE, jr3_download_firmware, 0);
 	printk("Firmare load %d\n", result);
 
 	if (result < 0) {
@@ -979,4 +981,5 @@ static int jr3_pci_detach(comedi_device * dev)
 	return 0;
 }
 
+MODULE_FIRMWARE(JR3_FIRMWARE_FILE);
 COMEDI_PCI_INITCLEANUP(driver_jr3_pci, jr3_pci_pci_table);
