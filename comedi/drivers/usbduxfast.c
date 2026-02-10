@@ -1515,7 +1515,6 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	printk("comedi_: usbduxfast: usbduxfastsub[%d] is ready to connect to comedi.\n", index);
 #endif
 
-	mutex_init(&(usbduxfastsub[index].mutex));
 	// save a pointer to the usb device
 	usbduxfastsub[index].usbdev = udev;
 
