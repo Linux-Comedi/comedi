@@ -25,7 +25,7 @@ Driver: usbduxfast
 Description: Driver for USB-DUX-FAST of INCITE Technology Limited
 Devices: [ITL] USB-DUX-FAST (usbduxfast)
 Author: Bernd Porr <tech@linux-usb-daq.co.uk>
-Updated: 14 May 2012
+Updated: Tue, 10 Feb 2026 16:49:14 +0000
 Status: stable
 
 The device has one subdevice for analogue input.
@@ -47,13 +47,16 @@ The device has one subdevice for analogue input.
       stop: none|count
 
 Configuration options:
-  The device requires firmware which is usually
-  uploaded automatically by udev/hotplug at the moment
-  the driver module is being loaded.
-  In case udev/hotplug is not enabled you need to upload 
-  the firmware with comedi_config -i usbduxfast_firmware.bin
-  The firmware is usually installed under /lib/firmware
-  or can be downloaded form http://www.linux-usb-daq.co.uk.
+  None
+
+The device requires firmware which is usually uploaded automatically
+by udev/hotplug at the moment the USB device is detected by the
+driver.  The firmware file is called "usbduxfast_firmware.bin" and
+should be placed in the "/lib/firmware/" directory.  If it is missing,
+the driver will try to load the older Intel Hex format file
+"usbduxfast_firmware.hex" instead.  The firmware is available from the
+Linux firmware project at
+<https://gitlab.com/kernel-firmware/linux-firmware>.
 */
 
 /*
