@@ -2728,13 +2728,6 @@ static int usbduxsigma_attach(comedi_device *dev,
 	/* pointer back to the corresponding comedi device */
 	udev->comedidev = dev;
 
-	/* trying to upload the firmware into the FX2 */
-	if (comedi_aux_data(it->options, 0) &&
-	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		firmwareUpload(udev, comedi_aux_data(it->options, 0),
-			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
-
 	dev->board_name = BOARDNAME;
 
 	/* set number of subdevices */
