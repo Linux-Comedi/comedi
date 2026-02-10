@@ -1422,4 +1422,7 @@ static int nidio_find_device(comedi_device * dev, int bus, int slot)
 	return -EIO;
 }
 
+MODULE_FIRMWARE(FW_PCI_6534_MAIN);
+MODULE_FIRMWARE(FW_PCI_6534_SCARAB_DI);
+MODULE_FIRMWARE(FW_PCI_6534_SCARAB_DO);
 COMEDI_PCI_INITCLEANUP(driver_pcidio, ni_pcidio_pci_table);
