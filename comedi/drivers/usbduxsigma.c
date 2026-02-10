@@ -223,16 +223,18 @@ Configuration options:
 
 /**************************************************/
 /* comedi constants */
-static const comedi_lrange range_usbdux_ai_range = { 1, {
-								BIP_RANGE
-								(2.65/2.0)
-								}
+static const comedi_lrange range_usbdux_ai_range = {
+	1,
+	{
+		BIP_RANGE(2.65/2.0),
+	},
 };
 
-static const comedi_lrange range_usbdux_ao_range = { 1, {
-								UNI_RANGE
-								(2.5),
-							       }
+static const comedi_lrange range_usbdux_ao_range = {
+	1,
+	{
+		UNI_RANGE(2.5),
+	},
 };
 
 /*
@@ -2890,10 +2892,10 @@ static int usbduxsigma_detach(comedi_device *dev)
 
 /* main driver struct */
 static comedi_driver driver_usbduxsigma = {
-	.driver_name = "usbduxsigma",
-	.module = THIS_MODULE,
-	.attach = usbduxsigma_attach,
-	.detach = usbduxsigma_detach,
+	.driver_name	= "usbduxsigma",
+	.module		= THIS_MODULE,
+	.attach		= usbduxsigma_attach,
+	.detach		= usbduxsigma_detach,
 };
 
 /* Table with the USB-devices */
@@ -2908,10 +2910,10 @@ MODULE_DEVICE_TABLE(usb, usbduxsigma_table);
 
 /* The usbduxsub-driver */
 static struct usb_driver usbduxsigma_driver = {
-	.name = BOARDNAME,
-	.probe = usbduxsigma_probe,
-	.disconnect = usbduxsigma_disconnect,
-	.id_table = usbduxsigma_table,
+	.name		= BOARDNAME,
+	.probe		= usbduxsigma_probe,
+	.disconnect	= usbduxsigma_disconnect,
+	.id_table	= usbduxsigma_table,
 };
 
 /* Can't use the nice macro as I have also to initialise the USB */
