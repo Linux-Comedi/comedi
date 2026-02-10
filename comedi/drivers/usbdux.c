@@ -3028,12 +3028,26 @@ static struct usb_driver usbduxsub_driver = {
 // registering the usb-system _and_ the comedi-driver
 static int init_usbdux(void)
 {
+	int ret;
+
 	printk(KERN_INFO COMEDI_MODNAME ": "
 	       DRIVER_VERSION ":" DRIVER_DESC "\n");
 	init_usb_devices();
-	usb_register(&usbduxsub_driver);
-	comedi_driver_register(&driver_usbdux);
+	ret = usb_register(&usbduxsub_driver);
+	if (ret < 0) {
+		goto uninit_usb;
+	}
+	ret = comedi_driver_register(&driver_usbdux);
+	if (ret < 0) {
+		goto unregister_usb;
+	}
 	return 0;
+
+unregister_usb:
+	usb_deregister(&usbduxsub_driver);
+uninit_usb:
+	uninit_usb_devices();
+	return ret;
 }
 
 // deregistering the comedi driver and the usb-subsystem
