@@ -242,34 +242,34 @@ struct pcilst_struct {
 	unsigned int irq;
 };
 
-struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
+static struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
 
 static const int i_ADDIDATADeviceID[] = { 0x15B8, 0x10E8 };
 
 /****************************************************************************/
 
-void v_pci_card_list_init(unsigned short pci_vendor, char display);
-void v_pci_card_list_cleanup(unsigned short pci_vendor);
-struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
-	unsigned short device_id);
-int i_find_free_pci_card_by_position(unsigned short vendor_id,
+static void v_pci_card_list_init(unsigned short pci_vendor, char display);
+static void v_pci_card_list_cleanup(unsigned short pci_vendor);
+static struct pcilst_struct *ptr_find_free_pci_card_by_device(
+	unsigned short vendor_id, unsigned short device_id);
+static int i_find_free_pci_card_by_position(unsigned short vendor_id,
 	unsigned short device_id, unsigned short pci_bus,
 	unsigned short pci_slot, struct pcilst_struct **card);
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, int i_Master);
+static struct pcilst_struct *ptr_select_and_alloc_pci_card(
+	unsigned short vendor_id, unsigned short device_id,
+	unsigned short pci_bus, unsigned short pci_slot, int i_Master);
 
-int pci_card_alloc(struct pcilst_struct *amcc, int master);
-int i_pci_card_free(struct pcilst_struct *amcc);
-void v_pci_card_list_display(void);
-int i_pci_card_data(struct pcilst_struct *amcc,
+static int pci_card_alloc(struct pcilst_struct *amcc, int master);
+static int i_pci_card_free(struct pcilst_struct *amcc);
+static void v_pci_card_list_display(void);
+static int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot,
 	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq);
 
 /****************************************************************************/
 
 /* build list of amcc cards in this system */
-void v_pci_card_list_init(unsigned short pci_vendor, char display)
+static void v_pci_card_list_init(unsigned short pci_vendor, char display)
 {
 	struct pci_dev *pcidev;
 	struct pcilst_struct *amcc, *last;
@@ -318,7 +318,7 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 
 /****************************************************************************/
 /* free up list of amcc cards in this system */
-void v_pci_card_list_cleanup(unsigned short pci_vendor)
+static void v_pci_card_list_cleanup(unsigned short pci_vendor)
 {
 	struct pcilst_struct *amcc, *next;
 
@@ -332,8 +332,8 @@ void v_pci_card_list_cleanup(unsigned short pci_vendor)
 
 /****************************************************************************/
 /* find first unused card with this device_id */
-struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
-	unsigned short device_id)
+static struct pcilst_struct *ptr_find_free_pci_card_by_device(
+	unsigned short vendor_id, unsigned short device_id)
 {
 	struct pcilst_struct *amcc, *next;
 
@@ -350,7 +350,7 @@ struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
 
 /****************************************************************************/
 /* find card on requested position */
-int i_find_free_pci_card_by_position(unsigned short vendor_id,
+static int i_find_free_pci_card_by_position(unsigned short vendor_id,
 	unsigned short device_id, unsigned short pci_bus,
 	unsigned short pci_slot, struct pcilst_struct **card)
 {
@@ -379,7 +379,7 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 
 /****************************************************************************/
 /* mark card as used */
-int pci_card_alloc(struct pcilst_struct *amcc, int master)
+static int pci_card_alloc(struct pcilst_struct *amcc, int master)
 {
 	int i;
 
@@ -402,7 +402,7 @@ int pci_card_alloc(struct pcilst_struct *amcc, int master)
 
 /****************************************************************************/
 /* mark card as free */
-int i_pci_card_free(struct pcilst_struct *amcc)
+static int i_pci_card_free(struct pcilst_struct *amcc)
 {
 	if (!amcc)
 		return -1;
@@ -416,7 +416,7 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 
 /****************************************************************************/
 /* display list of found cards */
-void v_pci_card_list_display(void)
+static void v_pci_card_list_display(void)
 {
 	struct pcilst_struct *amcc, *next;
 
@@ -432,7 +432,7 @@ void v_pci_card_list_display(void)
 
 /****************************************************************************/
 /* return all card information for driver */
-int i_pci_card_data(struct pcilst_struct *amcc,
+static int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot,
 	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq)
 {
@@ -451,9 +451,9 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 
 /****************************************************************************/
 /* select and alloc card */
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, int i_Master)
+static struct pcilst_struct *ptr_select_and_alloc_pci_card(
+	unsigned short vendor_id, unsigned short device_id,
+	unsigned short pci_bus, unsigned short pci_slot, int i_Master)
 {
 	struct pcilst_struct *card;
 
