@@ -2528,16 +2528,16 @@ static const boardtype boardtypes[] = {
 #endif
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 
 comedi_driver driver_addi = {
-      driver_name:ADDIDATA_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:i_ADDI_Attach,
-      detach:i_ADDI_Detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].pc_DriverName,
-      offset:sizeof(boardtype),
+	.driver_name	= ADDIDATA_DRIVER_NAME,
+	.module			= THIS_MODULE,
+	.attach			= i_ADDI_Attach,
+	.detach			= i_ADDI_Detach,
+	.num_names		= n_boardtypes,
+	.board_name		= &boardtypes[0].pc_DriverName,
+	.offset			= sizeof(boardtype),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
