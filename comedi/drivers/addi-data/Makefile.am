@@ -39,7 +39,6 @@ EXTRA_DIST = \
 	addi_common.c \
 	addi_common.h \
 	addi_eeprom.c \
-	amcc_s5933_58.h \
 	hwdrv_APCI1710.c \
 	hwdrv_APCI1710.h \
 	hwdrv_apci035.c \
