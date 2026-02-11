@@ -2578,10 +2578,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	  	return -ENOMEM;
 	}
 
-	if (!pci_list_builded) {
-		v_pci_card_list_init(this_board->i_VendorId, 1);	//1 for displaying the list..
-		pci_list_builded = 1;
-	}
 	//rt_printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s\n",dev->minor,this_board->pc_DriverName);
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
@@ -2993,11 +2989,7 @@ static int i_ADDI_Detach(comedi_device * dev)
 			}
 		}
 
-		if (pci_list_builded) {
-			//v_pci_card_list_cleanup(PCI_VENDOR_ID_AMCC);
-			v_pci_card_list_cleanup(this_board->i_VendorId);
-			pci_list_builded = 0;
-		}
+		pci_card_free(devpriv->amcc);
 	}
 
 	return 0;

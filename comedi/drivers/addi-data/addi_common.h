@@ -484,8 +484,6 @@ typedef struct {
 
 } addi_private;
 
-static unsigned short pci_list_builded = 0;	/* set to 1 when list of card is known */
-
 //Function declarations
 
 static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it);
