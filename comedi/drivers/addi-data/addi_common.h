@@ -113,7 +113,7 @@ typedef struct {
 	INT i_IorangeBase2;	//  base 2 range
 	INT i_IorangeBase3;	//  base 3 range
 	INT i_PCIEeprom;	// eeprom present or not
-	PCHAR pc_EepromChip;	// type of chip
+	PCSTR pc_EepromChip;	// type of chip
 	INT i_NbrAiChannel;	// num of A/D chans
 	INT i_NbrAiChannelDiff;	// num of A/D chans in diff mode
 	INT i_AiChannelList;	// len of chanlist
