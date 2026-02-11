@@ -817,37 +817,17 @@ static int vmk80xx_alloc_usb_buffers(struct vmk80xx_private *devpriv)
 	return 0;
 }
 
-static int vmk80xx_attach(comedi_device *dev, comedi_devconfig *it)
+static int vmk80xx_attach_common(comedi_device *dev)
 {
 	const struct vmk80xx_board *board;
-	int i;
-	struct vmk80xx_private *devpriv;
+	struct vmk80xx_private *devpriv = dev->private;
 	int n_subd;
 	comedi_subdevice *s;
-	int minor;
 	int ret;
-
-	dbgvm("vmk80xx: %s\n", __func__);
-
-	mutex_lock(&glb_mutex);
-
-	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
-		if (vmb[i].probed && !vmb[i].attached)
-			break;
-
-	if (i == VMK80XX_MAX_BOARDS) {
-		mutex_unlock(&glb_mutex);
-		return -ENODEV;
-	}
-
-	devpriv = &vmb[i];
-
-	down(&devpriv->limit_sem);
 
 	board = &vmk80xx_boardinfo[devpriv->model];
 	dev->board_ptr = board;
 	dev->board_name = board->name;
-	dev->private = devpriv;
 
 	if (devpriv->model == VMK8055_MODEL)
 		n_subd = 5;
@@ -856,8 +836,6 @@ static int vmk80xx_attach(comedi_device *dev, comedi_devconfig *it)
 
 	ret = alloc_subdevices(dev, n_subd);
 	if (ret) {
-		up(&devpriv->limit_sem);
-		mutex_unlock(&glb_mutex);
 		return ret;
 	}
 
@@ -930,16 +908,71 @@ static int vmk80xx_attach(comedi_device *dev, comedi_devconfig *it)
 
 	devpriv->attached = 1;
 
-	minor = dev->minor;
-
 	printk(KERN_INFO
 	       "comedi%d: vmk80xx: board #%d [%s] attached to comedi\n",
-	       minor, devpriv->count, board->name);
-
-	up(&devpriv->limit_sem);
-	mutex_unlock(&glb_mutex);
+	       dev->minor, devpriv->count, board->name);
 
 	return 0;
+}
+
+static int vmk80xx_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	struct vmk80xx_private *devpriv;
+	int i;
+	int ret;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	mutex_lock(&glb_mutex);
+
+	for (i = 0; i < VMK80XX_MAX_BOARDS; i++) {
+		devpriv = &vmb[i];
+		down(&devpriv->limit_sem);
+		if (devpriv->probed && !devpriv->attached)
+			break;
+		up(&devpriv->limit_sem);
+	}
+
+	if (i == VMK80XX_MAX_BOARDS) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	dev->private = devpriv;
+	ret = vmk80xx_attach_common(dev);
+	up(&devpriv->limit_sem);
+
+out:
+	mutex_unlock(&glb_mutex);
+	return ret;
+}
+
+static int vmk80xx_auto_attach(comedi_device *dev, unsigned long context)
+{
+	struct vmk80xx_private *devpriv = (struct vmk80xx_private *)context;
+
+	int ret;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	mutex_lock(&glb_mutex);
+	down(&devpriv->limit_sem);
+
+	if (!devpriv->probed) {
+		ret = -ENODEV;
+		goto out;
+	}
+	if (devpriv->attached) {
+		ret = -EBUSY;
+		goto out;
+	}
+	dev->private = devpriv;
+	ret = vmk80xx_attach_common(dev);
+
+out:
+	up(&devpriv->limit_sem);
+	mutex_unlock(&glb_mutex);
+	return ret;
 }
 
 static int vmk80xx_detach(comedi_device *dev)
@@ -969,10 +1002,11 @@ static int vmk80xx_detach(comedi_device *dev)
 }
 
 static comedi_driver driver_vmk80xx = {
-	.module = THIS_MODULE,
-	.driver_name = "vmk80xx",
-	.attach = vmk80xx_attach,
-	.detach = vmk80xx_detach
+	.module		= THIS_MODULE,
+	.driver_name	= "vmk80xx",
+	.attach		= vmk80xx_attach,
+	.auto_attach	= vmk80xx_auto_attach,
+	.detach		= vmk80xx_detach
 };
 
 static int vmk80xx_find_usb_endpoints(struct vmk80xx_private *devpriv,
@@ -1080,7 +1114,8 @@ static int vmk80xx_usb_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
-	comedi_usb_auto_config(devpriv->intf, &driver_vmk80xx, devpriv->model);
+	comedi_usb_auto_config(devpriv->intf, &driver_vmk80xx,
+			       (unsigned long)devpriv);
 
 	return 0;
 
