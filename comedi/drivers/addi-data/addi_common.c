@@ -2700,6 +2700,10 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->dw_AiBase =
 			(ULONG_PTR) ioremap(io_addr[3],
 			this_board->i_IorangeBase3);
+		if (!devpriv->dw_AiBase) {
+			printk(" - Can't remap MMIO region\n");
+			return -ENOMEM;
+		}
 		printk("ioremap end\n");
 	}
 
@@ -3049,7 +3053,9 @@ static int i_ADDI_Detach(comedi_device * dev)
 					devpriv->ul_DmaBufferHw[1]);
 			}
 		} else {
-			iounmap((void *)devpriv->dw_AiBase);
+			if (devpriv->dw_AiBase) {
+				iounmap((void *)devpriv->dw_AiBase);
+			}
 
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);
