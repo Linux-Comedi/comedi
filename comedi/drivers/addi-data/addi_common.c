@@ -2661,7 +2661,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 
 	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
 				&irq)) < 0) {
-		i_pci_card_free(card);
 		printk(" - Can't get AMCC data!\n");
 		return -EIO;
 	}
