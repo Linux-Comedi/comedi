@@ -487,6 +487,7 @@ typedef struct {
 //Function declarations
 
 static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it);
+static int i_ADDI_Auto_Attach(comedi_device * dev, unsigned long context);
 static int i_ADDI_Detach(comedi_device * dev);
 static int i_ADDI_Reset(comedi_device * dev);
 

@@ -142,80 +142,278 @@ void fpu_end(void)
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+enum addi_board_idx {
 #ifdef CONFIG_APCI_3120
-	{APCI3120_BOARD_VENDOR_ID, 0x818D, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3120,
 #endif
 #ifdef CONFIG_APCI_1032
-	{APCI1032_BOARD_VENDOR_ID, 0x1003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1032,
 #endif
 #ifdef CONFIG_APCI_1516
-	{APCI1516_BOARD_VENDOR_ID, 0x1001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1516,
 #endif
 #ifdef CONFIG_APCI_2016
-	{APCI2016_BOARD_VENDOR_ID, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci2016,
 #endif
 #ifdef CONFIG_APCI_2032
-	{APCI2032_BOARD_VENDOR_ID, 0x1004, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci2032,
 #endif
 #ifdef CONFIG_APCI_2200
-	{APCI2200_BOARD_VENDOR_ID, 0x1005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci2200,
 #endif
 #ifdef CONFIG_APCI_1564
-	{APCI1564_BOARD_VENDOR_ID, 0x1006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1564,
 #endif
 #ifdef CONFIG_APCI_1500
-	{APCI1500_BOARD_VENDOR_ID, 0x80fc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1500,
 #endif
 #ifdef CONFIG_APCI_3001
-	{APCI3120_BOARD_VENDOR_ID, 0x828D, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3001,
 #endif
 #ifdef CONFIG_APCI_3501
-	{APCI3501_BOARD_VENDOR_ID, 0x3001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3501,
 #endif
 #ifdef CONFIG_APCI_035
-	{APCI035_BOARD_VENDOR_ID, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci035,
 #endif
 #ifdef CONFIG_APCI_3200
-	{APCI3200_BOARD_VENDOR_ID, 0x3000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3200,
 #endif
 #ifdef CONFIG_APCI_3300
-	{APCI3200_BOARD_VENDOR_ID, 0x3007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3300,
 #endif
 #ifdef CONFIG_APCI_1710
-	{APCI1710_BOARD_VENDOR_ID, APCI1710_BOARD_DEVICE_ID,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1710,
 #endif
 #ifdef CONFIG_APCI_16XX
-	{0x15B8, 0x1009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x100A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci1648,
+	board_idx_apci1696,
 #endif
 #ifdef CONFIG_APCI_3XXX
-	{0x15B8, 0x3010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x300F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x300E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3013, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3015, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3016, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3017, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3018, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301D, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x301F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x300B, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3004, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x15B8, 0x3024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	board_idx_apci3000_16,
+	board_idx_apci3000_8,
+	board_idx_apci3000_4,
+	board_idx_apci3006_16,
+	board_idx_apci3006_8,
+	board_idx_apci3006_4,
+	board_idx_apci3010_16,
+	board_idx_apci3010_8,
+	board_idx_apci3010_4,
+	board_idx_apci3016_16,
+	board_idx_apci3016_8,
+	board_idx_apci3016_4,
+	board_idx_apci3100_16_4,
+	board_idx_apci3100_8_4,
+	board_idx_apci3106_16_4,
+	board_idx_apci3106_8_4,
+	board_idx_apci3110_16_4,
+	board_idx_apci3110_8_4,
+	board_idx_apci3116_16_4,
+	board_idx_apci3116_8_4,
+	board_idx_apci3003,
+	board_idx_apci3002_16,
+	board_idx_apci3002_8,
+	board_idx_apci3002_4,
+	board_idx_apci3500,
+#endif
+};
+
+static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+#ifdef CONFIG_APCI_3120
+	{
+		PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x818D),
+		.driver_data = board_idx_apci3120,
+	},
+#endif
+#ifdef CONFIG_APCI_1032
+	{
+		PCI_DEVICE(APCI1032_BOARD_VENDOR_ID, 0x1003),
+		.driver_data = board_idx_apci1032,
+	},
+#endif
+#ifdef CONFIG_APCI_1516
+	{
+		PCI_DEVICE(APCI1516_BOARD_VENDOR_ID, 0x1001),
+		.driver_data = board_idx_apci1516,
+	},
+#endif
+#ifdef CONFIG_APCI_2016
+	{
+		PCI_DEVICE(APCI2016_BOARD_VENDOR_ID, 0x1002),
+		.driver_data = board_idx_apci2016,
+	},
+#endif
+#ifdef CONFIG_APCI_2032
+	{
+		PCI_DEVICE(APCI2032_BOARD_VENDOR_ID, 0x1004),
+		.driver_data = board_idx_apci2032,
+	},
+#endif
+#ifdef CONFIG_APCI_2200
+	{
+		PCI_DEVICE(APCI2200_BOARD_VENDOR_ID, 0x1005),
+		.driver_data = board_idx_apci2200,
+	},
+#endif
+#ifdef CONFIG_APCI_1564
+	{
+		PCI_DEVICE(APCI1564_BOARD_VENDOR_ID, 0x1006),
+		.driver_data = board_idx_apci1564,
+	},
+#endif
+#ifdef CONFIG_APCI_1500
+	{
+		PCI_DEVICE(APCI1500_BOARD_VENDOR_ID, 0x80fc),
+		.driver_data = board_idx_apci1500,
+	},
+#endif
+#ifdef CONFIG_APCI_3001
+	{
+		PCI_DEVICE(APCI3120_BOARD_VENDOR_ID, 0x828D),
+		.driver_data = board_idx_apci3001,
+	},
+#endif
+#ifdef CONFIG_APCI_3501
+	{
+		PCI_DEVICE(APCI3501_BOARD_VENDOR_ID, 0x3001),
+		.driver_data = board_idx_apci3501,
+	},
+#endif
+#ifdef CONFIG_APCI_035
+	{
+		PCI_DEVICE(APCI035_BOARD_VENDOR_ID, 0x0300),
+		.driver_data = board_idx_apci035,
+	},
+#endif
+#ifdef CONFIG_APCI_3200
+	{
+		PCI_DEVICE(APCI3200_BOARD_VENDOR_ID, 0x3000),
+		.driver_data = board_idx_apci3200,
+	},
+#endif
+#ifdef CONFIG_APCI_3300
+	{
+		PCI_DEVICE(APCI3200_BOARD_VENDOR_ID, 0x3007),
+		.driver_data = board_idx_apci3300,
+	},
+#endif
+#ifdef CONFIG_APCI_1710
+	{
+		PCI_DEVICE(APCI1710_BOARD_VENDOR_ID, APCI1710_BOARD_DEVICE_ID),
+		.driver_data = board_idx_apci1710,
+	},
+#endif
+#ifdef CONFIG_APCI_16XX
+	{
+		PCI_DEVICE(0x15B8, 0x1009),
+		.driver_data = board_idx_apci1648,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x100A),
+		.driver_data = board_idx_apci1696,
+	},
+#endif
+#ifdef CONFIG_APCI_3XXX
+	{
+		PCI_DEVICE(0x15B8, 0x3010),
+		.driver_data = board_idx_apci3000_16,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x300F),
+		.driver_data = board_idx_apci3000_8,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x300E),
+		.driver_data = board_idx_apci3000_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3013),
+		.driver_data = board_idx_apci3006_16,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3014),
+		.driver_data = board_idx_apci3006_8,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3015),
+		.driver_data = board_idx_apci3006_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3016),
+		.driver_data = board_idx_apci3010_16,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3017),
+		.driver_data = board_idx_apci3010_8,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3018),
+		.driver_data = board_idx_apci3010_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3019),
+		.driver_data = board_idx_apci3016_16,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301A),
+		.driver_data = board_idx_apci3016_8,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301B),
+		.driver_data = board_idx_apci3016_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301C),
+		.driver_data = board_idx_apci3100_16_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301D),
+		.driver_data = board_idx_apci3100_8_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301E),
+		.driver_data = board_idx_apci3106_16_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x301F),
+		.driver_data = board_idx_apci3106_8_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3020),
+		.driver_data = board_idx_apci3110_16_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3021),
+		.driver_data = board_idx_apci3110_8_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3022),
+		.driver_data = board_idx_apci3116_16_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3023),
+		.driver_data = board_idx_apci3116_8_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x300B),
+		.driver_data = board_idx_apci3003,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3002),
+		.driver_data = board_idx_apci3002_16,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3003),
+		.driver_data = board_idx_apci3002_8,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3004),
+		.driver_data = board_idx_apci3002_4,
+	},
+	{
+		PCI_DEVICE(0x15B8, 0x3024),
+		.driver_data = board_idx_apci3500,
+	},
 #endif
 	{0}
 };
@@ -224,7 +422,7 @@ MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
 
 static const boardtype boardtypes[] = {
 #ifdef CONFIG_APCI_3120
-	{
+	[board_idx_apci3120] = {
 		.pc_DriverName						= "apci3120",
 		.i_VendorId							= APCI3120_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x818D,
@@ -283,7 +481,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_1032
-	{
+	[board_idx_apci1032] = {
 		.pc_DriverName						= "apci1032",
 		.i_VendorId							= APCI1032_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1003,
@@ -342,7 +540,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_1516
-	{
+	[board_idx_apci1516] = {
 		.pc_DriverName						= "apci1516",
 		.i_VendorId							= APCI1516_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1001,
@@ -401,7 +599,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_2016
-	{
+	[board_idx_apci2016] = {
 		.pc_DriverName						= "apci2016",
 		.i_VendorId							= APCI2016_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1002,
@@ -460,7 +658,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_2032
-	{
+	[board_idx_apci2032] = {
 		.pc_DriverName						= "apci2032",
 		.i_VendorId							= APCI2032_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1004,
@@ -519,7 +717,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_2200
-	{
+	[board_idx_apci2200] = {
 		.pc_DriverName						= "apci2200",
 		.i_VendorId							= APCI2200_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1005,
@@ -578,7 +776,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_1564
-	{
+	[board_idx_apci1564] = {
 		.pc_DriverName						= "apci1564",
 		.i_VendorId							= APCI1564_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x1006,
@@ -637,7 +835,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_1500
-	{
+	[board_idx_apci1500] = {
 		.pc_DriverName						= "apci1500",
 		.i_VendorId							= APCI1500_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x80fc,
@@ -696,7 +894,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_3001
-	{
+	[board_idx_apci3001] = {
 		.pc_DriverName						= "apci3001",
 		.i_VendorId							= APCI3120_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x828D,
@@ -755,7 +953,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_3501
-	{
+	[board_idx_apci3501] = {
 		.pc_DriverName						= "apci3501",
 		.i_VendorId							= APCI3501_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x3001,
@@ -814,7 +1012,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_035
-	{
+	[board_idx_apci035] = {
 		.pc_DriverName						= "apci035",
 		.i_VendorId							= APCI035_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x0300,
@@ -873,7 +1071,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_3200
-	{
+	[board_idx_apci3200] = {
 		.pc_DriverName						= "apci3200",
 		.i_VendorId							= APCI3200_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x3000,
@@ -933,7 +1131,7 @@ static const boardtype boardtypes[] = {
 #endif
 #ifdef CONFIG_APCI_3300
 	//Begin JK 20.10.2004: APCI-3300 integration
-	{
+	[board_idx_apci3300] = {
 		.pc_DriverName						= "apci3300",
 		.i_VendorId							= APCI3200_BOARD_VENDOR_ID,
 		.i_DeviceId							= 0x3007,
@@ -992,7 +1190,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_1710
-	{
+	[board_idx_apci1710] = {
 		.pc_DriverName						= "apci1710",
 		.i_VendorId							= APCI1710_BOARD_VENDOR_ID,
 		.i_DeviceId							= APCI1710_BOARD_DEVICE_ID,
@@ -1051,7 +1249,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_16XX
-	{
+	[board_idx_apci1648] = {
 		.pc_DriverName						= "apci1648",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x1009,
@@ -1108,7 +1306,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI16XX_InsnReadTTLIOAllPortValue,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI16XX_InsnBitsWriteTTLIO,
 	},
-	{
+	[board_idx_apci1696] = {
 		.pc_DriverName						= "apci1696",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x100A,
@@ -1167,7 +1365,7 @@ static const boardtype boardtypes[] = {
 	},
 #endif
 #ifdef CONFIG_APCI_3XXX
-	{
+	[board_idx_apci3000_16] = {
 		.pc_DriverName						= "apci3000-16",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3010,
@@ -1224,7 +1422,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3000_8] = {
 		.pc_DriverName						= "apci3000-8",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x300F,
@@ -1281,7 +1479,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3000_4] = {
 		.pc_DriverName						= "apci3000-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x300E,
@@ -1338,7 +1536,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3006_16] = {
 		.pc_DriverName						= "apci3006-16",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3013,
@@ -1395,7 +1593,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3006_8] = {
 		.pc_DriverName						= "apci3006-8",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3014,
@@ -1452,7 +1650,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3006_4] = {
 		.pc_DriverName						= "apci3006-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3015,
@@ -1509,7 +1707,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3010_16] = {
 		.pc_DriverName						= "apci3010-16",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3016,
@@ -1566,7 +1764,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3010_8] = {
 		.pc_DriverName						= "apci3010-8",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3017,
@@ -1623,7 +1821,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3010_4] = {
 		.pc_DriverName						= "apci3010-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3018,
@@ -1680,7 +1878,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3016_16] = {
 		.pc_DriverName						= "apci3016-16",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3019,
@@ -1737,7 +1935,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3016_8] = {
 		.pc_DriverName						= "apci3016-8",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301A,
@@ -1794,7 +1992,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3016_4] = {
 		.pc_DriverName						= "apci3016-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301B,
@@ -1851,7 +2049,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3100_16_4] = {
 		.pc_DriverName						= "apci3100-16-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301C,
@@ -1908,7 +2106,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3100_8_4] = {
 		.pc_DriverName						= "apci3100-8-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301D,
@@ -1965,7 +2163,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3106_16_4] = {
 		.pc_DriverName						= "apci3106-16-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301E,
@@ -2022,7 +2220,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3106_8_4] = {
 		.pc_DriverName						= "apci3106-8-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x301F,
@@ -2079,7 +2277,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3110_16_4] = {
 		.pc_DriverName						= "apci3110-16-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3020,
@@ -2136,7 +2334,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3110_8_4] = {
 		.pc_DriverName						= "apci3110-8-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3021,
@@ -2193,7 +2391,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3116_16_4] = {
 		.pc_DriverName						= "apci3116-16-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3022,
@@ -2250,7 +2448,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3116_8_4] = {
 		.pc_DriverName						= "apci3116-8-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3023,
@@ -2307,7 +2505,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= i_APCI3XXX_InsnReadTTLIO,
 		.i_hwdr_WriteTTLIOChlOnOff			= i_APCI3XXX_InsnWriteTTLIO,
 	},
-	{
+	[board_idx_apci3003] = {
 		.pc_DriverName						= "apci3003",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x300B,
@@ -2364,7 +2562,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= NULL,
 		.i_hwdr_WriteTTLIOChlOnOff			= NULL,
 	},
-	{
+	[board_idx_apci3002_16] = {
 		.pc_DriverName						= "apci3002-16",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3002,
@@ -2421,7 +2619,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= NULL,
 		.i_hwdr_WriteTTLIOChlOnOff			= NULL,
 	},
-	{
+	[board_idx_apci3002_8] = {
 		.pc_DriverName						= "apci3002-8",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3003,
@@ -2478,7 +2676,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= NULL,
 		.i_hwdr_WriteTTLIOChlOnOff			= NULL,
 	},
-	{
+	[board_idx_apci3002_4] = {
 		.pc_DriverName						= "apci3002-4",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3004,
@@ -2535,7 +2733,7 @@ static const boardtype boardtypes[] = {
 		.i_hwdr_ReadTTLIOAllPortValue		= NULL,
 		.i_hwdr_WriteTTLIOChlOnOff			= NULL,
 	},
-	{
+	[board_idx_apci3500] = {
 		.pc_DriverName						= "apci3500",
 		.i_VendorId							= 0x15B8,
 		.i_DeviceId							= 0x3024,
@@ -2601,6 +2799,7 @@ comedi_driver driver_addi = {
 	.driver_name	= ADDIDATA_DRIVER_NAME,
 	.module			= THIS_MODULE,
 	.attach			= i_ADDI_Attach,
+	.auto_attach	= i_ADDI_Auto_Attach,
 	.detach			= i_ADDI_Detach,
 	.num_names		= n_boardtypes,
 	.board_name		= &boardtypes[0].pc_DriverName,
@@ -2609,27 +2808,7 @@ comedi_driver driver_addi = {
 
 COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 
-/*
-+----------------------------------------------------------------------------+
-| Function name     :static int i_ADDI_Attach(comedi_device *dev,            |
-|										comedi_devconfig *it)        |
-|                                        									 |
-+----------------------------------------------------------------------------+
-| Task              :Detects the card.                                       |
-|  			 Configure the driver for a particular board.            |
-|  			 This function does all the initializations and memory   |
-|			 allocation of data structures for the driver.	         |
-+----------------------------------------------------------------------------+
-| Input Parameters  :comedi_device *dev										 |
-|                    comedi_devconfig *it									 |
-|                                                 					         |
-+----------------------------------------------------------------------------+
-| Return Value      :  0            					                     |
-|                    													     |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
+static int i_ADDI_Attach_Common(comedi_device * dev, int master)
 {
 	comedi_subdevice *s;
 	int ret, order, i, n_subdevices;
@@ -2639,25 +2818,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
 	struct pcilst_struct *card = NULL;
 	unsigned char pci_bus, pci_slot, pci_func;
-	int i_Dma = 0;
-
-	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
-	  	return -ENOMEM;
-	}
-
-	//rt_printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s\n",dev->minor,this_board->pc_DriverName);
-
-	if ((this_board->i_Dma) && (it->options[2] == 0)) {
-		i_Dma = 1;
-	}
-
-	if ((card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
-				this_board->i_DeviceId,
-				it->options[0],
-				it->options[1], i_Dma)) == NULL) {
-		return -EIO;
-	}
-	devpriv->allocated = 1;
 
 	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
 				&irq)) < 0) {
@@ -2736,8 +2896,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		rt_printk(", IRQ disabled\n");
 	}
 
-	printk("Option %d %d %d\n", it->options[0], it->options[1],
-		it->options[2]);
 	dev->irq = irq;
 
 	// Read eepeom and fill boardtype Structure
@@ -2763,11 +2921,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		printk("PCI Eeprom unused\n");
 	}
 
-	if (it->options[2] > 0) {
-		devpriv->us_UseDma = ADDI_DISABLE;
-	} else {
-		devpriv->us_UseDma = ADDI_ENABLE;
-	}
+	devpriv->us_UseDma = master ? ADDI_ENABLE : ADDI_DISABLE;
 
 	if (devpriv->s_EeParameters.i_Dma) {
 		printk("DMA used\n");
@@ -2998,6 +3152,107 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	i_ADDI_Reset(dev);
 	devpriv->b_ValidDriver = 1;
 	return 0;
+}
+
+/*
++----------------------------------------------------------------------------+
+| Function name     :static int i_ADDI_Attach(comedi_device *dev,            |
+|                                             comedi_devconfig *it)          |
+|                                                                            |
++----------------------------------------------------------------------------+
+| Task              :Detects the card.                                       |
+|            Configure the driver for a particular board.                    |
+|            This function does all the initializations and memory           |
+|            allocation of data structures for the driver.                   |
++----------------------------------------------------------------------------+
+| Input Parameters  :comedi_device *dev                                      |
+|                    comedi_devconfig *it                                    |
+|                                                                            |
++----------------------------------------------------------------------------+
+| Return Value      :  0                                                     |
+|                                                                            |
++----------------------------------------------------------------------------+
+*/
+
+static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+	struct pcilst_struct *card = NULL;
+	int i_Dma = 0;
+
+	printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s\n",dev->minor,this_board->pc_DriverName);
+
+	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
+		return -ENOMEM;
+	}
+
+	printk("Option %d %d %d\n", it->options[0], it->options[1],
+		it->options[2]);
+
+	if ((this_board->i_Dma) && (it->options[2] == 0)) {
+		i_Dma = 1;
+	}
+
+	if ((card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
+				this_board->i_DeviceId,
+				it->options[0],
+				it->options[1], i_Dma)) == NULL) {
+		return -EIO;
+	}
+	devpriv->allocated = 1;
+
+	return i_ADDI_Attach_Common(dev, i_Dma);
+}
+
+/*
++----------------------------------------------------------------------------+
+| Function name     :static int i_ADDI_Auto_Attach(comedi_device *dev,       |
+|                                                  unsigned long context)    |
+|                                                                            |
++----------------------------------------------------------------------------+
+| Task              :Auto-attaches the card.                                 |
+|            Determines the board type that matches the PCI device.          |
+|            This function does all the initializations and memory           |
+|            allocation of data structures for the driver.                   |
++----------------------------------------------------------------------------+
+| Input Parameters  :comedi_device *dev                                      |
+|                    unsigned long context                                   |
+|                                                 					         |
++----------------------------------------------------------------------------+
+| Return Value      :  0            					                     |
+|                    													     |
++----------------------------------------------------------------------------+
+*/
+
+static int i_ADDI_Auto_Attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pcilst_struct *card = NULL;
+	int ret;
+	int i_Dma;
+
+	/* context is an index into boardtypes[] */
+	if (context >= n_boardtypes) {
+		printk("comedi%d: "ADDIDATA_DRIVER_NAME": BUG! Bad auto-attach context %lu\n",
+				dev->minor, context);
+	}
+	dev->board_ptr = boardtypes + context;
+
+	printk("comedi%d: "ADDIDATA_DRIVER_NAME": auto-attach PCI %s, board=%s\n",
+			dev->minor, pci_name(pcidev), this_board->pc_DriverName);
+
+	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
+		return -ENOMEM;
+	}
+
+	i_Dma = this_board->i_Dma;
+
+	if ((card = ptr_use_and_alloc_pci_card(pcidev, i_Dma)) == NULL) {
+		return -EIO;
+	}
+	devpriv->allocated = 1;
+
+	return i_ADDI_Attach_Common(dev, i_Dma);
 }
 
 /*
