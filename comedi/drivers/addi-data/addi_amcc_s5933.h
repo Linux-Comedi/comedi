@@ -259,7 +259,27 @@ static int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq);
 
 /****************************************************************************/
+/* allocate amcc card storage for PCI device */
+static struct pcilst_struct *amcc_card_alloc(struct pci_dev *pcidev)
+{
+	struct pcilst_struct *amcc;
 
+	/* Allocate amcc card. */
+	amcc = kzalloc(sizeof(*amcc), GFP_KERNEL);
+	if (amcc) {
+		amcc->pcidev = pcidev;
+		amcc->vendor = pcidev->vendor;
+		amcc->device = pcidev->device;
+		amcc->pci_bus = pcidev->bus->number;
+		amcc->pci_slot = PCI_SLOT(pcidev->devfn);
+		amcc->pci_func = PCI_FUNC(pcidev->devfn);
+		/* Resources and IRQ will be filled in by pci_card_alloc(). */
+	}
+	return amcc;
+}
+
+/****************************************************************************/
+/* find unused card with this device_id optionally at specified position */
 static int i_find_free_pci_card_common(
 	unsigned short vendor_id, unsigned short device_id,
 	bool check_position, unsigned short pci_bus, unsigned short pci_slot,
@@ -288,16 +308,8 @@ static int i_find_free_pci_card_common(
 		comedi_pci_disable(pcidev);
 
 		/* Allocate amcc card. */
-		amcc = kzalloc(sizeof(*amcc), GFP_KERNEL);
-		if (amcc) {
-			amcc->pcidev = pcidev;
-			amcc->vendor = pcidev->vendor;
-			amcc->device = pcidev->device;
-			amcc->pci_bus = pcidev->bus->number;
-			amcc->pci_slot = PCI_SLOT(pcidev->devfn);
-			amcc->pci_func = PCI_FUNC(pcidev->devfn);
-			/* Resources and IRQ will be filled in by pci_card_alloc(). */
-		} else {
+		amcc = amcc_card_alloc(pcidev);
+		if (amcc == NULL) {
 			/*
 			 * Failed to allocate amcc.
 			 * Put PCI device as cannot use it and not continuing search.
