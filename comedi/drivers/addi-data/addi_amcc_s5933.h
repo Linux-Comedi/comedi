@@ -377,7 +377,7 @@ static int i_pci_card_free(struct pcilst_struct *amcc)
 	return 0;
 }
 
-static void pci_card_free(struct pcilst_struct *amcc)
+static void amcc_card_free(struct pcilst_struct *amcc)
 {
 	if (amcc) {
 		i_pci_card_free(amcc);
@@ -437,7 +437,7 @@ static struct pcilst_struct *ptr_select_and_alloc_pci_card(
 
 	if (pci_card_alloc(card, i_Master) != 0) {
 		rt_printk(" - Can't allocate card!\n");
-		pci_card_free(card);
+		amcc_card_free(card);
 		card = NULL;
 	}
 

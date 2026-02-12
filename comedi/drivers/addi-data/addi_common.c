@@ -3061,7 +3061,7 @@ static int i_ADDI_Detach(comedi_device * dev)
 			}
 		}
 
-		pci_card_free(devpriv->amcc);
+		amcc_card_free(devpriv->amcc);
 	}
 
 	return 0;
