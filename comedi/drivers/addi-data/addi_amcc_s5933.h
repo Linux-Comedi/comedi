@@ -437,8 +437,8 @@ static struct pcilst_struct *ptr_select_and_alloc_pci_card(
 
 	if (pci_card_alloc(card, i_Master) != 0) {
 		rt_printk(" - Can't allocate card!\n");
-		return NULL;
-
+		pci_card_free(card);
+		card = NULL;
 	}
 
 	return card;
