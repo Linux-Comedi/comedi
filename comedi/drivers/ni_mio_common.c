@@ -4585,7 +4585,7 @@ static int ni_E_init(comedi_device * dev)
 	}
 	devpriv->counter_dev = ni_gpct_device_construct(dev,
 		&ni_gpct_write_register, &ni_gpct_read_register,
-		counter_variant, NUM_GPCT, 1);
+		counter_variant, NUM_GPCT, NUM_GPCT);
 	/* General purpose counters */
 	for (j = 0; j < NUM_GPCT; ++j) {
 		s = dev->subdevices + NI_GPCT_SUBDEV(j);
