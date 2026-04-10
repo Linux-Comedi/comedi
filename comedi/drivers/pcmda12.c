@@ -74,14 +74,16 @@ typedef struct pcmda12_board_struct {
 static const comedi_lrange pcmda12_ranges = {
 	3,
 	{
-			UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
-		}
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+	},
 };
 
 static const pcmda12_board pcmda12_boards[] = {
 	{
-	      name:	"pcmda12",
-		},
+		.name = "pcmda12",
+	},
 };
 
 /*
@@ -108,31 +110,13 @@ static int pcmda12_detach(comedi_device * dev);
 static void zero_chans(comedi_device * dev);
 
 static comedi_driver driver = {
-      driver_name:"pcmda12",
-      module:THIS_MODULE,
-      attach:pcmda12_attach,
-      detach:pcmda12_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pcmda12_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-      board_name:&pcmda12_boards[0].name,
-      offset:sizeof(pcmda12_board),
-      num_names:sizeof(pcmda12_boards) / sizeof(pcmda12_board),
+	.driver_name	= "pcmda12",
+	.module		= THIS_MODULE,
+	.attach		= pcmda12_attach,
+	.detach		= pcmda12_detach,
+	.board_name	= &pcmda12_boards[0].name,
+	.offset		= sizeof(pcmda12_board),
+	.num_names	= ARRAY_SIZE(pcmda12_boards),
 };
 
 static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
