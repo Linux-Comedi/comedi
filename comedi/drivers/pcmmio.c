@@ -188,19 +188,20 @@ static const comedi_lrange ranges_ao = {
 
 static const pcmmio_board pcmmio_boards[] = {
 	{
-	      name:	"pcmmio",
-	      dio_num_asics:1,
-	      dio_num_ports:6,
-	      total_iosize:32,
-	      ai_bits:	16,
-	      ao_bits:	16,
-	      n_ai_chans:16,
-	      n_ao_chans:8,
-	      ai_range_table:&ranges_ai,
-	      ao_range_table:&ranges_ao,
-	      ai_rinsn:ai_rinsn,
-	      ao_rinsn:ao_rinsn,
-      ao_winsn:ao_winsn},
+		.name			= "pcmmio",
+		.dio_num_asics		= 1,
+		.dio_num_ports		= 6,
+		.total_iosize		= 32,
+		.ai_bits		= 16,
+		.ao_bits		= 16,
+		.n_ai_chans		= 16,
+		.n_ao_chans		= 8,
+		.ai_range_table		= &ranges_ai,
+		.ao_range_table		= &ranges_ao,
+		.ai_rinsn		= ai_rinsn,
+		.ao_rinsn		= ao_rinsn,
+		.ao_winsn		= ao_winsn,
+	},
 };
 
 /*
@@ -277,31 +278,13 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcmmio_detach(comedi_device * dev);
 
 static comedi_driver driver = {
-      driver_name:"pcmmio",
-      module:THIS_MODULE,
-      attach:pcmmio_attach,
-      detach:pcmmio_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pcmmio_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-      board_name:&pcmmio_boards[0].name,
-      offset:sizeof(pcmmio_board),
-      num_names:sizeof(pcmmio_boards) / sizeof(pcmmio_board),
+	.driver_name	= "pcmmio",
+	.module		= THIS_MODULE,
+	.attach		= pcmmio_attach,
+	.detach		= pcmmio_detach,
+	.board_name	= &pcmmio_boards[0].name,
+	.offset		= sizeof(pcmmio_board),
+	.num_names	= ARRAY_SIZE(pcmmio_boards),
 };
 
 static int pcmmio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
