@@ -74,7 +74,6 @@ Configuration Options:
 */
 
 #include <linux/comedidev.h>
-#include <linux/pci.h>		/* for PCI devices */
 
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
