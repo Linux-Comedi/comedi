@@ -63,14 +63,13 @@ static struct pcmcia_device *cur_dev = NULL;
 static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it);
 
 static comedi_driver driver_das08_cs = {
-      driver_name:"das08_cs",
-      module:THIS_MODULE,
-      attach:das08_cs_attach,
-      detach:das08_common_detach,
-      board_name:&das08_cs_boards[0].name,
-      num_names:sizeof(das08_cs_boards) /
-		sizeof(struct das08_board_struct),
-      offset:sizeof(struct das08_board_struct),
+	.driver_name	= "das08_cs",
+	.module		= THIS_MODULE,
+	.attach		= das08_cs_attach,
+	.detach		= das08_common_detach,
+	.board_name	= &das08_cs_boards[0].name,
+	.num_names	= ARRAY_SIZE(das08_cs_boards),
+	.offset		= sizeof(struct das08_board_struct),
 };
 
 static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it)
@@ -619,18 +618,18 @@ static struct pcmcia_device_id das08_cs_id_table[] = {
 MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
 
 struct pcmcia_driver das08_cs_driver = {
-	.probe = das08_pcmcia_attach,
-	.remove = das08_pcmcia_detach,
-	.suspend = das08_pcmcia_suspend,
-	.resume = das08_pcmcia_resume,
-	.id_table = das08_cs_id_table,
-	.owner = THIS_MODULE,
+	.probe		= das08_pcmcia_attach,
+	.remove		= das08_pcmcia_detach,
+	.suspend	= das08_pcmcia_suspend,
+	.resume		= das08_pcmcia_resume,
+	.id_table	= das08_cs_id_table,
+	.owner		= THIS_MODULE,
 #ifdef COMEDI_COMPAT_HAVE_PCMCIA_DRIVER_NAME
-	.name = devname,
+	.name		= devname,
 #else
 	.drv = {
-			.name = devname,
-		},
+		.name	= devname,
+	},
 #endif
 };
 
