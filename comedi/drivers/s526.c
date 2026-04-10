@@ -183,15 +183,15 @@ typedef struct s526_board_struct {
 
 static const s526_board s526_boards[] = {
 	{
-	      name:	"s526",
-	      gpct_chans:4,
-	      gpct_bits:24,
-	      ad_chans:8,
-	      ad_bits:	16,
-	      da_chans:4,
-	      da_bits:	16,
-	      have_dio:1,
-		}
+		.name		= "s526",
+		.gpct_chans	= 4,
+		.gpct_bits	= 24,
+		.ad_chans	= 8,
+		.ad_bits	= 16,
+		.da_chans	= 4,
+		.da_bits	= 16,
+		.have_dio	= 1,
+	},
 };
 
 #define ADDR_REG(reg) (dev->iobase + (reg))
@@ -229,31 +229,13 @@ typedef struct {
 static int s526_attach(comedi_device * dev, comedi_devconfig * it);
 static int s526_detach(comedi_device * dev);
 static comedi_driver driver_s526 = {
-      driver_name:"s526",
-      module:THIS_MODULE,
-      attach:s526_attach,
-      detach:s526_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in s526_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-      board_name:&s526_boards[0].name,
-      offset:sizeof(s526_board),
-      num_names:sizeof(s526_boards) / sizeof(s526_board),
+	.driver_name	= "s526",
+	.module		= THIS_MODULE,
+	.attach		= s526_attach,
+	.detach		= s526_detach,
+	.board_name	= &s526_boards[0].name,
+	.offset		= sizeof(s526_board),
+	.num_names	= ARRAY_SIZE(s526_boards),
 };
 
 static int s526_gpct_rinsn(comedi_device * dev, comedi_subdevice * s,
