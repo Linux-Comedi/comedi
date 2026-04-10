@@ -164,14 +164,26 @@ typedef struct pcmmio_board_struct {
 	comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
 } pcmmio_board;
 
-static const comedi_lrange ranges_ai =
-	{ 4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0.,
-		10.)}
+static const comedi_lrange ranges_ai = {
+	4,
+	{
+		BIP_RANGE(5.0),
+		BIP_RANGE(10.0),
+		UNI_RANGE(5.0),
+		UNI_RANGE(10.0),
+	},
 };
 
-static const comedi_lrange ranges_ao =
-	{ 6, {RANGE(0., 5.), RANGE(0., 10.), RANGE(-5., 5.), RANGE(-10., 10.),
-	RANGE(-2.5, 2.5), RANGE(-2.5, 7.5)}
+static const comedi_lrange ranges_ao = {
+	6,
+	{
+		UNI_RANGE(5.0),
+		UNI_RANGE(10.0),
+		BIP_RANGE(5.0),
+		BIP_RANGE(10.0),
+		BIP_RANGE(2.5),
+		RANGE(-2.5, 7.5),
+	},
 };
 
 static const pcmmio_board pcmmio_boards[] = {
