@@ -189,29 +189,29 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define DAS16_AI_MSB		1
 #define DAS16_MUX		2
 #define DAS16_DIO		3
-#define DAS16_AO_LSB(x)	((x)?6:4)
-#define DAS16_AO_MSB(x)	((x)?7:5)
+#define DAS16_AO_LSB(x)		((x)?6:4)
+#define DAS16_AO_MSB(x)		((x)?7:5)
 #define DAS16_STATUS		8
 #define   BUSY			(1<<7)
-#define   UNIPOLAR			(1<<6)
-#define   DAS16_MUXBIT			(1<<5)
-#define   DAS16_INT			(1<<4)
+#define   UNIPOLAR		(1<<6)
+#define   DAS16_MUXBIT		(1<<5)
+#define   DAS16_INT		(1<<4)
 #define DAS16_CONTROL		9
-#define   DAS16_INTE			(1<<7)
-#define   DAS16_IRQ(x)			(((x) & 0x7) << 4)
-#define   DMA_ENABLE			(1<<2)
-#define   PACING_MASK	0x3
+#define   DAS16_INTE		(1<<7)
+#define   DAS16_IRQ(x)		(((x) & 0x7) << 4)
+#define   DMA_ENABLE		(1<<2)
+#define   PACING_MASK		0x3
 #define   INT_PACER		0x03
-#define   EXT_PACER			0x02
+#define   EXT_PACER		0x02
 #define   DAS16_SOFT		0x00
 #define DAS16_PACER		0x0A
-#define   DAS16_CTR0			(1<<1)
-#define   DAS16_TRIG0			(1<<0)
-#define   BURST_LEN_BITS(x)			(((x) & 0xf) << 4)
+#define   DAS16_CTR0		(1<<1)
+#define   DAS16_TRIG0		(1<<0)
+#define   BURST_LEN_BITS(x)	(((x) & 0xf) << 4)
 #define DAS16_GAIN		0x0B
-#define DAS16_CNTR0_DATA		0x0C
-#define DAS16_CNTR1_DATA		0x0D
-#define DAS16_CNTR2_DATA		0x0E
+#define DAS16_CNTR0_DATA	0x0C
+#define DAS16_CNTR1_DATA	0x0D
+#define DAS16_CNTR2_DATA	0x0E
 #define DAS16_CNTR_CONTROL	0x0F
 #define   DAS16_TERM_CNT	0x00
 #define   DAS16_ONE_SHOT	0x02
@@ -222,74 +222,92 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS16_CNTR2		0x80
 
 #define DAS1600_CONV		0x404
-#define   DAS1600_CONV_DISABLE		0x40
+#define   DAS1600_CONV_DISABLE	0x40
 #define DAS1600_BURST		0x405
-#define   DAS1600_BURST_VAL		0x40
+#define   DAS1600_BURST_VAL	0x40
 #define DAS1600_ENABLE		0x406
-#define   DAS1600_ENABLE_VAL		0x40
+#define   DAS1600_ENABLE_VAL	0x40
 #define DAS1600_STATUS_B	0x407
 #define   DAS1600_BME		0x40
 #define   DAS1600_ME		0x20
-#define   DAS1600_CD			0x10
-#define   DAS1600_WS			0x02
-#define   DAS1600_CLK_10MHZ		0x01
+#define   DAS1600_CD		0x10
+#define   DAS1600_WS		0x02
+#define   DAS1600_CLK_10MHZ	0x01
 
-static const comedi_lrange range_das1x01_bip = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.01),
-	}
+static const comedi_lrange range_das1x01_bip = {
+	4,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01),
+	},
 };
-static const comedi_lrange range_das1x01_unip = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01),
-	}
+
+static const comedi_lrange range_das1x01_unip = {
+	4,
+	{
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01),
+	},
 };
-static const comedi_lrange range_das1x02_bip = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-	}
+
+static const comedi_lrange range_das1x02_bip = {
+	4,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+	},
 };
-static const comedi_lrange range_das1x02_unip = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
+
+static const comedi_lrange range_das1x02_unip = {
+	4,
+	{
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
-static const comedi_lrange range_das16jr = { 9, {
-			// also used by 16/330
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
+
+static const comedi_lrange range_das16jr = {
+	9,
+	{
+		// also used by 16/330
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
-static const comedi_lrange range_das16jr_16 = { 8, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
+
+static const comedi_lrange range_das16jr_16 = {
+	8,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
 static const int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
 static const int das16jr_16_gainlist[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 static const int das1600_gainlist[] = { 0, 1, 2, 3 };
+
 enum {
 	das16_pg_none = 0,
 	das16_pg_16jr,
@@ -297,6 +315,7 @@ enum {
 	das16_pg_1601,
 	das16_pg_1602,
 };
+
 static const int *const das16_gainlists[] = {
 	NULL,
 	das16jr_gainlist,
@@ -304,6 +323,7 @@ static const int *const das16_gainlists[] = {
 	das1600_gainlist,
 	das1600_gainlist,
 };
+
 static const comedi_lrange *const das16_ai_uni_lranges[] = {
 	&range_unknown,
 	&range_das16jr,
@@ -311,6 +331,7 @@ static const comedi_lrange *const das16_ai_uni_lranges[] = {
 	&range_das1x01_unip,
 	&range_das1x02_unip,
 };
+
 static const comedi_lrange *const das16_ai_bip_lranges[] = {
 	&range_unknown,
 	&range_das16jr,
