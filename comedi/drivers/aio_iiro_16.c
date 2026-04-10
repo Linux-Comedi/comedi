@@ -60,14 +60,6 @@ static const aio_iiro_16_board aio_iiro_16_boards[] = {
 
 #define	thisboard	((const aio_iiro_16_board *) dev->board_ptr)
 
-typedef struct {
-	int data;
-	struct pci_dev *pci_dev;
-	lsampl_t ao_readback[2];
-} aio_iiro_16_private;
-
-#define	devpriv	((aio_iiro_16_private *) dev->private)
-
 static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it);
 
 static int aio_iiro_16_detach(comedi_device * dev);
@@ -105,11 +97,6 @@ static int aio_iiro_16_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	dev->iobase = iobase;
-
-	if (alloc_private(dev, sizeof(aio_iiro_16_private)) < 0) {
-		printk(KERN_CONT "Allocation error\n");
-		return -ENOMEM;
-	}
 
 	if (alloc_subdevices(dev, 2) < 0) {
 		printk(KERN_CONT "Allocation error\n");
