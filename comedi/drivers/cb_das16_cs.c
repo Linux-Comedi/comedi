@@ -62,6 +62,7 @@ typedef struct das16cs_board_struct {
 	int device_id;
 	int n_ao_chans;
 } das16cs_board;
+
 static const das16cs_board das16cs_boards[] = {
 	{
 		.device_id	= 0x0000, /* unknown */
@@ -103,12 +104,14 @@ static comedi_driver driver_das16cs = {
 
 static struct pcmcia_device *cur_dev = NULL;
 
-static const comedi_lrange das16cs_ai_range = { 4, {
-			RANGE(-10, 10),
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-	}
+static const comedi_lrange das16cs_ai_range = {
+	4,
+	{
+		RANGE(-10, 10),
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+	},
 };
 
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
