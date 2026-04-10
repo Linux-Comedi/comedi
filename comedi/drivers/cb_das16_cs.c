@@ -33,7 +33,6 @@ Status: experimental
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #ifdef COMEDI_COMPAT_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
