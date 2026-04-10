@@ -60,6 +60,8 @@ struct i8254_struct {
 #define I8254_CNT2 2
 #define I8254_CTRL 3
 
+struct pci_dev;
+
 struct das08_private_struct {
 	unsigned int do_mux_bits;	// bits for do/mux register on boards without seperate do register
 	unsigned int do_bits;	// bits for do register on boards with register dedicated to digital out only
