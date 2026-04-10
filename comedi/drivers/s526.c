@@ -208,9 +208,6 @@ static const s526_board s526_boards[] = {
 typedef struct {
 	int data;
 
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	/* Used for AO readback */
 	lsampl_t ao_readback[2];
 
