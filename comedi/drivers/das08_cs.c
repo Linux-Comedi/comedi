@@ -82,7 +82,7 @@ static int das08_cs_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;
 
 	printk("comedi%d: das08_cs: ", dev->minor);
-	// deal with a pci board
+	// deal with a PCMCIA device
 
 	if (thisboard->bustype == pcmcia) {
 		if (link == NULL) {
