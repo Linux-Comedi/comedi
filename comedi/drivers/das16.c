@@ -79,7 +79,6 @@ Computer boards manuals also available from their website www.measurementcomputi
 */
 
 #include <linux/comedidev.h>
-#include <linux/pci.h>
 #include <asm/dma.h>
 
 #include "8253.h"
