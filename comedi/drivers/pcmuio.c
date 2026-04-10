@@ -152,15 +152,15 @@ typedef struct pcmuio_board_struct {
 
 static const pcmuio_board pcmuio_boards[] = {
 	{
-	      name:	"pcmuio48",
-	      num_asics:1,
-	      num_ports:6,
-		},
+		.name		= "pcmuio48",
+		.num_asics	= 1,
+		.num_ports	= 6,
+	},
 	{
-	      name:	"pcmuio96",
-	      num_asics:2,
-	      num_ports:12,
-		},
+		.name		= "pcmuio96",
+		.num_asics	= 2,
+		.num_ports	= 12,
+	},
 };
 
 /*
@@ -223,31 +223,13 @@ static int pcmuio_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcmuio_detach(comedi_device * dev);
 
 static comedi_driver driver = {
-      driver_name:"pcmuio",
-      module:THIS_MODULE,
-      attach:pcmuio_attach,
-      detach:pcmuio_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pcmuio_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-      board_name:&pcmuio_boards[0].name,
-      offset:sizeof(pcmuio_board),
-      num_names:sizeof(pcmuio_boards) / sizeof(pcmuio_board),
+	.driver_name	= "pcmuio",
+	.module		= THIS_MODULE,
+	.attach		= pcmuio_attach,
+	.detach		= pcmuio_detach,
+	.board_name	= &pcmuio_boards[0].name,
+	.offset		= sizeof(pcmuio_board),
+	.num_names	= ARRAY_SIZE(pcmuio_boards),
 };
 
 static int pcmuio_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
