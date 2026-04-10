@@ -64,23 +64,23 @@ typedef struct das16cs_board_struct {
 } das16cs_board;
 static const das16cs_board das16cs_boards[] = {
 	{
-	      device_id:0x0000,/* unknown */
-	      name:	"PC-CARD DAS16/16",
-	      n_ao_chans:0,
-		},
+		.device_id	= 0x0000, /* unknown */
+		.name		= "PC-CARD DAS16/16",
+		.n_ao_chans	= 0,
+	},
 	{
-	      device_id:0x0039,
-	      name:	"PC-CARD DAS16/16-AO",
-	      n_ao_chans:2,
-		},
+		.device_id	= 0x0039,
+		.name		= "PC-CARD DAS16/16-AO",
+		.n_ao_chans	= 2,
+	},
 	{
-	      device_id:0x4009,
-	      name:	"PCM-DAS16s/16",
-	      n_ao_chans:0,
-		},
+		.device_id	= 0x4009,
+		.name		= "PCM-DAS16s/16",
+		.n_ao_chans	= 0,
+	},
 };
 
-#define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
+#define n_boards ARRAY_SIZE(das16cs_boards)
 #define thisboard ((const das16cs_board *)dev->board_ptr)
 
 typedef struct {
@@ -95,10 +95,10 @@ typedef struct {
 static int das16cs_attach(comedi_device * dev, comedi_devconfig * it);
 static int das16cs_detach(comedi_device * dev);
 static comedi_driver driver_das16cs = {
-      driver_name:"cb_das16_cs",
-      module:THIS_MODULE,
-      attach:das16cs_attach,
-      detach:das16cs_detach,
+	.driver_name	= "cb_das16_cs",
+	.module		= THIS_MODULE,
+	.attach		= das16cs_attach,
+	.detach		= das16cs_detach,
 };
 
 static struct pcmcia_device *cur_dev = NULL;
