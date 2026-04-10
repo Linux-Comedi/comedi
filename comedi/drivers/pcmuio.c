@@ -77,8 +77,6 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>		/* for PCI devices */
-
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
 #define INTR_PORTS_PER_ASIC   3
