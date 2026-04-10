@@ -53,8 +53,6 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>		/* for PCI devices */
-
 #define SDEV_NO ((int)(s - dev->subdevices))
 #define CHANS 8
 #define IOSIZE 16
