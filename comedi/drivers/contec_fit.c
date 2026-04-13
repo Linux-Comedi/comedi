@@ -44,10 +44,10 @@ typedef struct {
 static int contec_attach(comedi_device * dev, comedi_devconfig * it);
 static int contec_detach(comedi_device * dev);
 static comedi_driver driver_contec = {
-      driver_name:"contec_fit",
-      module:THIS_MODULE,
-      attach:contec_attach,
-      detach:contec_detach,
+	.driver_name	= "contec_fit",
+	.module		= THIS_MODULE,
+	.attach		= contec_attach,
+	.detach		= contec_detach,
 };
 
 /* Classic digital IO */
