@@ -91,48 +91,56 @@ Configuration options:
 static int dt2801_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt2801_detach(comedi_device * dev);
 static comedi_driver driver_dt2801 = {
-      driver_name:"dt2801",
-      module:THIS_MODULE,
-      attach:dt2801_attach,
-      detach:dt2801_detach,
+	.driver_name	= "dt2801",
+	.module		= THIS_MODULE,
+	.attach		= dt2801_attach,
+	.detach		= dt2801_detach,
 };
 
 COMEDI_INITCLEANUP(driver_dt2801);
 
 #if 0
 // ignore 'defined but not used' warning
-static const comedi_lrange range_dt2801_ai_pgh_bipolar = { 4, {
-			RANGE(-10, 10),
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-	}
+static const comedi_lrange range_dt2801_ai_pgh_bipolar = {
+	4,
+	{
+		RANGE(-10, 10),
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+	},
 };
 #endif
-static const comedi_lrange range_dt2801_ai_pgl_bipolar = { 4, {
-			RANGE(-10, 10),
-			RANGE(-1, 1),
-			RANGE(-0.1, 0.1),
-			RANGE(-0.02, 0.02),
-	}
+static const comedi_lrange range_dt2801_ai_pgl_bipolar = {
+	4,
+	{
+		RANGE(-10, 10),
+		RANGE(-1, 1),
+		RANGE(-0.1, 0.1),
+		RANGE(-0.02, 0.02),
+	},
 };
 
 #if 0
 // ignore 'defined but not used' warning
-static const comedi_lrange range_dt2801_ai_pgh_unipolar = { 4, {
-			RANGE(0, 10),
-			RANGE(0, 5),
-			RANGE(0, 2.5),
-			RANGE(0, 1.25),
-	}
+static const comedi_lrange range_dt2801_ai_pgh_unipolar = {
+	4,
+	{
+		RANGE(0, 10),
+		RANGE(0, 5),
+		RANGE(0, 2.5),
+		RANGE(0, 1.25),
+	},
 };
 #endif
-static const comedi_lrange range_dt2801_ai_pgl_unipolar = { 4, {
-			RANGE(0, 10),
-			RANGE(0, 1),
-			RANGE(0, 0.1),
-			RANGE(0, 0.02),
-	}
+static const comedi_lrange range_dt2801_ai_pgl_unipolar = {
+	4,
+	{
+		RANGE(0, 10),
+		RANGE(0, 1),
+		RANGE(0, 0.1),
+		RANGE(0, 0.02),
+	},
 };
 
 typedef struct {
@@ -150,72 +158,80 @@ typedef struct {
    */
 static const boardtype_t boardtypes[] = {
 	{
-	      name:	"dt2801",
-	      boardcode:0x09,
-	      ad_diff:	2,
-	      ad_chan:	16,
-	      adbits:	12,
-	      adrangetype:0,
-      dabits:	12},
+		.name		= "dt2801",
+		.boardcode	= 0x09,
+		.ad_diff	= 2,
+		.ad_chan	= 16,
+		.adbits		= 12,
+		.adrangetype	= 0,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2801-a",
-	      boardcode:0x52,
-	      ad_diff:	2,
-	      ad_chan:	16,
-	      adbits:	12,
-	      adrangetype:0,
-      dabits:	12},
+		.name		= "dt2801-a",
+		.boardcode	= 0x52,
+		.ad_diff	= 2,
+		.ad_chan	= 16,
+		.adbits		= 12,
+		.adrangetype	= 0,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2801/5716a",
-	      boardcode:0x82,
-	      ad_diff:	1,
-	      ad_chan:	16,
-	      adbits:	16,
-	      adrangetype:1,
-      dabits:	12},
+		.name		= "dt2801/5716a",
+		.boardcode	= 0x82,
+		.ad_diff	= 1,
+		.ad_chan	= 16,
+		.adbits		= 16,
+		.adrangetype	= 1,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2805",
-	      boardcode:0x12,
-	      ad_diff:	1,
-	      ad_chan:	16,
-	      adbits:	12,
-	      adrangetype:0,
-      dabits:	12},
+		.name		= "dt2805",
+		.boardcode	= 0x12,
+		.ad_diff	= 1,
+		.ad_chan	= 16,
+		.adbits		= 12,
+		.adrangetype	= 0,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2805/5716a",
-	      boardcode:0x92,
-	      ad_diff:	1,
-	      ad_chan:	16,
-	      adbits:	16,
-	      adrangetype:1,
-      dabits:	12},
+		.name		= "dt2805/5716a",
+		.boardcode	= 0x92,
+		.ad_diff	= 1,
+		.ad_chan	= 16,
+		.adbits		= 16,
+		.adrangetype	= 1,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2808",
-	      boardcode:0x20,
-	      ad_diff:	0,
-	      ad_chan:	16,
-	      adbits:	12,
-	      adrangetype:2,
-      dabits:	8},
+		.name		= "dt2808",
+		.boardcode	= 0x20,
+		.ad_diff	= 0,
+		.ad_chan	= 16,
+		.adbits		= 12,
+		.adrangetype	= 2,
+		.dabits		= 8,
+	},
 	{
-	      name:	"dt2818",
-	      boardcode:0xa2,
-	      ad_diff:	0,
-	      ad_chan:	4,
-	      adbits:	12,
-	      adrangetype:0,
-      dabits:	12},
+		.name		= "dt2818",
+		.boardcode	= 0xa2,
+		.ad_diff	= 0,
+		.ad_chan	= 4,
+		.adbits		= 12,
+		.adrangetype	= 0,
+		.dabits		= 12,
+	},
 	{
-	      name:	"dt2809",
-	      boardcode:0xb0,
-	      ad_diff:	0,
-	      ad_chan:	8,
-	      adbits:	12,
-	      adrangetype:1,
-      dabits:	12},
+		.name		= "dt2809",
+		.boardcode	= 0xb0,
+		.ad_diff	= 0,
+		.ad_chan	= 8,
+		.adbits		= 12,
+		.adrangetype	= 1,
+		.dabits		= 12,
+	},
 };
 
-#define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define boardtype (*(const boardtype_t *)dev->board_ptr)
 
 typedef struct {
