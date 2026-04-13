@@ -116,18 +116,19 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
 
-static const comedi_lrange range_das16m1 = { 9,
+static const comedi_lrange range_das16m1 = {
+	9,
 	{
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-			BIP_RANGE(10),
-		}
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		BIP_RANGE(10),
+	},
 };
 
 static int das16m1_do_wbits(comedi_device * dev, comedi_subdevice * s,
@@ -158,23 +159,23 @@ typedef struct das16m1_board_struct {
 
 static const das16m1_board das16m1_boards[] = {
 	{
-	      name:	"cio-das16/m1",	// CIO-DAS16_M1.pdf
-	      ai_speed:1000,	// 1MHz max speed
-		},
+		.name		= "cio-das16/m1",	// CIO-DAS16_M1.pdf
+		.ai_speed	= 1000,	// 1MHz max speed
+	},
 };
 
-#define das16m1_num_boards ((sizeof(das16m1_boards)) / (sizeof(das16m1_boards[0])))
+#define das16m1_num_boards ARRAY_SIZE(das16m1_boards)
 
 static int das16m1_attach(comedi_device * dev, comedi_devconfig * it);
 static int das16m1_detach(comedi_device * dev);
 static comedi_driver driver_das16m1 = {
-      driver_name:"das16m1",
-      module:THIS_MODULE,
-      attach:das16m1_attach,
-      detach:das16m1_detach,
-      board_name:&das16m1_boards[0].name,
-      num_names:das16m1_num_boards,
-      offset:sizeof(das16m1_boards[0]),
+	.driver_name	= "das16m1",
+	.module		= THIS_MODULE,
+	.attach		= das16m1_attach,
+	.detach		= das16m1_detach,
+	.board_name	= &das16m1_boards[0].name,
+	.num_names	= das16m1_num_boards,
+	.offset		= sizeof(das16m1_boards[0]),
 };
 
 struct das16m1_private_struct {
