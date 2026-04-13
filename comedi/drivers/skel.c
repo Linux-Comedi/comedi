@@ -74,7 +74,7 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>		/* for PCI devices */
+#include "comedi_pci.h"		/* for PCI devices */
 
 /* Imaginary registers for the imaginary board */
 
@@ -82,6 +82,19 @@ Configuration Options:
 
 #define SKEL_START_AI_CONV	0
 #define SKEL_AI_READ		0
+
+/*
+ * For drivers that use an auto_attach handler and support more than
+ * one type of board, it is useful to use enumeration constants as
+ * indices into the array of board descriptions.  These constants may
+ * be used in the .driver_data member of a struct pci_device_id or in
+ * the .driver_info member of a struct usb_device_id to link module
+ * device table entries to matching board descriptions.
+ */
+enum skel_board_idx {
+	SKEL_100_IDX,
+	SKEL_200_IDX,
+};
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -94,14 +107,15 @@ typedef struct skel_board_struct {
 	int ai_bits;
 	int have_dio;
 } skel_board;
+
 static const skel_board skel_boards[] = {
-	{
+	[SKEL_100_IDX] = {
 		.name		= "skel-100",
 		.ai_chans	= 16,
 		.ai_bits	= 12,
 		.have_dio	= 1,
 	},
-	{
+	[SKEL_200_IDX] = {
 		.name		= "skel-200",
 		.ai_chans	= 8,
 		.ai_bits	= 16,
@@ -109,14 +123,27 @@ static const skel_board skel_boards[] = {
 	},
 };
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
- * upstream. */
+/*
+ * This is used by modprobe to translate PCI IDs to drivers.  Should
+ * only be used for PCI and ISA-PnP devices.
+ *
+ * The .driver_data values are used by the auto_attach handler to
+ * indicate the corresponding board entry to use for each matching
+ * PCI ID.
+ *
+ * Please add your PCI vendor ID to comedidev.h, and it will be forwarded
+ * upstream.
+ */
 #define PCI_VENDOR_ID_SKEL 0xdafe
 static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100),
+		.driver_data = SKEL_100_IDX,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200),
+		.driver_data = SKEL_200_IDX,
+	},
 	{0}
 };
 
@@ -135,6 +162,8 @@ typedef struct {
 
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
+	/* need some way to record that the PCI device has been enabled */
+	bool pci_enabled;
 
 	/* Used for AO readback */
 	lsampl_t ao_readback[2];
@@ -152,11 +181,16 @@ typedef struct {
  * the device code.
  */
 static int skel_attach(comedi_device * dev, comedi_devconfig * it);
+static int skel_auto_attach(comedi_device * dev, unsigned long context);
 static int skel_detach(comedi_device * dev);
 static comedi_driver driver_skel = {
 	.driver_name	= "dummy",
 	.module		= THIS_MODULE,
 	.attach		= skel_attach,
+/* An "auto_attach" handler is useful for PCI and USB drivers as long
+ * as no special attach configuration options are required from the
+ * user. */
+	.auto_attach	= skel_auto_attach,
 	.detach		= skel_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
@@ -196,38 +230,47 @@ static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 static int skel_ns_to_timer(unsigned int *ns, int round);
 
 /*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
+ * _attach_common is called from the "attach" and "auto_attach"
+ * handlers.  For drivers that only support the "attach" handler
+ * (or only the "auto_attach" handler), there is no need for a
+ * common function.
+ *
+ * Most drivers only need to pass a pointer to the comedi_device,
+ * but other parameters can be passed if required.
  */
-static int skel_attach(comedi_device * dev, comedi_devconfig * it)
+static int skel_attach_common(comedi_device * dev)
 {
+	struct pci_dev *pcidev = devpriv->pci_dev;
 	comedi_subdevice *s;
-
-	printk("comedi%d: skel: ", dev->minor);
+	int ret;
 
 /*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
+ * For PCI devices, call comedi_pci_enable to enable the PCI device and
+ * request regions.
  */
-	//dev->board_ptr = skel_probe(dev, it);
+	ret = comedi_pci_enable(pcidev, "skel");
+	if (ret) {
+		printk("comedi%d: failed to enable PCI device and request regions - err %d\n",
+			dev->minor, ret);
+		return ret;
+	} else {
+/*
+ * For PCI devices, need to indicate that the PCI device has been enabled
+ * so that the detach handler can disable it.  For this simple driver we
+ * just use a flag in the private data.
+ */
+		devpriv->pci_enabled = true;
+	}
 
 /*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
+ * For PCI devices, check and map the resources here....
+ */
+
+/*
+ * Initialize dev->board_name.  The "thisboard" macro can be used as
+ * long as dev->board_ptr is non-null.
  */
 	dev->board_name = thisboard->name;
-
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(skel_private)) < 0) {
-		printk(KERN_CONT "Allocation failure\n");
-		return -ENOMEM;
-	}
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -284,6 +327,101 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
 }
 
 /*
+ * _attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int skel_attach(comedi_device * dev, comedi_devconfig * it)
+{
+
+	printk("comedi%d: skel: ", dev->minor);
+
+/*
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
+ */
+	if (alloc_private(dev, sizeof(skel_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
+		return -ENOMEM;
+	}
+
+/*
+ * If you can probe the device to determine what device in a series
+ * it is, this is the place to do it.  Otherwise, dev->board_ptr
+ * should already be initialized.
+ *
+ * If skel_probe() finds and decides to use a matching PCI device, then
+ * devpriv->pci_dev should be pointing to it and the PCI device's reference
+ * count should have been incremented (by the pci_get_device() function).
+ */
+	//dev->board_ptr = skel_probe(dev, it);
+
+/*
+ * For drivers that support both "attach" and "auto_attach",
+ * call the attach common function to complete the attachment.
+ */
+	return skel_attach_common(dev);
+}
+
+static int skel_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	/* That uses the comedi_device's hw_dev member which is
+	 * assumed to be pointing to the struct device embedded in
+	 * the struct pci_dev that is being probed. */
+
+	printk("comedi%d: skel: auto-attach PCI %s\n",
+		dev->minor, pci_name(pcidev));
+
+/*
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
+ */
+	if (alloc_private(dev, sizeof(skel_private)) < 0) {
+		printk(KERN_CONT "Allocation failure\n");
+		return -ENOMEM;
+	}
+
+/*
+ * 'context' is the value from the .driver_data member of the
+ * struct pci_device_id.  It is being used as an index into the
+ * skel_boards[] array, but let us check that it is within range
+ * as a sanity check.
+ */
+	if (context >= ARRAY_SIZE(skel_boards)) {
+		printk("comedi%d: skel: BUG! Bad auto-attach context %lu\n",
+			dev->minor, context);
+		return -EINVAL;
+	}
+
+/*
+ * The dev->board_ptr is not set before the auto_attach handler is
+ * called, so set it now.
+ */
+	dev->board_ptr = &skel_boards[context];
+
+/*
+ * Set devpriv->pci_dev to point to the probed PCI device, and increment
+ * its reference count because the _detach handler is expecting it to
+ * have been incremented.
+ *
+ * If there is no "attach" handler (only an "auto_attach" handler) then
+ * there is no need to increment the PCI device's reference count (just
+ * set devpriv->pci_dev = pcidev).  If the reference count is not being
+ * incremented, then the corresponding call to pci_dev_put(devpriv->pci_dev)
+ * in the "detach" handler should be removed.
+ */
+	devpriv->pci_dev = pci_dev_get(pcidev);
+
+/*
+ * For drivers that support both "attach" and "auto_attach",
+ * call the attach common function to complete the attachment.
+ */
+	return skel_attach_common(dev);
+}
+
+/*
  * _detach is called to deconfigure a device.  It should deallocate
  * resources.
  * This function is also called when _attach() fails, so it should be
@@ -294,6 +432,28 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
 static int skel_detach(comedi_device * dev)
 {
 	printk("comedi%d: skel: remove\n", dev->minor);
+
+	if (devpriv) {
+		/*
+		 * Make device safe and deallocate resources here...
+		 */
+
+		if (devpriv->pci_dev) {
+			if (devpriv->pci_enabled) {
+				/*
+				 * We have a PCI device and we enabled it,
+				 * during attach, so disable it here.
+				 */
+				comedi_pci_disable(devpriv->pci_dev);
+			}
+			/*
+			 * The attach and/or auto_attach handler incremented
+			 * the PCI device's reference count, so decrement it
+			 * here.
+			 */
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
 
 	return 0;
 }
