@@ -99,10 +99,10 @@ union encvaluetype {
 static int c6xdigio_attach(comedi_device * dev, comedi_devconfig * it);
 static int c6xdigio_detach(comedi_device * dev);
 comedi_driver driver_c6xdigio = {
-      driver_name:"c6xdigio",
-      module:THIS_MODULE,
-      attach:c6xdigio_attach,
-      detach:c6xdigio_detach,
+	.driver_name	= "c6xdigio",
+	.module		= THIS_MODULE,
+	.attach		= c6xdigio_attach,
+	.detach		= c6xdigio_detach,
 };
 
 static void C6X_pwmInit(unsigned long baseAddr)
