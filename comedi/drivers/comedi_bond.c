@@ -127,8 +127,8 @@ typedef struct BondingBoard BondingBoard;
 
 static const BondingBoard bondingBoards[] = {
 	{
-	      name:	MODULE_NAME,
-		},
+		.name	= MODULE_NAME,
+	},
 };
 
 /*
@@ -181,31 +181,13 @@ static void doDevUnconfig(comedi_device * dev);
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
 static comedi_driver driver_bonding = {
-      driver_name:MODULE_NAME,
-      module:THIS_MODULE,
-      attach:bonding_attach,
-      detach:bonding_detach,
-	/* It is not necessary to implement the following members if you are
-	 * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in skel_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-      board_name:&bondingBoards[0].name,
-      offset:sizeof(BondingBoard),
-      num_names:sizeof(bondingBoards) / sizeof(BondingBoard),
+	.driver_name	= MODULE_NAME,
+	.module		= THIS_MODULE,
+	.attach		= bonding_attach,
+	.detach		= bonding_detach,
+	.board_name	= &bondingBoards[0].name,
+	.offset		= sizeof(BondingBoard),
+	.num_names	= ARRAY_SIZE(bondingBoards),
 };
 
 static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
