@@ -116,114 +116,114 @@ typedef struct das800_board_struct {
 static const comedi_lrange range_das800_ai = {
 	1,
 	{
-			RANGE(-5, 5),
-		}
+		RANGE(-5, 5),
+	},
 };
 
 static const comedi_lrange range_das801_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-0.5, 0.5),
-			RANGE(0, 1),
-			RANGE(-0.05, 0.05),
-			RANGE(0, 0.1),
-			RANGE(-0.01, 0.01),
-			RANGE(0, 0.02),
-		}
+		RANGE(-5, 5),
+		RANGE(-10, 10),
+		RANGE(0, 10),
+		RANGE(-0.5, 0.5),
+		RANGE(0, 1),
+		RANGE(-0.05, 0.05),
+		RANGE(0, 0.1),
+		RANGE(-0.01, 0.01),
+		RANGE(0, 0.02),
+	},
 };
 
 static const comedi_lrange range_cio_das801_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-0.5, 0.5),
-			RANGE(0, 1),
-			RANGE(-0.05, 0.05),
-			RANGE(0, 0.1),
-			RANGE(-0.005, 0.005),
-			RANGE(0, 0.01),
-		}
+		RANGE(-5, 5),
+		RANGE(-10, 10),
+		RANGE(0, 10),
+		RANGE(-0.5, 0.5),
+		RANGE(0, 1),
+		RANGE(-0.05, 0.05),
+		RANGE(0, 0.1),
+		RANGE(-0.005, 0.005),
+		RANGE(0, 0.01),
+	},
 };
 
 static const comedi_lrange range_das802_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-2.5, 2.5),
-			RANGE(0, 5),
-			RANGE(-1.25, 1.25),
-			RANGE(0, 2.5),
-			RANGE(-0.625, 0.625),
-			RANGE(0, 1.25),
-		}
+		RANGE(-5, 5),
+		RANGE(-10, 10),
+		RANGE(0, 10),
+		RANGE(-2.5, 2.5),
+		RANGE(0, 5),
+		RANGE(-1.25, 1.25),
+		RANGE(0, 2.5),
+		RANGE(-0.625, 0.625),
+		RANGE(0, 1.25),
+	},
 };
 
 static const comedi_lrange range_das80216_ai = {
 	8,
 	{
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-5, 5),
-			RANGE(0, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(0, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(0, 1.25),
-		}
+		RANGE(-10, 10),
+		RANGE(0, 10),
+		RANGE(-5, 5),
+		RANGE(0, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(0, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(0, 1.25),
+	},
 };
 
 enum { das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216 };
 
 static const das800_board das800_boards[] = {
-	{
-	      name:	"das-800",
-	      ai_speed:25000,
-	      ai_range:&range_das800_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"cio-das800",
-	      ai_speed:20000,
-	      ai_range:&range_das800_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"das-801",
-	      ai_speed:25000,
-	      ai_range:&range_das801_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"cio-das801",
-	      ai_speed:20000,
-	      ai_range:&range_cio_das801_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"das-802",
-	      ai_speed:25000,
-	      ai_range:&range_das802_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"cio-das802",
-	      ai_speed:20000,
-	      ai_range:&range_das802_ai,
-	      resolution:12,
-		},
-	{
-	      name:	"cio-das802/16",
-	      ai_speed:10000,
-	      ai_range:&range_das80216_ai,
-	      resolution:16,
-		},
+	[das800] = {
+		.name		= "das-800",
+		.ai_speed	= 25000,
+		.ai_range	= &range_das800_ai,
+		.resolution	= 12,
+	},
+	[ciodas800] = {
+		.name		= "cio-das800",
+		.ai_speed	= 20000,
+		.ai_range	= &range_das800_ai,
+		.resolution	= 12,
+	},
+	[das801] = {
+		.name		= "das-801",
+		.ai_speed	= 25000,
+		.ai_range	= &range_das801_ai,
+		.resolution	= 12,
+	},
+	[ciodas801] = {
+		.name		= "cio-das801",
+		.ai_speed	= 20000,
+		.ai_range	= &range_cio_das801_ai,
+		.resolution	= 12,
+	},
+	[das802] = {
+		.name		= "das-802",
+		.ai_speed	= 25000,
+		.ai_range	= &range_das802_ai,
+		.resolution	= 12,
+	},
+	[ciodas802] = {
+		.name		= "cio-das802",
+		.ai_speed	= 20000,
+		.ai_range	= &range_das802_ai,
+		.resolution	= 12,
+	},
+	[ciodas80216] = {
+		.name		= "cio-das802/16",
+		.ai_speed	= 10000,
+		.ai_range	= &range_das80216_ai,
+		.resolution	= 16,
+	},
 };
 
 /*
@@ -246,13 +246,13 @@ static int das800_detach(comedi_device * dev);
 static int das800_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static comedi_driver driver_das800 = {
-      driver_name:"das800",
-      module:THIS_MODULE,
-      attach:das800_attach,
-      detach:das800_detach,
-      num_names:sizeof(das800_boards) / sizeof(das800_board),
-      board_name:&das800_boards[0].name,
-      offset:sizeof(das800_board),
+	.driver_name	= "das800",
+	.module		= THIS_MODULE,
+	.attach		= das800_attach,
+	.detach		= das800_detach,
+	.num_names	= ARRAY_SIZE(das800_boards),
+	.board_name	= &das800_boards[0].name,
+	.offset		= sizeof(das800_board),
 };
 
 static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG);
