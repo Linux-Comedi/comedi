@@ -96,17 +96,17 @@ typedef struct skel_board_struct {
 } skel_board;
 static const skel_board skel_boards[] = {
 	{
-	      name:	"skel-100",
-	      ai_chans:16,
-	      ai_bits:	12,
-	      have_dio:1,
-		},
+		.name		= "skel-100",
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.have_dio	= 1,
+	},
 	{
-	      name:	"skel-200",
-	      ai_chans:8,
-	      ai_bits:	16,
-	      have_dio:0,
-		},
+		.name		= "skel-200",
+		.ai_chans	= 8,
+		.ai_bits	= 16,
+		.have_dio	= 0,
+	},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -154,10 +154,10 @@ typedef struct {
 static int skel_attach(comedi_device * dev, comedi_devconfig * it);
 static int skel_detach(comedi_device * dev);
 static comedi_driver driver_skel = {
-      driver_name:"dummy",
-      module:THIS_MODULE,
-      attach:skel_attach,
-      detach:skel_detach,
+	.driver_name	= "dummy",
+	.module		= THIS_MODULE,
+	.attach		= skel_attach,
+	.detach		= skel_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -176,9 +176,9 @@ static comedi_driver driver_skel = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&skel_boards[0].name,
-      offset:sizeof(skel_board),
-      num_names:sizeof(skel_boards) / sizeof(skel_board),
+	.board_name		= &skel_boards[0].name,
+	.offset			= sizeof(skel_board),
+	.num_names		= ARRAY_SIZE(skel_boards),
 };
 
 static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
