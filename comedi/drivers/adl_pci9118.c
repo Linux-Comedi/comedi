@@ -150,28 +150,32 @@ Configuration options:
 
 #define EXTTRG_AI	0	/* ext trg is used by AI */
 
-static const comedi_lrange range_pci9118dg_hr = { 8, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-	}
+static const comedi_lrange range_pci9118dg_hr = {
+	8,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
-static const comedi_lrange range_pci9118hg = { 8, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01)
-	}
+static const comedi_lrange range_pci9118hg = {
+	8,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01),
+	},
 };
 
 #define PCI9118_BIPOLAR_RANGES	4	/* used for test on mixture of BIP/UNI ranges */
@@ -208,33 +212,75 @@ static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
 MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
 
 static const boardtype boardtypes[] = {
-	{"pci9118dg", PCI_VENDOR_ID_AMCC, 0x80d9,
-			AMCC_OP_REG_SIZE, IORANGE_9118,
-			16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-			&range_pci9118dg_hr, &range_bipolar10,
-		3000, 12, 512},
-	{"pci9118hg", PCI_VENDOR_ID_AMCC, 0x80d9,
-			AMCC_OP_REG_SIZE, IORANGE_9118,
-			16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-			&range_pci9118hg, &range_bipolar10,
-		3000, 12, 512},
-	{"pci9118hr", PCI_VENDOR_ID_AMCC, 0x80d9,
-			AMCC_OP_REG_SIZE, IORANGE_9118,
-			16, 8, 256, PCI9118_CHANLEN, 2, 0xffff, 0x0fff,
-			&range_pci9118dg_hr, &range_bipolar10,
-		10000, 40, 512},
+	{
+		.name		= "pci9118dg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	},
+	{
+		.name		= "pci9118hg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118hg,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	},
+	{
+		.name		= "pci9118hr",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 10000,
+		.ai_pacer_min	= 40,
+		.half_fifo_size	= 512,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 
 static comedi_driver driver_pci9118 = {
-      driver_name:"adl_pci9118",
-      module:THIS_MODULE,
-      attach:pci9118_attach,
-      detach:pci9118_detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+	.driver_name	= "adl_pci9118",
+	.module		= THIS_MODULE,
+	.attach		= pci9118_attach,
+	.detach		= pci9118_detach,
+	.num_names	= n_boardtypes,
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pci9118, pci9118_pci_table);
