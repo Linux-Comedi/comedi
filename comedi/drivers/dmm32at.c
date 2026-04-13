@@ -183,11 +183,11 @@ Configuration Options:
 static const comedi_lrange dmm32at_airanges = {
 	4,
 	{
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-		}
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+	},
 };
 
 /* register values for above ranges */
@@ -204,17 +204,15 @@ static const unsigned char dmm32at_rangebits[] = {
 static const comedi_lrange dmm32at_aoranges = {
 	4,
 	{
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-		}
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+	},
 };
 
 /*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
+ * Board descriptions.
  */
 typedef struct dmm32at_board_struct {
 	const char *name;
@@ -229,16 +227,16 @@ typedef struct dmm32at_board_struct {
 } dmm32at_board;
 static const dmm32at_board dmm32at_boards[] = {
 	{
-	      name:	"dmm32at",
-	      ai_chans:32,
-	      ai_bits:	16,
-	      ai_ranges:&dmm32at_airanges,
-	      ao_chans:4,
-	      ao_bits:	12,
-	      ao_ranges:&dmm32at_aoranges,
-	      have_dio:1,
-	      dio_chans:24,
-		},
+		.name		= "dmm32at",
+		.ai_chans	= 32,
+		.ai_bits	= 16,
+		.ai_ranges	= &dmm32at_airanges,
+		.ao_chans	= 4,
+		.ao_bits	= 12,
+		.ao_ranges	= &dmm32at_aoranges,
+		.have_dio	= 1,
+		.dio_chans	= 24,
+	},
 };
 
 /*
@@ -272,31 +270,13 @@ typedef struct {
 static int dmm32at_attach(comedi_device * dev, comedi_devconfig * it);
 static int dmm32at_detach(comedi_device * dev);
 static comedi_driver driver_dmm32at = {
-      driver_name:"dmm32at",
-      module:THIS_MODULE,
-      attach:dmm32at_attach,
-      detach:dmm32at_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-/* Most drivers will support multiple types of boards by
- * having an array of board structures.  These were defined
- * in dmm32at_boards[] above.  Note that the element 'name'
- * was first in the structure -- Comedi uses this fact to
- * extract the name of the board without knowing any details
- * about the structure except for its length.
- * When a device is attached (by comedi_config), the name
- * of the device is given to Comedi, and Comedi tries to
- * match it by going through the list of board names.  If
- * there is a match, the address of the pointer is put
- * into dev->board_ptr and driver->attach() is called.
- *
- * Note that these are not necessary if you can determine
- * the type of board in software.  ISA PnP, PCI, and PCMCIA
- * devices are such boards.
- */
-      board_name:&dmm32at_boards[0].name,
-      offset:sizeof(dmm32at_board),
-      num_names:sizeof(dmm32at_boards) / sizeof(dmm32at_board),
+	.driver_name	= "dmm32at",
+	.module		= THIS_MODULE,
+	.attach		= dmm32at_attach,
+	.detach		= dmm32at_detach,
+	.board_name	= &dmm32at_boards[0].name,
+	.offset		= sizeof(dmm32at_board),
+	.num_names	= ARRAY_SIZE(dmm32at_boards),
 };
 
 /* prototypes for driver functions below */
