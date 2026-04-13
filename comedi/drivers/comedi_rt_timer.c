@@ -150,11 +150,11 @@ static int timer_inttrig(comedi_device * dev, comedi_subdevice * s,
 static int timer_start_cmd(comedi_device * dev, comedi_subdevice * s);
 
 static comedi_driver driver_timer = {
-      module:THIS_MODULE,
-      driver_name:"comedi_rt_timer",
-      attach:timer_attach,
-      detach:timer_detach,
-//      open:           timer_open,
+	.module		= THIS_MODULE,
+	.driver_name	= "comedi_rt_timer",
+	.attach		= timer_attach,
+	.detach		= timer_detach,
+//	.open		= timer_open,
 };
 
 COMEDI_INITCLEANUP(driver_timer);
