@@ -66,11 +66,11 @@ typedef struct waveform_board_struct {
 
 static const waveform_board waveform_boards[] = {
 	{
-	      name:	"comedi_test",
-	      ai_chans:N_CHANS,
-	      ai_bits:	16,
-	      have_dio:0,
-		},
+		.name		= "comedi_test",
+		.ai_chans	= N_CHANS,
+		.ai_bits	= 16,
+		.have_dio	= 0,
+	},
 };
 
 #define thisboard ((const waveform_board *)dev->board_ptr)
@@ -95,13 +95,13 @@ typedef struct {
 static int waveform_attach(comedi_device * dev, comedi_devconfig * it);
 static int waveform_detach(comedi_device * dev);
 static comedi_driver driver_waveform = {
-      driver_name:"comedi_test",
-      module:THIS_MODULE,
-      attach:waveform_attach,
-      detach:waveform_detach,
-      board_name:&waveform_boards[0].name,
-      offset:sizeof(waveform_board),
-      num_names:sizeof(waveform_boards) / sizeof(waveform_board),
+	.driver_name	= "comedi_test",
+	.module		= THIS_MODULE,
+	.attach		= waveform_attach,
+	.detach		= waveform_detach,
+	.board_name	= &waveform_boards[0].name,
+	.offset		= sizeof(waveform_board),
+	.num_names	= ARRAY_SIZE(waveform_boards),
 };
 
 COMEDI_INITCLEANUP(driver_waveform);
@@ -129,9 +129,9 @@ static const int nano_per_micro = 1000;	// 1000 nanosec in a microsec
 static const comedi_lrange waveform_ai_ranges = {
 	2,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+	},
 };
 
 /*
