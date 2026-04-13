@@ -51,47 +51,59 @@ Configuration options:
 
 static const char *driver_name = "dt2811";
 
-static const comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
-			RANGE(0, 5),
-			RANGE(0, 2.5),
-			RANGE(0, 1.25),
-			RANGE(0, 0.625)
-	}
+static const comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
+	4,
+	{
+		RANGE(0, 5),
+		RANGE(0, 2.5),
+		RANGE(0, 1.25),
+		RANGE(0, 0.625),
+	},
 };
-static const comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(-0.625, 0.625),
-			RANGE(-0.3125, 0.3125)
-	}
+static const comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = {
+	4,
+	{
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(-0.625, 0.625),
+		RANGE(-0.3125, 0.3125),
+	},
 };
-static const comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(-0.625, 0.625)
-	}
+static const comedi_lrange range_dt2811_pgh_ai_5_bipolar = {
+	4,
+	{
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(-0.625, 0.625),
+	},
 };
-static const comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
-			RANGE(0, 5),
-			RANGE(0, 0.5),
-			RANGE(0, 0.05),
-			RANGE(0, 0.01)
-	}
+static const comedi_lrange range_dt2811_pgl_ai_5_unipolar = {
+	4,
+	{
+		RANGE(0, 5),
+		RANGE(0, 0.5),
+		RANGE(0, 0.05),
+		RANGE(0, 0.01),
+	},
 };
-static const comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
-			RANGE(-2.5, 2.5),
-			RANGE(-0.25, 0.25),
-			RANGE(-0.025, 0.025),
-			RANGE(-0.005, 0.005)
-	}
+static const comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = {
+	4,
+	{
+		RANGE(-2.5, 2.5),
+		RANGE(-0.25, 0.25),
+		RANGE(-0.025, 0.025),
+		RANGE(-0.005, 0.005),
+	},
 };
-static const comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
-			RANGE(-5, 5),
-			RANGE(-0.5, 0.5),
-			RANGE(-0.05, 0.05),
-			RANGE(-0.01, 0.01)
-	}
+static const comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
+	4,
+	{
+		RANGE(-5, 5),
+		RANGE(-0.5, 0.5),
+		RANGE(-0.05, 0.05),
+		RANGE(-0.01, 0.01),
+	},
 };
 
 /*
@@ -198,16 +210,18 @@ typedef struct {
 	const comedi_lrange *unip_5;
 } boardtype;
 static const boardtype boardtypes[] = {
-	{"dt2811-pgh",
-			&range_dt2811_pgh_ai_5_bipolar,
-			&range_dt2811_pgh_ai_2_5_bipolar,
-			&range_dt2811_pgh_ai_5_unipolar,
-		},
-	{"dt2811-pgl",
-			&range_dt2811_pgl_ai_5_bipolar,
-			&range_dt2811_pgl_ai_2_5_bipolar,
-			&range_dt2811_pgl_ai_5_unipolar,
-		},
+	{
+		.name		= "dt2811-pgh",
+		.bip_5		= &range_dt2811_pgh_ai_5_bipolar,
+		.bip_2_5	= &range_dt2811_pgh_ai_2_5_bipolar,
+		.unip_5		= &range_dt2811_pgh_ai_5_unipolar,
+	},
+	{
+		.name		= "dt2811-pgl",
+		.bip_5		= &range_dt2811_pgl_ai_5_bipolar,
+		.bip_2_5	= &range_dt2811_pgl_ai_2_5_bipolar,
+		.unip_5		= &range_dt2811_pgl_ai_5_unipolar,
+	},
 };
 
 #define this_board ((const boardtype *)dev->board_ptr)
@@ -215,13 +229,13 @@ static const boardtype boardtypes[] = {
 static int dt2811_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt2811_detach(comedi_device * dev);
 static comedi_driver driver_dt2811 = {
-      driver_name:"dt2811",
-      module:THIS_MODULE,
-      attach:dt2811_attach,
-      detach:dt2811_detach,
-      board_name:&boardtypes[0].name,
-      num_names:sizeof(boardtypes) / sizeof(boardtype),
-      offset:sizeof(boardtype),
+	.driver_name	= "dt2811",
+	.module		= THIS_MODULE,
+	.attach		= dt2811_attach,
+	.detach		= dt2811_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_dt2811);
