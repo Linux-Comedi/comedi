@@ -100,19 +100,25 @@ If you do not specify any options, they will default to
 #define TIMEOUT        20
 
 // available ranges through the PGA gains
-static const comedi_lrange range_adq12b_ai_bipolar = { 4, {
-        BIP_RANGE( 5 ),
-        BIP_RANGE( 2 ),
-        BIP_RANGE( 1 ),
-        BIP_RANGE( 0.5 )
-}};
+static const comedi_lrange range_adq12b_ai_bipolar = {
+	4,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+	},
+};
 
-static const comedi_lrange range_adq12b_ai_unipolar = { 4, {
-        UNI_RANGE( 5 ),
-        UNI_RANGE( 2 ),
-        UNI_RANGE( 1 ),
-        UNI_RANGE( 0.5 )
-}};
+static const comedi_lrange range_adq12b_ai_unipolar = {
+	4,
+	{
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+	},
+};
 
 
 
@@ -126,22 +132,24 @@ typedef struct adq12b_board_struct{
 }adq12b_board;
 
 static const adq12b_board adq12b_boards[] = {
-        {
-        name:           "adq12b",
-        ai_se_chans:    16,
-        ai_diff_chans:  8,	
-        ai_bits:        12,
-        di_chans:       5,
-        do_chans:       8
-        }
+	{
+       		.name		= "adq12b",
+		.ai_se_chans	= 16,
+		.ai_diff_chans	= 8,	
+		.ai_bits	= 12,
+		.di_chans	= 5,
+		.do_chans	= 8,
+        },
 // potentially, more adq-based deviced will be added
-/*,
-        name:           "adq12b",
-        ai_chans:       16,  // this is just for reference, hardcoded again later
-        ai_bits:        12,
-        di_chans:       8,
-        do_chans:       5
-        }*/
+#if 0
+	{
+		.name		= "adq12b",
+		.ai_chans	= 16,  // this is just for reference, hardcoded again later
+		.ai_bits	= 12,
+		.di_chans	= 8,
+		.do_chans	= 5,
+        },
+#endif
 };
 
 #define thisboard ((const adq12b_board *)dev->board_ptr)
@@ -164,14 +172,14 @@ typedef struct{
  */
 static int adq12b_attach(comedi_device *dev,comedi_devconfig *it);
 static int adq12b_detach(comedi_device *dev);
-static comedi_driver driver_adq12b={
-        driver_name:    "adq12b",
-        module:         THIS_MODULE,
-        attach:         adq12b_attach,
-        detach:         adq12b_detach,
-        board_name:     &adq12b_boards[0].name,
-        offset:         sizeof(adq12b_board),
-        num_names:      sizeof(adq12b_boards) / sizeof(adq12b_board),
+static comedi_driver driver_adq12b = {
+	.driver_name	= "adq12b",
+	.module		= THIS_MODULE,
+	.attach		= adq12b_attach,
+	.detach		= adq12b_detach,
+	.board_name	= &adq12b_boards[0].name,
+	.offset		= sizeof(adq12b_board),
+	.num_names	= ARRAY_SIZE(adq12b_boards),
 };
 
 static int adq12b_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
