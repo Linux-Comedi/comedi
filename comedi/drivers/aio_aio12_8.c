@@ -77,7 +77,8 @@ typedef struct {
 
 static const board_type board_types[] = {
 	{
-      name:	"aio_aio12_8"},
+		.name	= "aio_aio12_8",
+	},
 };
 
 #define	thisboard	((const board_type *) dev->board_ptr)
@@ -154,11 +155,11 @@ static int aio_aio12_8_ao_write(comedi_device * dev, comedi_subdevice * s,
 static const comedi_lrange range_aio_aio12_8 = {
 	4,
 	{
-			UNI_RANGE(5),
-			BIP_RANGE(5),
-			UNI_RANGE(10),
-			BIP_RANGE(10),
-		}
+		UNI_RANGE(5),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(10),
+	},
 };
 
 static int aio_aio12_8_attach(comedi_device * dev, comedi_devconfig * it)
@@ -215,13 +216,13 @@ static int aio_aio12_8_detach(comedi_device * dev)
 }
 
 static comedi_driver driver_aio_aio12_8 = {
-      driver_name:"aio_aio12_8",
-      module:THIS_MODULE,
-      attach:aio_aio12_8_attach,
-      detach:aio_aio12_8_detach,
-      board_name:&board_types[0].name,
-      num_names:1,
-      offset:sizeof(board_type),
+	.driver_name	= "aio_aio12_8",
+	.module		= THIS_MODULE,
+	.attach		= aio_aio12_8_attach,
+	.detach		= aio_aio12_8_detach,
+	.board_name	= &board_types[0].name,
+	.num_names	= ARRAY_SIZE(board_types),
+	.offset		= sizeof(board_type),
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);
