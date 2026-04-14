@@ -29,25 +29,27 @@ typedef struct {
 } fl512_private;
 #define devpriv ((fl512_private *) dev->private)
 
-static const comedi_lrange range_fl512 = { 4, {
-			BIP_RANGE(0.5),
-			BIP_RANGE(1),
-			BIP_RANGE(5),
-			BIP_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-	}
+static const comedi_lrange range_fl512 = {
+	4,
+	{
+		BIP_RANGE(0.5),
+		BIP_RANGE(1),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+	},
 };
 
 static int fl512_attach(comedi_device * dev, comedi_devconfig * it);
 static int fl512_detach(comedi_device * dev);
 
 static comedi_driver driver_fl512 = {
-      driver_name:"fl512",
-      module:THIS_MODULE,
-      attach:fl512_attach,
-      detach:fl512_detach,
+	.driver_name	= "fl512",
+	.module		= THIS_MODULE,
+	.attach		= fl512_attach,
+	.detach		= fl512_detach,
 };
 
 COMEDI_INITCLEANUP(driver_fl512);
