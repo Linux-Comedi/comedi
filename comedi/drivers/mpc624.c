@@ -129,18 +129,18 @@ typedef struct {
 static const comedi_lrange range_mpc624_bipolar1 = {
 	1,
 	{
-//    BIP_RANGE(1.01) // this is correct,
-			// but my MPC-624 actually seems to have a range of 2.02
-			BIP_RANGE(2.02)
-		}
+		// BIP_RANGE(1.01) // this is correct,
+		// but my MPC-624 actually seems to have a range of 2.02
+		BIP_RANGE(2.02),
+	},
 };
 static const comedi_lrange range_mpc624_bipolar10 = {
 	1,
 	{
-//    BIP_RANGE(10.1) // this is correct,
-			// but my MPC-624 actually seems to have a range of 20.2
-			BIP_RANGE(20.2)
-		}
+		// BIP_RANGE(10.1) // this is correct,
+		// but my MPC-624 actually seems to have a range of 20.2
+		BIP_RANGE(20.2),
+	},
 };
 
 //----------------------------------------------------------------------------
@@ -148,10 +148,10 @@ static int mpc624_attach(comedi_device * dev, comedi_devconfig * it);
 static int mpc624_detach(comedi_device * dev);
 //----------------------------------------------------------------------------
 static comedi_driver driver_mpc624 = {
-      driver_name:"mpc624",
-      module:THIS_MODULE,
-      attach:mpc624_attach,
-      detach:mpc624_detach
+	.driver_name	= "mpc624",
+	.module 	= THIS_MODULE,
+	.attach 	= mpc624_attach,
+	.detach 	= mpc624_detach
 };
 
 //----------------------------------------------------------------------------
