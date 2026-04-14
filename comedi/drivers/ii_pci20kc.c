@@ -160,10 +160,10 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci20xxx_detach(comedi_device * dev);
 
 static comedi_driver driver_pci20xxx = {
-      driver_name:"ii_pci20kc",
-      module:THIS_MODULE,
-      attach:pci20xxx_attach,
-      detach:pci20xxx_detach,
+	.driver_name	= "ii_pci20kc",
+	.module		= THIS_MODULE,
+	.attach		= pci20xxx_attach,
+	.detach		= pci20xxx_detach,
 };
 
 static int pci20006_init(comedi_device * dev, comedi_subdevice * s,
