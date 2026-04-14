@@ -61,13 +61,17 @@ Configuration options:
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-static const comedi_lrange range_dt2815_ao_32_current = { 1, {
-			RANGE_mA(0, 32)
-	}
+static const comedi_lrange range_dt2815_ao_32_current = {
+	1,
+	{
+		RANGE_mA(0, 32),
+	},
 };
-static const comedi_lrange range_dt2815_ao_20_current = { 1, {
-			RANGE_mA(4, 20)
-	}
+static const comedi_lrange range_dt2815_ao_20_current = {
+	1,
+	{
+		RANGE_mA(4, 20),
+	},
 };
 
 #define DT2815_SIZE 2
@@ -78,10 +82,10 @@ static const comedi_lrange range_dt2815_ao_20_current = { 1, {
 static int dt2815_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt2815_detach(comedi_device * dev);
 static comedi_driver driver_dt2815 = {
-      driver_name:"dt2815",
-      module:THIS_MODULE,
-      attach:dt2815_attach,
-      detach:dt2815_detach,
+	.driver_name	= "dt2815",
+	.module		= THIS_MODULE,
+	.attach		= dt2815_attach,
+	.detach		= dt2815_detach,
 };
 
 COMEDI_INITCLEANUP(driver_dt2815);
