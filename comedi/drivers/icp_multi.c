@@ -108,12 +108,14 @@ Options:
 #define	Status_IRQ	0x00ff	// All interrupts
 
 // Define analogue range
-static const comedi_lrange range_analog = { 4, {
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(10)
-	}
+static const comedi_lrange range_analog = {
+	4,
+	{
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+	},
 };
 
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
@@ -135,7 +137,7 @@ static unsigned short pci_list_builded = 0;	/*>0 list of card is known */
 
 typedef struct {
 	const char *name;	// driver name
-	int device_id;
+	int device_id;		// PCI device ID
 	int iorange;		// I/O range len
 	char have_irq;		// 1=card support IRQ
 	char cardtype;		// 0=ICP Multi
@@ -153,34 +155,36 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{"icp_multi",		// Driver name
-			DEVICE_ID,	// PCI device ID
-			IORANGE_ICP_MULTI,	// I/O range length
-			1,	// 1=Card supports interrupts
-			TYPE_ICP_MULTI,	// Card type = ICP MULTI
-			16,	// Num of A/D channels
-			8,	// Num of A/D channels in diff mode
-			4,	// Num of D/A channels
-			16,	// Num of digital inputs
-			8,	// Num of digital outputs
-			4,	// Num of counters
-			0x0fff,	// Resolution of A/D
-			0x0fff,	// Resolution of D/A
-			&range_analog,	// Rangelist for A/D
-			range_codes_analog,	// Range codes for programming
-		&range_analog},	// Rangelist for D/A
+	{
+		.name		= "icp_multi",
+		.device_id	= DEVICE_ID,
+		.iorange	= IORANGE_ICP_MULTI,
+		.have_irq	= 1,
+		.cardtype	= TYPE_ICP_MULTI,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.n_aochan	= 4,
+		.n_dichan	= 16,
+		.n_dochan	= 8,
+		.n_ctrs		= 4,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_analog,
+		.rangecode	= range_codes_analog,
+		.rangelist_ao	= &range_analog,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 
 static comedi_driver driver_icp_multi = {
-      driver_name:"icp_multi",
-      module:THIS_MODULE,
-      attach:icp_multi_attach,
-      detach:icp_multi_detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+	.driver_name	= "icp_multi",
+	.module		= THIS_MODULE,
+	.attach		= icp_multi_attach,
+	.detach		= icp_multi_detach,
+	.num_names	= n_boardtypes,
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_icp_multi);
