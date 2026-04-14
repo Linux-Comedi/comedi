@@ -318,8 +318,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 // probes board type, returns offset
 static int a2150_probe(comedi_device * dev)
 {
-	int status = inw(dev->iobase + STATUS_REG);
-	return ID_BITS(status);
+	unsigned int status = inw(dev->iobase + STATUS_REG);
+	int id = ID_BITS(status);
+
+	if (id >= ARRAY_SIZE(a2150_boards)) {
+		return -EINVAL;
+	}
+	return id;
 }
 
 static int a2150_attach(comedi_device * dev, comedi_devconfig * it)
@@ -330,6 +335,7 @@ static int a2150_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
+	int ret;
 
 	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name,
 		iobase);
@@ -398,7 +404,12 @@ static int a2150_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
 	}
 
-	dev->board_ptr = a2150_boards + a2150_probe(dev);
+	ret = a2150_probe(dev);
+	if (ret < 0) {
+		printk(" probed unsupported id %d\n", ret);
+		return ret;
+	}
+	dev->board_ptr = a2150_boards + ret;
 	dev->board_name = thisboard->name;
 
 	if (alloc_subdevices(dev, 1) < 0)
