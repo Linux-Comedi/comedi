@@ -94,9 +94,11 @@ TODO:
 
 //static unsigned short pci_list_builded=0;     /*=1 list of card is know */
 
-static const comedi_lrange range_pci1723 = { 1, {
-			BIP_RANGE(10)
-	}
+static const comedi_lrange range_pci1723 = {
+	1,
+	{
+		BIP_RANGE(10),
+	},
 };
 
 /*
