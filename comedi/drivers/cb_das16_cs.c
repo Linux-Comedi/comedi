@@ -107,10 +107,10 @@ static struct pcmcia_device *cur_dev = NULL;
 static const comedi_lrange das16cs_ai_range = {
 	4,
 	{
-		RANGE(-10, 10),
-		RANGE(-5, 5),
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
 	},
 };
 
