@@ -60,12 +60,12 @@ typedef struct dnp_board_struct {
 } dnp_board;
 
 static const dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
-	{			/* variant at the moment             */
-	      name:	"dnp-1486",
-	      ai_chans:16,
-	      ai_bits:	12,
-	      have_dio:1,
-		},
+	{				/* variant at the moment             */
+		.name		= "dnp-1486",
+		.ai_chans	= 16,
+		.ai_bits	= 12,
+		.have_dio	= 1,
+	},
 };
 
 /* Useful for shorthand access to the particular board structure ----------- */
@@ -91,14 +91,13 @@ static int dnp_attach(comedi_device * dev, comedi_devconfig * it);
 static int dnp_detach(comedi_device * dev);
 
 static comedi_driver driver_dnp = {
-      driver_name:"ssv_dnp",
-      module:THIS_MODULE,
-      attach:dnp_attach,
-      detach:dnp_detach,
-      board_name:&dnp_boards[0].name,
-	/* only necessary for non-PnP devs   */
-      offset:sizeof(dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
-      num_names:sizeof(dnp_boards) / sizeof(dnp_board),
+	.driver_name	= "ssv_dnp",
+	.module		= THIS_MODULE,
+	.attach		= dnp_attach,
+	.detach		= dnp_detach,
+	.board_name	= &dnp_boards[0].name,
+	.offset		= sizeof(dnp_board),
+	.num_names	= ARRAY_SIZE(dnp_boards),
 };
 
 COMEDI_INITCLEANUP(driver_dnp);
