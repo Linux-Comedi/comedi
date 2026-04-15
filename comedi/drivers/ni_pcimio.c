@@ -285,28 +285,31 @@ MODULE_DEVICE_TABLE(pci, ni_pci_table);
  can not act as it's own OFFSET or REFERENCE.
 */
 static const comedi_lrange range_ni_M_628x_ao = {
-	8, {
-		RANGE(-10, 10),
-		RANGE(-5, 5),
-		RANGE(-2, 2),
-		RANGE(-1, 1),
+	8,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
 		RANGE(-5, 15),
-		RANGE(0, 10),
+		UNI_RANGE(10),
 		RANGE(3, 7),
 		RANGE(4, 6),
 		RANGE_ext(-1, 1),
 	},
 };
 static const comedi_lrange range_ni_M_625x_ao = {
-	3, {
-		RANGE(-10, 10),
-		RANGE(-5, 5),
+	3,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
 		RANGE_ext(-1, 1),
 	},
 };
 static const comedi_lrange range_ni_M_622x_ao = {
-	1, {
-		RANGE(-10, 10),
+	1,
+	{
+		BIP_RANGE(10),
 	},
 };
 
