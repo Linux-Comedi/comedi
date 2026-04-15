@@ -71,14 +71,6 @@ static const dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 /* Useful for shorthand access to the particular board structure ----------- */
 #define thisboard ((const dnp_board *)dev->board_ptr)
 
-/* This structure is for data unique to the DNP driver --------------------- */
-typedef struct {
-	//
-} dnp_private_data;
-
-/* Shorthand macro for faster access to the private data ------------------- */
-#define devpriv ((dnp_private *)dev->private)
-
 /* ------------------------------------------------------------------------- */
 /* The comedi_driver structure tells the Comedi core module which functions  */
 /* to call to configure/deconfigure (attach/detach) the board, and also      */
@@ -127,13 +119,6 @@ static int dnp_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* Initialize the name of the board. We can use the "thisboard" macro now. */
 	dev->board_name = thisboard->name;
-
-	/* Allocate the private structure area. alloc_private() is a convenient    */
-	/* macro defined in comedidev.h.                                           */
-	if (alloc_private(dev, sizeof(dnp_private_data)) < 0) {
-		printk(KERN_CONT "Allocation failure\n");
-		return -ENOMEM;
-	}
 
 	/* Allocate the subdevice structures. alloc_subdevice() is a convenient    */
 	/* macro defined in comedidev.h.                                           */
