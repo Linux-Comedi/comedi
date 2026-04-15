@@ -197,7 +197,8 @@ Configuration options:
   The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
 */
 static const comedi_lrange rtd_ai_7520_range = {
-	18, {
+	18,
+	{
 		/* +-5V input range gain steps */
 		BIP_RANGE(5.0),
 		BIP_RANGE(5.0 / 2),
@@ -224,7 +225,8 @@ static const comedi_lrange rtd_ai_7520_range = {
 
 /* PCI4520 has two more gains (6 more entries) */
 static const comedi_lrange rtd_ai_4520_range = {
-	24, {
+	24,
+	{
 		/* +-5V input range gain steps */
 		BIP_RANGE(5.0),
 		BIP_RANGE(5.0 / 2),
@@ -257,11 +259,12 @@ static const comedi_lrange rtd_ai_4520_range = {
 
 /* Table order matches range values */
 static const comedi_lrange rtd_ao_range = {
-	4, {
-		RANGE(0, 5),
-		RANGE(0, 10),
-		RANGE(-5, 5),
-		RANGE(-10, 10),
+	4,
+	{
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
 	},
 };
 
