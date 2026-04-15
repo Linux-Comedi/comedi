@@ -78,17 +78,17 @@ typedef struct dio700_board_struct {
 
 static const dio700_board dio700_boards[] = {
 	{
-	      name:	"daqcard-700",
-	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
-		},
+		.name		= "daqcard-700",
+		.device_id	= 0x4743,// 0x10b is manufacturer id, 0x4743 is device id
+		.bustype	= pcmcia_bustype,
+		.have_dio	= 1,
+	},
 	{
-	      name:	"ni_daq_700",
-	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
-		},
+		.name		= "ni_daq_700",
+		.device_id	= 0x4743,// 0x10b is manufacturer id, 0x4743 is device id
+		.bustype	= pcmcia_bustype,
+		.have_dio	= 1,
+	},
 };
 
 /*
@@ -103,13 +103,13 @@ typedef struct {
 #define devpriv ((dio700_private *)dev->private)
 
 static comedi_driver driver_dio700 = {
-      driver_name:"ni_daq_700",
-      module:THIS_MODULE,
-      attach:dio700_attach,
-      detach:dio700_detach,
-      num_names:sizeof(dio700_boards) / sizeof(dio700_board),
-      board_name:&dio700_boards[0].name,
-      offset:sizeof(dio700_board),
+	.driver_name	= "ni_daq_700",
+	.module		= THIS_MODULE,
+	.attach		= dio700_attach,
+	.detach		= dio700_detach,
+	.num_names	= ARRAY_SIZE(dio700_boards),
+	.board_name	= &dio700_boards[0].name,
+	.offset		= sizeof(dio700_board),
 };
 
 /*	the real driver routines	*/
