@@ -124,77 +124,89 @@ Configuration options:
 // D/A synchronized control (PCI1720_SYNCONT)
 #define Syncont_SC0	 1	/* set synchronous output mode */
 
-static const comedi_lrange range_pci1710_3 = { 9, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			BIP_RANGE(10),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25)
-	}
+static const comedi_lrange range_pci1710_3 = {
+	9,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 
 static const char range_codes_pci1710_3[] =
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13 };
 
-static const comedi_lrange range_pci1710hg = { 12, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.01),
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01)
-	}
+static const comedi_lrange range_pci1710hg = {
+	12,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01),
+	},
 };
 
 static const char range_codes_pci1710hg[] =
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12,
 		0x13 };
 
-static const comedi_lrange range_pci17x1 = { 5, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625)
-	}
+static const comedi_lrange range_pci17x1 = {
+	5,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+	},
 };
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const comedi_lrange range_pci1716_da = { 6, {
-			BIP_RANGE(5),
-			BIP_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-			RANGE_ext(-1, 1),
-			/* (gap of 1 in hardware codes here) */
-			RANGE_ext(0, 1),
-	}
+static const comedi_lrange range_pci1716_da = {
+	6,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		RANGE_ext(-1, 1),
+		/* (gap of 1 in hardware codes here) */
+		RANGE_ext(0, 1),
+	},
 };
 
-static const comedi_lrange range_pci1720_da = { 4, {
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(10)
-	}
+static const comedi_lrange range_pci1720_da = {
+	4,
+	{
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+	},
 };
 
-static const comedi_lrange range_pci171x_da = { 3, {
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-			RANGE_ext(0, 1),
-	}
+static const comedi_lrange range_pci171x_da = {
+	3,
+	{
+		UNI_RANGE(5),
+		UNI_RANGE(10),
+		RANGE_ext(0, 1),
+	},
 };
 
 
