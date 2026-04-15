@@ -239,10 +239,10 @@ static uint16_t mio_cs_win_in(comedi_device * dev, int addr)
 static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it);
 static int mio_cs_detach(comedi_device * dev);
 static comedi_driver driver_ni_mio_cs = {
-      driver_name:"ni_mio_cs",
-      module:THIS_MODULE,
-      attach:mio_cs_attach,
-      detach:mio_cs_detach,
+	.driver_name	= "ni_mio_cs",
+	.module		= THIS_MODULE,
+	.attach		= mio_cs_attach,
+	.detach		= mio_cs_detach,
 };
 
 #include "ni_mio_common.c"
