@@ -35,22 +35,31 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{"pcl730", PCL730_SIZE,},
-	{"iso730", PCL730_SIZE,},
-	{"acl7130", ACL7130_SIZE,},
+	{
+		.name		= "pcl730",
+		.io_range	= PCL730_SIZE,
+	},
+	{
+		.name		= "iso730",
+		.io_range	= PCL730_SIZE,
+	},
+	{
+		.name		= "acl7130",
+		.io_range	= ACL7130_SIZE,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcl730 = {
-      driver_name:"pcl730",
-      module:THIS_MODULE,
-      attach:pcl730_attach,
-      detach:pcl730_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+	.driver_name	= "pcl730",
+	.module		= THIS_MODULE,
+	.attach		= pcl730_attach,
+	.detach		= pcl730_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= n_boardtypes,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_pcl730);
