@@ -136,12 +136,13 @@ typedef struct {
 #define subpriv ((pci1724_subdev_private *)s->private)
 
 static const comedi_lrange adv_pci1724_ao_ranges = {
-	4, {
+	4,
+	{
 		BIP_RANGE(10),
 		RANGE_mA(0, 20),
 		RANGE_mA(4, 20),
-		RANGE_unitless(0, 1)
-	}
+		RANGE_unitless(0, 1),
+	},
 };
 
 static int adv_pci1724_insn_read(comedi_device *dev, comedi_subdevice *s,
