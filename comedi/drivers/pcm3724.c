@@ -79,20 +79,26 @@ typedef struct {
 	int dio_2;
 } priv_pcm3724;
 static const boardtype boardtypes[] = {
-	{"pcm3724", 48, 2, 0x00fc, PCM3724_SIZE,},
+	{
+		.name		= "pcm3724",
+		.dio		= 48,
+		.numofports	= 2,
+		.IRQbits	= 0x00fc,
+		.io_range	= PCM3724_SIZE,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcm3724 = {
-      driver_name:"pcm3724",
-      module:THIS_MODULE,
-      attach:pcm3724_attach,
-      detach:pcm3724_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+	.driver_name	= "pcm3724",
+	.module		= THIS_MODULE,
+	.attach		= pcm3724_attach,
+	.detach		= pcm3724_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= n_boardtypes,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_pcm3724);
