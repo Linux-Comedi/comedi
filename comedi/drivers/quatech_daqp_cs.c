@@ -193,15 +193,22 @@ static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
  * +/- 1.25V, and the D/A converter has only one: +/- 5V.
  */
 
-static const comedi_lrange range_daqp_ai = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25)
-	}
+static const comedi_lrange range_daqp_ai = {
+	4,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+	},
 };
 
-static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
+static const comedi_lrange range_daqp_ao = {
+	1,
+	{
+		BIP_RANGE(5),
+	},
+};
 
 /*====================================================================*/
 
@@ -210,10 +217,10 @@ static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 static int daqp_attach(comedi_device * dev, comedi_devconfig * it);
 static int daqp_detach(comedi_device * dev);
 static comedi_driver driver_daqp = {
-      driver_name:"quatech_daqp_cs",
-      module:THIS_MODULE,
-      attach:daqp_attach,
-      detach:daqp_detach,
+	.driver_name	= "quatech_daqp_cs",
+	.module		= THIS_MODULE,
+	.attach		= daqp_attach,
+	.detach		= daqp_detach,
 };
 
 #ifdef DAQP_DEBUG
