@@ -90,16 +90,18 @@ Configuration Options:
 
 #define MAGIC_DMA_WORD 0x5a5a
 
-static const comedi_lrange range_pcl816 = { 8, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-	}
+static const comedi_lrange range_pcl816 = {
+	8,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+	},
 };
 typedef struct {
 	const char *name;	// board name
@@ -122,27 +124,47 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-			&range_pcl816, PCLx1x_RANGE,
-			0x00fc,	// IRQ mask
-			0x0a,	// DMA mask
-			0xffff,	// 16-bit card
-			0xffff,	// D/A maxdata
-			1024,
-			1,	// ao chan list
-		100},
-	{"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-			&range_pcl816, PCLx1x_RANGE,
-			0x00fc,
-			0x0a,
-			0x3fff,	/* 14 bit card */
-			0x3fff,
-			1024,
-			1,
-		100},
+	{
+		.name		= "pcl816",
+		.n_ranges	= 8,
+		.n_aichan	= 16,
+		.ai_ns_min	= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl816,
+		.ao_range_type	= &range_pcl816,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0xffff,
+		.ai_chanlist	= 1024,
+		.ao_chanlist	= 1,
+		.i8254_osc_base	= 100,
+	},
+	{
+		.name		= "pcl814b",
+		.n_ranges	= 8,
+		.n_aichan	= 16,
+		.ai_ns_min	= 10000,
+		.n_aochan	= 1,
+		.n_dichan	= 16,
+		.n_dochan	= 16,
+		.ai_range_type	= &range_pcl816,
+		.ao_range_type	= &range_pcl816,
+		.io_range	= PCLx1x_RANGE,
+		.IRQbits	= 0x00fc,
+		.DMAbits	= 0x0a,
+		.ai_maxdata	= 0x3fff,
+		.ao_maxdata	= 0x3fff,
+		.ai_chanlist	= 1024,
+		.ao_chanlist	= 1,
+		.i8254_osc_base	= 100,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define devpriv ((pcl816_private *)dev->private)
 #define this_board ((const boardtype *)dev->board_ptr)
 
@@ -155,13 +177,13 @@ static int RTC_timer_lock = 0;	/* RTC int lock */
 #endif
 
 static comedi_driver driver_pcl816 = {
-      driver_name:"pcl816",
-      module:THIS_MODULE,
-      attach:pcl816_attach,
-      detach:pcl816_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+	.driver_name	= "pcl816",
+	.module		= THIS_MODULE,
+	.attach		= pcl816_attach,
+	.detach		= pcl816_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= n_boardtypes,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_pcl816);
