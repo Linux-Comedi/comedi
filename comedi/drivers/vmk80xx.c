@@ -141,10 +141,11 @@ struct firmware_version {
 };
 
 static const comedi_lrange vmk8061_range = {
-	2, {
+	2,
+	{
 		UNI_RANGE(5),
-		UNI_RANGE(10)
-	}
+		UNI_RANGE(10),
+	},
 };
 
 struct vmk80xx_board {
