@@ -87,40 +87,46 @@ supported.
 #define PCL711_DO_LO 13
 #define PCL711_DO_HI 14
 
-static const comedi_lrange range_pcl711b_ai = { 5, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			BIP_RANGE(0.3125)
-	}
+static const comedi_lrange range_pcl711b_ai = {
+	5,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		BIP_RANGE(0.3125),
+	},
 };
-static const comedi_lrange range_acl8112hg_ai = { 12, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.005),
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.01),
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.01)
-	}
+static const comedi_lrange range_acl8112hg_ai = {
+	12,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.005),
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01),
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01),
+	},
 };
-static const comedi_lrange range_acl8112dg_ai = { 9, {
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2.5),
-			UNI_RANGE(1.25),
-			BIP_RANGE(10)
-	}
+static const comedi_lrange range_acl8112dg_ai = {
+	9,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25),
+		BIP_RANGE(10),
+	},
 };
 
 /*
@@ -145,25 +151,57 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
-	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
-	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai},
-	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
+	{
+		.name		= "pcl711",
+		.n_ranges	= 5,
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.maxirq		= 0,
+		.ai_range_type	= &range_bipolar5,
+	},
+	{
+		.name		= "pcl711b",
+		.is_pcl711b	= 1,
+		.n_ranges	= 5,
+		.n_aichan	= 8,
+		.n_aochan	= 1,
+		.maxirq		= 7,
+		.ai_range_type	= &range_pcl711b_ai,
+	},
+	{
+		.name		= "acl8112hg",
+		.is_8112	= 1,
+		.n_ranges	= 12,
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112hg_ai,
+	},
+	{
+		.name		= "acl8112dg",
+		.is_8112	= 1,
+		.is_dg		= 1,
+		.n_ranges	= 9,
+		.n_aichan	= 16,
+		.n_aochan	= 2,
+		.maxirq		= 15,
+		.ai_range_type	= &range_acl8112dg_ai,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static int pcl711_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcl711_detach(comedi_device * dev);
 static comedi_driver driver_pcl711 = {
-      driver_name:"pcl711",
-      module:THIS_MODULE,
-      attach:pcl711_attach,
-      detach:pcl711_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+	.driver_name	= "pcl711",
+	.module		= THIS_MODULE,
+	.attach		= pcl711_attach,
+	.detach		= pcl711_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= n_boardtypes,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_pcl711);
