@@ -53,7 +53,8 @@ typedef struct serial2002_board_struct {
 
 static const serial2002_board serial2002_boards[] = {
 	{
-      name:	"serial2002"}
+		.name	= "serial2002",
+	},
 };
 
 /*
@@ -89,13 +90,13 @@ typedef struct {
 static int serial2002_attach(comedi_device * dev, comedi_devconfig * it);
 static int serial2002_detach(comedi_device * dev);
 comedi_driver driver_serial2002 = {
-      driver_name:"serial2002",
-      module:THIS_MODULE,
-      attach:serial2002_attach,
-      detach:serial2002_detach,
-      board_name:&serial2002_boards[0].name,
-      offset:sizeof(serial2002_board),
-      num_names:sizeof(serial2002_boards) / sizeof(serial2002_board),
+	.driver_name	= "serial2002",
+	.module		= THIS_MODULE,
+	.attach		= serial2002_attach,
+	.detach		= serial2002_detach,
+	.board_name	= &serial2002_boards[0].name,
+	.offset		= sizeof(serial2002_board),
+	.num_names	= ARRAY_SIZE(serial2002_boards),
 };
 
 static int serial2002_di_rinsn(comedi_device * dev, comedi_subdevice * s,
