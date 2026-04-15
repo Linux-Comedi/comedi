@@ -129,7 +129,7 @@ typedef struct a2150_board_struct {
 static const comedi_lrange range_a2150 = {
 	1,
 	{
-		RANGE(-2.828, 2.828),
+		BIP_RANGE(2.828),
 	},
 };
 
