@@ -70,25 +70,64 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{"pcl724", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
-	{"pcl722", 144, 6, 0x00fc, PCL722_SIZE, 1, 0,},
-	{"pcl731", 48, 2, 0x9cfc, PCL731_SIZE, 0, 0,},
-	{"acl7122", 144, 6, 0x9ee8, PCL722_SIZE, 1, 0,},
-	{"acl7124", 24, 1, 0x00fc, PCL724_SIZE, 0, 0,},
-	{"pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1,},
+	{
+		.name		= "pcl724",
+		.dio		= 24,
+		.numofports	= 1,
+		.IRQbits	= 0x00fc,
+		.io_range	= PCL724_SIZE,
+	},
+	{
+		.name		= "pcl722",
+		.dio		= 144,
+		.numofports	= 6,
+		.IRQbits	= 0x00fc,
+		.io_range	= PCL722_SIZE,
+		.can_have96	= 1,
+	},
+	{
+		.name		= "pcl731",
+		.dio		= 48,
+		.numofports	= 2,
+		.IRQbits	= 0x9cfc,
+		.io_range	= PCL731_SIZE,
+	},
+	{
+		.name		= "acl7122",
+		.dio		= 144,
+		.numofports	= 6,
+		.IRQbits	= 0x9ee8,
+		.io_range	= PCL722_SIZE,
+		.can_have96	= 1,
+	},
+	{
+		.name		= "acl7124",
+		.dio		= 24,
+		.numofports	= 1,
+		.IRQbits	= 0x00fc,
+		.io_range	= PCL724_SIZE,
+	},
+	{
+		.name		= "pet48dio",
+		.dio		= 48,
+		.numofports	= 2,
+		.IRQbits	= 0x9eb8,
+		.io_range	= PET48_SIZE,
+		.is_pet48	= 1,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define n_boardtypes ARRAY_SIZE(boardtypes)
 #define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcl724 = {
-      driver_name:"pcl724",
-      module:THIS_MODULE,
-      attach:pcl724_attach,
-      detach:pcl724_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(boardtype),
+	.driver_name	= "pcl724",
+	.module		= THIS_MODULE,
+	.attach		= pcl724_attach,
+	.detach		= pcl724_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= n_boardtypes,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_pcl724);
