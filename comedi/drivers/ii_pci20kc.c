@@ -362,9 +362,24 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
-static const comedi_lrange range_bipolar0_5 = { 1, {BIP_RANGE(0.5)} };
-static const comedi_lrange range_bipolar0_05 = { 1, {BIP_RANGE(0.05)} };
-static const comedi_lrange range_bipolar0_025 = { 1, {BIP_RANGE(0.025)} };
+static const comedi_lrange range_bipolar0_5 = {
+	1,
+	{
+		BIP_RANGE(0.5),
+	},
+};
+static const comedi_lrange range_bipolar0_05 = {
+	1,
+	{
+		BIP_RANGE(0.05),
+	},
+};
+static const comedi_lrange range_bipolar0_025 = {
+	1,
+	{
+		BIP_RANGE(0.025),
+	},
+};
 
 static const comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar5,
