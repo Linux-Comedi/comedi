@@ -50,10 +50,10 @@ Configuration Options:
 static int rti802_attach(comedi_device * dev, comedi_devconfig * it);
 static int rti802_detach(comedi_device * dev);
 static comedi_driver driver_rti802 = {
-      driver_name:"rti802",
-      module:THIS_MODULE,
-      attach:rti802_attach,
-      detach:rti802_detach,
+	.driver_name	= "rti802",
+	.module		= THIS_MODULE,
+	.attach		= rti802_attach,
+	.detach		= rti802_detach,
 };
 
 COMEDI_INITCLEANUP(driver_rti802);
