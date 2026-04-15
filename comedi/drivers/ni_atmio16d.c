@@ -109,16 +109,16 @@ typedef struct {
 } atmio16_board_t;
 static const atmio16_board_t atmio16_boards[] = {
 	{
-	      name:	"atmio16",
-	      has_8255:0,
-		},
+		.name		= "atmio16",
+		.has_8255	= 0,
+	},
 	{
-	      name:	"atmio16d",
-	      has_8255:1,
-		},
+		.name		= "atmio16d",
+		.has_8255	= 1,
+	},
 };
 
-#define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
+#define n_atmio16_boards ARRAY_SIZE(atmio16_boards)
 
 #define boardtype ((const atmio16_board_t *)dev->board_ptr)
 
@@ -135,40 +135,46 @@ static void reset_atmio16d(comedi_device * dev);
 
 /* main driver struct */
 static comedi_driver driver_atmio16d = {
-      driver_name:"atmio16",
-      module:THIS_MODULE,
-      attach:atmio16d_attach,
-      detach:atmio16d_detach,
-      board_name:&atmio16_boards[0].name,
-      num_names:n_atmio16_boards,
-      offset:sizeof(atmio16_board_t),
+	.driver_name	= "atmio16",
+	.module		= THIS_MODULE,
+	.attach		= atmio16d_attach,
+	.detach		= atmio16d_detach,
+	.board_name	= &atmio16_boards[0].name,
+	.num_names	= n_atmio16_boards,
+	.offset		= sizeof(atmio16_board_t),
 };
 
 COMEDI_INITCLEANUP(driver_atmio16d);
 
 /* range structs */
-static const comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.02)
-	}
+static const comedi_lrange range_atmio16d_ai_10_bipolar = {
+	4,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02),
+	},
 };
 
-static const comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.01)
-	}
+static const comedi_lrange range_atmio16d_ai_5_bipolar = {
+	4,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+	},
 };
 
-static const comedi_lrange range_atmio16d_ai_unipolar = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.02)
-	}
+static const comedi_lrange range_atmio16d_ai_unipolar = {
+	4,
+	{
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02),
+	},
 };
 
 /* private data struct */
