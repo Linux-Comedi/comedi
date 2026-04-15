@@ -56,7 +56,6 @@ static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
 struct boarddef_struct {
 	const char *name;
 	unsigned int iosize;
-	int (*setup) (comedi_device *);
 	int type;
 	int n_chan;
 	int n_bits;
