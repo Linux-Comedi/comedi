@@ -256,7 +256,8 @@ Linux firmware project at
 /////////////////////////////////////////////
 // comedi constants
 static const comedi_lrange range_usbdux_ai_range = {
-	4, {
+	4,
+	{
 		BIP_RANGE(4.096),
 		BIP_RANGE(4.096 / 2),
 		UNI_RANGE(4.096),
@@ -265,7 +266,8 @@ static const comedi_lrange range_usbdux_ai_range = {
 };
 
 static const comedi_lrange range_usbdux_ao_range = {
-	2, {
+	2,
+	{
 		BIP_RANGE(4.096),
 		UNI_RANGE(4.096),
 	},
