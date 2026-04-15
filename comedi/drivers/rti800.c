@@ -96,26 +96,32 @@ Configuration options:
 
 #include "am9513.h"
 
-static const comedi_lrange range_rti800_ai_10_bipolar = { 4, {
-			BIP_RANGE(10),
-			BIP_RANGE(1),
-			BIP_RANGE(0.1),
-			BIP_RANGE(0.02)
-	}
+static const comedi_lrange range_rti800_ai_10_bipolar = {
+	4,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.02),
+	},
 };
-static const comedi_lrange range_rti800_ai_5_bipolar = { 4, {
-			BIP_RANGE(5),
-			BIP_RANGE(0.5),
-			BIP_RANGE(0.05),
-			BIP_RANGE(0.01)
-	}
+static const comedi_lrange range_rti800_ai_5_bipolar = {
+	4,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05),
+		BIP_RANGE(0.01),
+	},
 };
-static const comedi_lrange range_rti800_ai_unipolar = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(0.1),
-			UNI_RANGE(0.02)
-	}
+static const comedi_lrange range_rti800_ai_unipolar = {
+	4,
+	{
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.02),
+	},
 };
 
 typedef struct {
@@ -123,8 +129,14 @@ typedef struct {
 	int has_ao;
 } boardtype;
 static const boardtype boardtypes[] = {
-	{"rti800", 0},
-	{"rti815", 1},
+	{
+		.name	= "rti800",
+		.has_ao	= 0,
+	},
+	{
+		.name	= "rti815",
+		.has_ao	= 1,
+	},
 };
 
 #define this_board ((const boardtype *)dev->board_ptr)
@@ -132,13 +144,13 @@ static const boardtype boardtypes[] = {
 static int rti800_attach(comedi_device * dev, comedi_devconfig * it);
 static int rti800_detach(comedi_device * dev);
 static comedi_driver driver_rti800 = {
-      driver_name:"rti800",
-      module:THIS_MODULE,
-      attach:rti800_attach,
-      detach:rti800_detach,
-      num_names:sizeof(boardtypes) / sizeof(boardtype),
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+	.driver_name	= "rti800",
+	.module		= THIS_MODULE,
+	.attach		= rti800_attach,
+	.detach		= rti800_detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_rti800);
