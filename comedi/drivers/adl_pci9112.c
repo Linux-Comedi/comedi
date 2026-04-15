@@ -297,12 +297,12 @@ static void pci9112_ai_munge(comedi_device * dev, comedi_subdevice * s,
 static const comedi_lrange pci9112_hr_ai_range = {
 	5,
 	{
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2.5),
-			BIP_RANGE(1.25),
-			BIP_RANGE(0.625)
-		}
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+	},
 };
 
 enum pci9112_model {
