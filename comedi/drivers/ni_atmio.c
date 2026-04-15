@@ -349,10 +349,10 @@ MODULE_DEVICE_TABLE(pnp, device_ids);
 static int ni_atmio_attach(comedi_device * dev, comedi_devconfig * it);
 static int ni_atmio_detach(comedi_device * dev);
 static comedi_driver driver_atmio = {
-      driver_name:"ni_atmio",
-      module:THIS_MODULE,
-      attach:ni_atmio_attach,
-      detach:ni_atmio_detach,
+	.driver_name	= "ni_atmio",
+	.module		= THIS_MODULE,
+	.attach		= ni_atmio_attach,
+	.detach		= ni_atmio_detach,
 };
 
 COMEDI_INITCLEANUP(driver_atmio);
