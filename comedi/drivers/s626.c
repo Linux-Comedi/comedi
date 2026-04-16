@@ -121,12 +121,14 @@ static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
 MODULE_DEVICE_TABLE(pci, s626_pci_table);
 
 static int s626_attach(comedi_device * dev, comedi_devconfig * it);
+static int s626_auto_attach(comedi_device * dev, unsigned long context);
 static int s626_detach(comedi_device * dev);
 
 static comedi_driver driver_s626 = {
 	.driver_name	= "s626",
 	.module		= THIS_MODULE,
 	.attach		= s626_attach,
+	.auto_attach	= s626_auto_attach,
 	.detach		= s626_detach,
 };
 
@@ -499,46 +501,17 @@ static const comedi_lrange s626_range_table = {
 	},
 };
 
-static int s626_attach(comedi_device * dev, comedi_devconfig * it)
+static int s626_attach_common(comedi_device *dev)
 {
-/*   uint8_t	PollList; */
-/*   uint16_t	AdcData; */
-/*   uint16_t	StartVal; */
-/*   uint16_t	index; */
-/*   unsigned int data[16]; */
 	int result;
 	int i;
 	int ret;
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	comedi_subdevice *s;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = devpriv->pdev;
 
-	if (alloc_private(dev, sizeof(s626_private)) < 0)
-		return -ENOMEM;
-
-	for (pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, NULL);
-		pdev != NULL;
-		pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, pdev)) {
-		if (it->options[0] || it->options[1]) {
-			if (pdev->bus->number == it->options[0] &&
-				PCI_SLOT(pdev->devfn) == it->options[1]) {
-				/* matches requested bus/slot */
-				break;
-			}
-		} else {
-			/* no bus/slot specified */
-			break;
-		}
-	}
-	devpriv->pdev = pdev;
-
-	if (pdev == NULL) {
-		printk("s626_attach: Board not present!!!\n");
-		return -ENODEV;
-	}
+	dev->board_name = thisboard->name;
 
 	if ((result = comedi_pci_enable(pdev, "s626")) < 0) {
 		printk("s626_attach: comedi_pci_enable fails\n");
@@ -597,8 +570,6 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 
 	}
 
-	dev->board_ptr = s626_boards;
-	dev->board_name = thisboard->name;
 
 	if (alloc_subdevices(dev, 6) < 0)
 		return -ENOMEM;
@@ -616,9 +587,6 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 			dev->irq = 0;
 		}
 	}
-
-	DEBUG("s626_attach: -- it opts  %d,%d -- \n",
-		it->options[0], it->options[1]);
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
@@ -951,6 +919,57 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 		(uint32_t) devpriv->base_addr);
 
 	return 1;
+}
+
+static int s626_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pdev;
+
+	if (alloc_private(dev, sizeof(s626_private)) < 0)
+		return -ENOMEM;
+
+	DEBUG("s626_attach: -- it opts  %d,%d -- \n",
+		it->options[0], it->options[1]);
+
+	for (pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, NULL);
+		pdev != NULL;
+		pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, pdev)) {
+		if (it->options[0] || it->options[1]) {
+			if (pdev->bus->number == it->options[0] &&
+				PCI_SLOT(pdev->devfn) == it->options[1]) {
+				/* matches requested bus/slot */
+				break;
+			}
+		} else {
+			/* no bus/slot specified */
+			break;
+		}
+	}
+	devpriv->pdev = pdev;
+
+	if (pdev == NULL) {
+		printk("s626_attach: Board not present!!!\n");
+		return -ENODEV;
+	}
+	dev->board_ptr = s626_boards;
+	return s626_attach_common(dev);
+}
+
+static int s626_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pdev = comedi_to_pci_dev(dev);
+
+	if (alloc_private(dev, sizeof(s626_private)) < 0)
+		return -ENOMEM;
+
+	DEBUG("s626_auto_attach: -- PCI %s -- \n", pci_name(pdev));
+
+	/* pci_dev_get() call matches pci_dev_put() in s626_detach() */
+	devpriv->pdev = pci_dev_get(pdev);
+	dev->board_ptr = s626_boards;
+	return s626_attach_common(dev);
 }
 
 static lsampl_t s626_ai_reg_to_uint(int data)
