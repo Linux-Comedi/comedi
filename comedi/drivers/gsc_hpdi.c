@@ -309,10 +309,7 @@ static const hpdi_board hpdi_boards[] = {
 #endif
 };
 
-static inline unsigned int num_boards(void)
-{
-	return sizeof(hpdi_boards) / sizeof(hpdi_board);
-}
+#define n_hpdi_boards	ARRAY_SIZE(hpdi_boards)
 
 static DEFINE_PCI_DEVICE_TABLE(hpdi_pci_table) = {
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX, 0x2400,
@@ -592,7 +589,7 @@ static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
 		return -ENOMEM;
 
 	pcidev = NULL;
-	for (i = 0; i < num_boards() && dev->board_ptr == NULL; i++) {
+	for (i = 0; i < n_hpdi_boards && dev->board_ptr == NULL; i++) {
 		do {
 			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
 				hpdi_boards[i].device_id, PCI_VENDOR_ID_PLX,
