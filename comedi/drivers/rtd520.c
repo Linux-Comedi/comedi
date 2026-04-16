@@ -1083,6 +1083,7 @@ static int rtd_auto_attach(comedi_device * dev, unsigned long context_model)
 			dev->minor, context_model);
 		return -EINVAL;
 	}
+	dev->board_ptr = &rtd520Boards[context_model];
 
 	/* pci_dev_get() call matches pci_dev_put() in rtd_detach() */
 	devpriv->pci_dev = pci_dev_get(pcidev);
