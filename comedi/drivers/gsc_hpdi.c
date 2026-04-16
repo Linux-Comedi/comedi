@@ -52,6 +52,7 @@ support could be added to this driver.
 #include "plx9080.h"
 
 static int hpdi_attach(comedi_device * dev, comedi_devconfig * it);
+static int hpdi_auto_attach(comedi_device * dev, unsigned long context);
 static int hpdi_detach(comedi_device * dev);
 void abort_dma(comedi_device * dev, unsigned int channel);
 static int hpdi_cmd(comedi_device * dev, comedi_subdevice * s);
@@ -288,6 +289,13 @@ static uint32_t intr_active_high_bit(int interrupt_source)
 }
 #endif
 
+enum hpdi_board_models {
+	pci_hpdi32_model,
+#if 0
+	pxi_hpdi32_model,
+#endif
+};
+
 typedef struct {
 	char *name;
 	int device_id;		// pci device id
@@ -295,13 +303,13 @@ typedef struct {
 } hpdi_board;
 
 static const hpdi_board hpdi_boards[] = {
-	{
+	[pci_hpdi32_model] = {
 		.name		= "pci-hpdi32",
 		.device_id	= PCI_DEVICE_ID_PLX_9080,
 		.subdevice_id	= 0x2400,
 	},
 #if 0
-	{
+	[pxi_hpdi32_model] = {
 		.name		= "pxi-hpdi32",
 		.device_id	= 0x9656,
 		.subdevice_id	= 0x2705,
@@ -312,8 +320,11 @@ static const hpdi_board hpdi_boards[] = {
 #define n_hpdi_boards	ARRAY_SIZE(hpdi_boards)
 
 static DEFINE_PCI_DEVICE_TABLE(hpdi_pci_table) = {
-	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX, 0x2400,
-		0, 0, 0},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080,
+			       PCI_VENDOR_ID_PLX, 0x2400),
+		.driver_data = pci_hpdi32_model,
+	},
 	{0}
 };
 
@@ -356,6 +367,7 @@ static comedi_driver driver_hpdi = {
 	.driver_name	= "gsc_hpdi",
 	.module		= THIS_MODULE,
 	.attach		= hpdi_attach,
+	.auto_attach	= hpdi_auto_attach,
 	.detach		= hpdi_detach,
 };
 
@@ -577,45 +589,11 @@ static int setup_dma_descriptors(comedi_device * dev,
 	return transfer_size;
 }
 
-static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
+static int hpdi_attach_common(comedi_device * dev)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = priv(dev)->hw_dev;
 	int i;
 	int retval;
-
-	printk("comedi%d: gsc_hpdi\n", dev->minor);
-
-	if (alloc_private(dev, sizeof(hpdi_private)) < 0)
-		return -ENOMEM;
-
-	pcidev = NULL;
-	for (i = 0; i < n_hpdi_boards && dev->board_ptr == NULL; i++) {
-		do {
-			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
-				hpdi_boards[i].device_id, PCI_VENDOR_ID_PLX,
-				hpdi_boards[i].subdevice_id, pcidev);
-			// was a particular bus/slot requested?
-			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
-				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1])
-					continue;
-			}
-			if (pcidev) {
-				priv(dev)->hw_dev = pcidev;
-				dev->board_ptr = hpdi_boards + i;
-				break;
-			}
-		} while (pcidev != NULL);
-	}
-	if (dev->board_ptr == NULL) {
-		printk("gsc_hpdi: no hpdi card found\n");
-		return -EIO;
-	}
-
-	printk("gsc_hpdi: found %s on bus %i, slot %i\n", board(dev)->name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if (comedi_pci_enable(pcidev, driver_hpdi.driver_name)) {
 		printk(KERN_WARNING
@@ -686,6 +664,72 @@ static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
 		return retval;
 
 	return init_hpdi(dev);
+}
+
+static int hpdi_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	struct pci_dev *pcidev;
+	int i;
+
+	printk("comedi%d: gsc_hpdi\n", dev->minor);
+
+	if (alloc_private(dev, sizeof(hpdi_private)) < 0)
+		return -ENOMEM;
+
+	pcidev = NULL;
+	for (i = 0; i < n_hpdi_boards && dev->board_ptr == NULL; i++) {
+		do {
+			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
+				hpdi_boards[i].device_id, PCI_VENDOR_ID_PLX,
+				hpdi_boards[i].subdevice_id, pcidev);
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1])
+					continue;
+			}
+			if (pcidev) {
+				priv(dev)->hw_dev = pcidev;
+				dev->board_ptr = hpdi_boards + i;
+				break;
+			}
+		} while (pcidev != NULL);
+	}
+	if (dev->board_ptr == NULL) {
+		printk("gsc_hpdi: no hpdi card found\n");
+		return -EIO;
+	}
+
+	printk("gsc_hpdi: found %s on bus %i, slot %i\n", board(dev)->name,
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	return hpdi_attach_common(dev);
+}
+
+static int hpdi_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	printk("comedi%d: gsc_hpdi auto-attach PCI %s\n",
+		dev->minor, pci_name(pcidev));
+
+	if (alloc_private(dev, sizeof(hpdi_private)) < 0)
+		return -ENOMEM;
+
+	/* context is an index into hpdi_boards[] */
+	if (context >= n_hpdi_boards) {
+		printk("comedi%d: gsc_hpdi: BUG! bad auto-attach context %lu\n",
+			dev->minor, context);
+		return -EINVAL;
+	}
+	dev->board_ptr = &hpdi_boards[context];
+
+	/* pci_dev_get() call matches pci_dev_put() in rtd_detach() */
+	priv(dev)->hw_dev = pci_dev_get(pcidev);
+
+	return hpdi_attach_common(dev);
 }
 
 static int hpdi_detach(comedi_device * dev)
