@@ -55,7 +55,7 @@ Options:
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#include "icp_multi.h"
+#include "comedi_pci.h"
 
 #define DEVICE_ID	0x8000	/* Device ID */
 
@@ -133,8 +133,6 @@ static int icp_multi_detach(comedi_device * dev);
 	Data & Structure declarations
 ==============================================================================
 */
-static unsigned short pci_list_builded = 0;	/*>0 list of card is known */
-
 typedef struct {
 	const char *name;	// driver name
 	int device_id;		// PCI device ID
@@ -190,7 +188,8 @@ static comedi_driver driver_icp_multi = {
 COMEDI_INITCLEANUP(driver_icp_multi);
 
 typedef struct {
-	struct pcilst_struct *card;	// pointer to card
+	struct pci_dev *pcidev;	// pointer to PCI device
+	char pci_enabled;	// PCI device enabled
 	char valid;		// card is usable
 	void *io_addr;		// Pointer to mapped io address
 	resource_size_t phys_iobase;	// Physical io address
@@ -879,9 +878,11 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
-	struct pcilst_struct *card = NULL;
-	resource_size_t io_addr[5], iobase;
+	struct pci_dev *pcidev = NULL;
+	resource_size_t iobase, iosize;
 	unsigned char pci_bus, pci_slot, pci_func;
+	int bus = it->options[0];
+	int slot = it->options[1];
 
 	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
@@ -889,38 +890,83 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_private(dev, sizeof(icp_multi_private))) < 0)
 		return ret;
 
-	// Initialise list of PCI cards in system, if not already done so
-	if (pci_list_builded++ == 0) {
-		pci_card_list_init(PCI_VENDOR_ID_ICP,
-#ifdef ICP_MULTI_EXTDEBUG
-			1
-#else
-			0
-#endif
-			);
-	}
-
 	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor,
 		this_board->name);
 
-	if ((card = select_and_alloc_pci_card(PCI_VENDOR_ID_ICP,
-				this_board->device_id, it->options[0],
-				it->options[1])) == NULL)
-		return -EIO;
-
-	devpriv->card = card;
-
-	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
-				&irq)) < 0) {
-		printk(KERN_CONT " - Can't get configuration data!\n");
-		return -EIO;
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_ICP,
+					this_board->device_id,
+					pcidev)) != NULL) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn)) {
+				continue;
+			}
+		}
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "icp_multi");
+		if (ret) {
+			if (bus || slot) {
+				/* Do not bother looking for another device. */
+				pci_dev_put(pcidev);
+				pcidev = NULL;
+				break;
+			}
+		}
+		/* Undo temporary enable of device. */
+		comedi_pci_disable(pcidev);
+		break;
 	}
 
-	iobase = io_addr[2];
-	devpriv->phys_iobase = iobase;
+	if (pcidev == NULL) {
+		if (ret) {
+			if (bus || slot) {
+				printk(KERN_CONT
+					" - Card on requested bus:slot (%d:%d) could not be enabled, err %d\n",
+					bus, slot, ret);
+			} else {
+				printk(KERN_CONT
+					" - No found card could be enabled, err %d\n",
+					ret);
+			}
+		} else {
+			if (bus || slot) {
+				printk(KERN_CONT
+					" - No card found on requested bus:slot (%d:%d)\n",
+					bus, slot);
+			} else {
+				printk(KERN_CONT " - No card found\n");
+			}
+		}
+		return -EIO;
+	}
+	devpriv->pcidev = pcidev;
+
+	/* Enable PCI device. */
+	if (comedi_pci_enable(pcidev, "icp_multi") < 0) {
+		printk(KERN_CONT
+			" - Can't enable PCI device and request regions!\n");
+		return -EIO;
+	}
+	devpriv->pci_enabled = 1;
+
+	/* Get PCI configuration information. */
+	iobase = pci_resource_start(pcidev, 2);
+	iosize = pci_resource_len(pcidev, 2);
+	pci_bus = pcidev->bus->number;
+	pci_slot = PCI_SLOT(pcidev->devfn);
+	pci_func = PCI_FUNC(pcidev->devfn);
+	irq = pcidev->irq;
 
 	printk(KERN_CONT ", b:s:f=%d:%d:%d, io=0x%8llx ", pci_bus, pci_slot, pci_func,
 		(unsigned long long)iobase);
+
+	devpriv->phys_iobase = iobase;
+	if (iosize < ICP_MULTI_SIZE) {
+		printk(KERN_CONT "BAR 2 region size too small (%llu < %llu)\n",
+			(unsigned long long)iosize,
+			(unsigned long long)ICP_MULTI_SIZE);
+		return -EIO;
+	}
 
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
 
@@ -1068,22 +1114,20 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 */
 static int icp_multi_detach(comedi_device * dev)
 {
-
-	if (dev->private)
+	if (devpriv && devpriv->pcidev) {
 		if (devpriv->valid)
 			icp_multi_reset(dev);
 
-	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		if (dev->irq)
+			comedi_free_irq(dev->irq, dev);
 
-	if (dev->private && devpriv->io_addr)
-		iounmap(devpriv->io_addr);
+		if (devpriv->io_addr)
+			iounmap(devpriv->io_addr);
 
-	if (dev->private && devpriv->card)
-		pci_card_free(devpriv->card);
+		if (devpriv->pci_enabled)
+			comedi_pci_disable(devpriv->pcidev);
 
-	if (--pci_list_builded == 0) {
-		pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
+		pci_dev_put(devpriv->pcidev);
 	}
 
 	return 0;
