@@ -61,9 +61,6 @@ Options:
 
 #define ICP_MULTI_EXTDEBUG
 
-// Hardware types of the cards
-#define TYPE_ICP_MULTI	0
-
 #define IORANGE_ICP_MULTI 	32
 
 #define ICP_MULTI_ADC_CSR	0	/* R/W: ADC command/status register */
@@ -126,6 +123,7 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 ==============================================================================
 */
 static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it);
+static int icp_multi_auto_attach(comedi_device * dev, unsigned long context);
 static int icp_multi_detach(comedi_device * dev);
 
 /*
@@ -133,12 +131,18 @@ static int icp_multi_detach(comedi_device * dev);
 	Data & Structure declarations
 ==============================================================================
 */
+
+// Hardware types of the cards
+enum card_type {
+	TYPE_ICP_MULTI,
+};
+
 typedef struct {
 	const char *name;	// driver name
 	int device_id;		// PCI device ID
 	int iorange;		// I/O range len
 	char have_irq;		// 1=card support IRQ
-	char cardtype;		// 0=ICP Multi
+	char cardtype;		// 0=ICP Multi (TYPE_ICP_MULTI)
 	int n_aichan;		// num of A/D chans
 	int n_aichand;		// num of A/D chans in diff mode
 	int n_aochan;		// num of D/A chans
@@ -153,7 +157,7 @@ typedef struct {
 } boardtype;
 
 static const boardtype boardtypes[] = {
-	{
+	[TYPE_ICP_MULTI] = {
 		.name		= "icp_multi",
 		.device_id	= DEVICE_ID,
 		.iorange	= IORANGE_ICP_MULTI,
@@ -179,13 +183,24 @@ static comedi_driver driver_icp_multi = {
 	.driver_name	= "icp_multi",
 	.module		= THIS_MODULE,
 	.attach		= icp_multi_attach,
+	.auto_attach	= icp_multi_auto_attach,
 	.detach		= icp_multi_detach,
 	.num_names	= n_boardtypes,
 	.board_name	= &boardtypes[0].name,
 	.offset		= sizeof(boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_icp_multi);
+static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {
+	{
+		PCI_VDEVICE(ICP, DEVICE_ID),
+		.driver_data = TYPE_ICP_MULTI,
+	},
+	{0}
+};
+
+MODULE_DEVICE_TABLE(pci, icp_multi_pci_table);
+
+COMEDI_PCI_INITCLEANUP(driver_icp_multi, icp_multi_pci_table);
 
 typedef struct {
 	struct pci_dev *pcidev;	// pointer to PCI device
@@ -859,87 +874,32 @@ static int icp_multi_reset(comedi_device * dev)
 /*
 ==============================================================================
 
-	Name:	icp_multi_attach
+	Name:	icp_multi_attach_common
 
 	Description:
 		This function sets up all the appropriate data for the current
 		device.
 
+		It is called from icp_multi_attach and icp_multi_auto_attach
+		and assumes that dev->board_ptr and dev->private are valid,
+		and that devpriv->pcidev points to a PCI device whose
+		reference has been incremented.
+
 	Parameters:
 		comedi_device *dev	Pointer to current device structure
-		comedi_devconfig *it	Pointer to current device configuration
 
 	Returns:int	0 = success
 
 ==============================================================================
 */
-static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
+static int icp_multi_attach_common(comedi_device * dev)
 {
+	struct pci_dev *pcidev = devpriv->pcidev;
+	resource_size_t iobase, iosize;
+	unsigned char pci_bus, pci_slot, pci_func;
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 	unsigned int irq;
-	struct pci_dev *pcidev = NULL;
-	resource_size_t iobase, iosize;
-	unsigned char pci_bus, pci_slot, pci_func;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
-
-	// Alocate private data storage space
-	if ((ret = alloc_private(dev, sizeof(icp_multi_private))) < 0)
-		return ret;
-
-	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor,
-		this_board->name);
-
-	while ((pcidev = pci_get_device(PCI_VENDOR_ID_ICP,
-					this_board->device_id,
-					pcidev)) != NULL) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-				slot != PCI_SLOT(pcidev->devfn)) {
-				continue;
-			}
-		}
-		/* Temporarily enable PCI device to check if in use. */
-		ret = comedi_pci_enable(pcidev, "icp_multi");
-		if (ret) {
-			if (bus || slot) {
-				/* Do not bother looking for another device. */
-				pci_dev_put(pcidev);
-				pcidev = NULL;
-				break;
-			}
-		}
-		/* Undo temporary enable of device. */
-		comedi_pci_disable(pcidev);
-		break;
-	}
-
-	if (pcidev == NULL) {
-		if (ret) {
-			if (bus || slot) {
-				printk(KERN_CONT
-					" - Card on requested bus:slot (%d:%d) could not be enabled, err %d\n",
-					bus, slot, ret);
-			} else {
-				printk(KERN_CONT
-					" - No found card could be enabled, err %d\n",
-					ret);
-			}
-		} else {
-			if (bus || slot) {
-				printk(KERN_CONT
-					" - No card found on requested bus:slot (%d:%d)\n",
-					bus, slot);
-			} else {
-				printk(KERN_CONT " - No card found\n");
-			}
-		}
-		return -EIO;
-	}
-	devpriv->pcidev = pcidev;
 
 	/* Enable PCI device. */
 	if (comedi_pci_enable(pcidev, "icp_multi") < 0) {
@@ -1089,8 +1049,157 @@ static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
 
 	devpriv->valid = 1;
 
+	return 0;
+}
+
+/*
+==============================================================================
+
+	Name:	icp_multi_attach
+
+	Description:
+		This function sets up all the appropriate data for the current
+		device.
+
+	Parameters:
+		comedi_device *dev	Pointer to current device structure
+		comedi_devconfig *it	Pointer to current device configuration
+
+	Returns:int	0 = success
+
+==============================================================================
+*/
+static int icp_multi_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int ret;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
+#endif
+
+	// Alocate private data storage space
+	if ((ret = alloc_private(dev, sizeof(icp_multi_private))) < 0)
+		return ret;
+
+	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor,
+		this_board->name);
+
+	while ((pcidev = pci_get_device(PCI_VENDOR_ID_ICP,
+					this_board->device_id,
+					pcidev)) != NULL) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+				slot != PCI_SLOT(pcidev->devfn)) {
+				continue;
+			}
+		}
+		/* Temporarily enable PCI device to check if in use. */
+		ret = comedi_pci_enable(pcidev, "icp_multi");
+		if (ret) {
+			if (bus || slot) {
+				/* Do not bother looking for another device. */
+				pci_dev_put(pcidev);
+				pcidev = NULL;
+				break;
+			}
+		}
+		/* Undo temporary enable of device. */
+		comedi_pci_disable(pcidev);
+		break;
+	}
+
+	if (pcidev == NULL) {
+		if (ret) {
+			if (bus || slot) {
+				printk(KERN_CONT
+					" - Card on requested bus:slot (%d:%d) could not be enabled, err %d\n",
+					bus, slot, ret);
+			} else {
+				printk(KERN_CONT
+					" - No found card could be enabled, err %d\n",
+					ret);
+			}
+		} else {
+			if (bus || slot) {
+				printk(KERN_CONT
+					" - No card found on requested bus:slot (%d:%d)\n",
+					bus, slot);
+			} else {
+				printk(KERN_CONT " - No card found\n");
+			}
+		}
+		return -EIO;
+	}
+	/* PCI device reference count was incremented by pci_get_device(). */
+	devpriv->pcidev = pcidev;
+
+	ret = icp_multi_attach_common(dev);
+	if (ret) {
+		return ret;
+	}
+
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: END: icp_multi_attach(...)\n");
+#endif
+
+	return 0;
+}
+
+/*
+==============================================================================
+
+	Name:	icp_multi_auto_attach
+
+	Description:
+		This function sets up all the appropriate data for the current
+		device that is being auto-attached.
+
+	Parameters:
+		comedi_device *dev	Pointer to current device structure
+		context			Driver data from PCI device ID table
+
+	Returns:int	0 = success
+
+==============================================================================
+*/
+static int icp_multi_auto_attach(comedi_device * dev, unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	int ret;
+
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("icp_multi EDBG: BGN: icp_multi_auto_attach(...)\n");
+#endif
+
+	// Alocate private data storage space
+	if ((ret = alloc_private(dev, sizeof(icp_multi_private))) < 0)
+		return ret;
+
+	printk("Anne's comedi%d: icp_multi: auto-attach PCI %s", dev->minor,
+		pci_name(pcidev));
+
+	// context is index into boardtypes[]
+	if (context >= n_boardtypes) {
+		printk(KERN_CONT " - BUG! bad auto-attach context value %lu\n",
+			context);
+		return -EINVAL;
+	}
+	dev->board_ptr = &boardtypes[context];
+	printk(KERN_CONT ", board=%s", this_board->name);
+
+	// pci_dev_get() matches pci_dev_put() in icp_multi_detach()
+	devpriv->pcidev = pci_dev_get(pcidev);
+
+	ret = icp_multi_attach_common(dev);
+	if (ret) {
+		return ret;
+	}
+
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("icp multi EDBG: END: icp_multi_auto_attach(...)\n");
 #endif
 
 	return 0;
