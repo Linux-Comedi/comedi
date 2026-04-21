@@ -88,7 +88,7 @@ typedef struct {
 	unsigned int scan_period;	// scan period in usec
 	unsigned int convert_period;	// conversion period in usec
 	volatile unsigned timer_running:1;
-	volatile lsampl_t ao_loopbacks[N_CHANS];
+	sampl_t ao_loopbacks[N_CHANS];
 } waveform_private;
 #define devpriv ((waveform_private *)dev->private)
 
