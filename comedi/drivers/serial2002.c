@@ -174,9 +174,9 @@ static int tty_read(struct file *f, int timeout)
 		set_fs(KERNEL_DS);
 		if (f->f_op->poll) {
 			struct poll_wqueues table;
-			struct timeval start, now;
+			ktime_t start, now;
 
-			do_gettimeofday(&start);
+			start = ktime_get();
 			poll_initwait(&table);
 			while (1) {
 				long elapsed;
@@ -190,10 +190,8 @@ static int tty_read(struct file *f, int timeout)
 						COMEDI_EPOLLERR)) {
 					break;
 				}
-				do_gettimeofday(&now);
-				elapsed =
-					(1000000 * (now.tv_sec - start.tv_sec) +
-					now.tv_usec - start.tv_usec);
+				now = ktime_get();
+				elapsed = ktime_us_delta(now, start);
 				if (elapsed > timeout) {
 					break;
 				}
