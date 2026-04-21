@@ -137,7 +137,7 @@ static const comedi_lrange waveform_ai_ranges = {
    It should run in the background; therefore it is scheduled by
    a timer mechanism.
 */
-static void waveform_ai_interrupt(struct timer_list *t)
+static void waveform_ai_timer(struct timer_list *t)
 {
 	waveform_private *priv = timer_container_of(priv, t, timer);
 	comedi_device *dev = priv->dev;
@@ -260,7 +260,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->ao_loopbacks[i] = s->maxdata / 2;
 	}
 
-	timer_setup(&devpriv->timer, waveform_ai_interrupt, 0);
+	timer_setup(&devpriv->timer, waveform_ai_timer, 0);
 
 	printk(KERN_CONT "attached\n");
 
