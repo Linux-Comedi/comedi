@@ -285,11 +285,12 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 		switch (insn->insn) {
 		case INSN_GTOD:
 			{
-				struct timeval tv;
+				struct timespec64 tv;
 
-				do_gettimeofday(&tv);
-				insn->data[0] = tv.tv_sec;
-				insn->data[1] = tv.tv_usec;
+				ktime_get_real_ts64(&tv);
+				/* unsigned data safe until 2106 */
+				insn->data[0] = (unsigned int)tv.tv_sec;
+				insn->data[1] = tv.tv_nsec / NSEC_PER_USEC;
 				ret = 2;
 
 				break;
