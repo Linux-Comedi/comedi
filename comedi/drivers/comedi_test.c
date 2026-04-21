@@ -123,8 +123,6 @@ static sampl_t fake_flatline(comedi_device * dev, unsigned int range,
 static sampl_t fake_waveform(comedi_device * dev, unsigned int channel,
 	unsigned int range, unsigned long current_time);
 
-static const int nano_per_micro = 1000;	// 1000 nanosec in a microsec
-
 // fake analog input ranges
 static const comedi_lrange waveform_ai_ranges = {
 	2,
@@ -339,8 +337,8 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		}
 	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < nano_per_micro) {
-			cmd->scan_begin_arg = nano_per_micro;
+		if (cmd->scan_begin_arg < NSEC_PER_USEC) {
+			cmd->scan_begin_arg = NSEC_PER_USEC;
 			err++;
 		}
 		if (cmd->convert_src == TRIG_TIMER &&
@@ -382,8 +380,8 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->scan_begin_arg;
 		// round to nearest microsec
 		cmd->scan_begin_arg =
-			nano_per_micro * ((tmp +
-				(nano_per_micro / 2)) / nano_per_micro);
+			NSEC_PER_USEC * ((tmp +
+				(NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
 	}
@@ -391,8 +389,8 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		tmp = cmd->convert_arg;
 		// round to nearest microsec
 		cmd->convert_arg =
-			nano_per_micro * ((tmp +
-				(nano_per_micro / 2)) / nano_per_micro);
+			NSEC_PER_USEC * ((tmp +
+				(NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -415,12 +413,12 @@ static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	devpriv->timer_running = 1;
 	devpriv->ai_count = 0;
-	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
+	devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
 
 	if (cmd->convert_src == TRIG_NOW)
 		devpriv->convert_period = 0;
 	else if (cmd->convert_src == TRIG_TIMER)
-		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
+		devpriv->convert_period = cmd->convert_arg / NSEC_PER_USEC;
 	else {
 		comedi_error(dev, "bug setting conversion period");
 		return -1;
