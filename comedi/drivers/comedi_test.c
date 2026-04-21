@@ -282,7 +282,7 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int tmp, limit;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -336,18 +336,14 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			err++;
 		}
 	}
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < NSEC_PER_USEC) {
-			cmd->scan_begin_arg = NSEC_PER_USEC;
-			err++;
-		}
-		if (cmd->convert_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->chanlist_len;
-			err++;
-		}
+	if (cmd->scan_begin_arg < NSEC_PER_USEC) {
+		cmd->scan_begin_arg = NSEC_PER_USEC;
+		err++;
+	}
+	if (cmd->convert_src == TRIG_TIMER &&
+		cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len) {
+		cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+		err++;
 	}
 	// XXX these checks are generic and should go in core if not there already
 	if (!cmd->chanlist_len) {
@@ -376,23 +372,32 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		// round to nearest microsec
-		cmd->scan_begin_arg =
-			NSEC_PER_USEC * ((tmp +
-				(NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
-	}
 	if (cmd->convert_src == TRIG_TIMER) {
+		/* round convert_arg to nearest microsecond */
 		tmp = cmd->convert_arg;
-		// round to nearest microsec
-		cmd->convert_arg =
-			NSEC_PER_USEC * ((tmp +
-				(NSEC_PER_USEC / 2)) / NSEC_PER_USEC);
-		if (tmp != cmd->convert_arg)
+		tmp = min(tmp,
+			rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+		tmp = NSEC_PER_USEC * DIV_ROUND_CLOSEST(tmp, NSEC_PER_USEC);
+		/* limit convert_arg to keep scan_begin_arg in range */
+		limit = UINT_MAX / cmd->scan_end_arg;
+		limit = rounddown(limit, (unsigned int)NSEC_PER_USEC);
+		tmp = min(tmp, limit);
+		if (tmp != cmd->convert_arg) {
+			cmd->convert_arg = tmp;
 			err++;
+		}
+	}
+	/* round scan_begin_arg to nearest microsecond */
+	tmp = cmd->scan_begin_arg;
+	tmp = min(tmp, rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
+	tmp = NSEC_PER_USEC * DIV_ROUND_CLOSEST(tmp, NSEC_PER_USEC);
+	if (cmd->convert_src == TRIG_TIMER) {
+		/* but ensure scan_begin_arg is large enough */
+		tmp = max(tmp, cmd->convert_arg * cmd->scan_end_arg);
+	}
+	if (tmp != cmd->scan_begin_arg) {
+		cmd->scan_begin_arg = tmp;
+		err++;
 	}
 
 	if (err)
