@@ -120,6 +120,10 @@ static int waveform_ao_cmd(comedi_device * dev, comedi_subdevice * s);
 static int waveform_ao_cancel(comedi_device * dev, comedi_subdevice * s);
 static int waveform_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
+static int waveform_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int waveform_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 static sampl_t fake_sawtooth(comedi_device * dev, unsigned int range,
 	unsigned int current_time);
 static sampl_t fake_squarewave(comedi_device * dev, unsigned int range,
@@ -315,7 +319,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk(KERN_CONT "%u microvolt, %u microsecond waveform ",
 		devpriv->wf_amplitude, devpriv->wf_period);
-	dev->n_subdevices = 2;
+	dev->n_subdevices = 3;
 	if (alloc_subdevices(dev, dev->n_subdevices) < 0) {
 		printk(KERN_CONT "Allocation error\n");
 		return -ENOMEM;
@@ -355,6 +359,15 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 		for (i = 0; i < s->n_chan; i++)
 			devpriv->ao_loopbacks[i] = s->maxdata / 2;
 	}
+
+	s = dev->subdevices + 2;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 32;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = waveform_dio_insn_bits;
+	s->insn_config = waveform_dio_insn_config;
 
 	timer_setup(&devpriv->ai_timer, waveform_ai_timer, 0);
 	timer_setup(&devpriv->ao_timer, waveform_ao_timer, 0);
@@ -851,3 +864,69 @@ static int waveform_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 
 	return insn->n;
 }
+
+static int waveform_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	unsigned int driven_low;
+	unsigned int wires;
+
+	if (insn->n != 2)
+		return -EINVAL;
+
+	/* Update the channel outputs. */
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= data[0] & data[1];
+	}
+
+	/*
+	 * We are modelling the outputs as NPN open collector (0 = driven low,
+	 * 1 = high impedance), with the lower 16 channels wired to the upper
+	 * 16 channels in pairs (0 to 16, 1 to 17, ..., 15 to 31), with a
+	 * pull-up resistor on each wire.  When reading back each channel, we
+	 * read back the state of the wire to which it is connected.
+	 *
+	 * The state of each wire and the value read back from both channels
+	 * connected to it will be logic 1 unless either channel connected to
+	 * the wire is configured as an output in the logic 0 state.
+	 */
+	driven_low = s->io_bits & ~s->state;
+	wires = 0xFFFF & ~driven_low & ~(driven_low >> 16);
+	/* Read back the state of the wires for each pair of channels. */
+	data[1] = wires | (wires << 16);
+
+	return insn->n;
+}
+
+static int waveform_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	int chan = CR_CHAN(insn->chanspec);
+
+	/* The input or output configuration of each digital line is
+	 * configured by a special insn_config instruction.  chanspec
+	 * contains the channel to be changed, and data[0] contains the
+	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= 1 << chan;
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~(1 << chan);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] =
+			(s->
+			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	return insn->n;
+}
+
+
