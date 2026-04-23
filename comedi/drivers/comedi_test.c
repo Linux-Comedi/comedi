@@ -77,17 +77,15 @@ static const waveform_board waveform_boards[] = {
 
 /* Data unique to this driver */
 typedef struct {
-	comedi_device *dev;
-	struct timer_list timer;
-	struct timeval last;	// time at which last timer interrupt occured
-	unsigned int uvolt_amplitude;	// waveform amplitude in microvolts
-	unsigned long usec_period;	// waveform period in microseconds
-	volatile unsigned long usec_current;	// current time (modulo waveform period)
-	volatile unsigned long usec_remainder;	// usec since last scan;
-	volatile unsigned long ai_count;	// number of conversions remaining
-	unsigned int scan_period;	// scan period in usec
-	unsigned int convert_period;	// conversion period in usec
-	volatile unsigned timer_running:1;
+	comedi_device *dev;		// parent comedi device
+	struct timer_list ai_timer;	// timer for AI commands
+	u64 ai_convert_time;		// time of next AI conversion in usec
+	unsigned int wf_amplitude;	// waveform amplitude in microvolts
+	u32 wf_period;			// waveform period in microseconds
+	u32 wf_current;			// current time in waveform period
+	unsigned int ai_scan_period;	// AI scan period in microseconds
+	unsigned int ai_convert_period;	// AI conversion period in microseconds
+	bool ai_timer_enable:1;		// should AI timer be running?
 	sampl_t ao_loopbacks[N_CHANS];
 } waveform_private;
 #define devpriv ((waveform_private *)dev->private)
@@ -115,13 +113,13 @@ static int waveform_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 static int waveform_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static sampl_t fake_sawtooth(comedi_device * dev, unsigned int range,
-	unsigned long current_time);
+	unsigned int current_time);
 static sampl_t fake_squarewave(comedi_device * dev, unsigned int range,
-	unsigned long current_time);
+	unsigned int current_time);
 static sampl_t fake_flatline(comedi_device * dev, unsigned int range,
-	unsigned long current_time);
+	unsigned int current_time);
 static sampl_t fake_waveform(comedi_device * dev, unsigned int channel,
-	unsigned int range, unsigned long current_time);
+	unsigned int range, unsigned int current_time);
 
 // fake analog input ranges
 static const comedi_lrange waveform_ai_ranges = {
@@ -139,56 +137,65 @@ static const comedi_lrange waveform_ai_ranges = {
 */
 static void waveform_ai_timer(struct timer_list *t)
 {
-	waveform_private *priv = timer_container_of(priv, t, timer);
+	waveform_private *priv = timer_container_of(priv, t, ai_timer);
 	comedi_device *dev = priv->dev;
-	comedi_async *async = dev->read_subdev->async;
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned int i, j;
-	// all times in microsec
-	unsigned long elapsed_time;
-	unsigned int num_scans;
-	struct timeval now;
+	u64 now;
+	unsigned int nsamples;
+	unsigned int time_increment;
 
-	do_gettimeofday(&now);
+	now = ktime_to_us(ktime_get());
+	nsamples = comedi_nsamples_left(s, UINT_MAX);
 
-	elapsed_time =
-		1000000 * (now.tv_sec - devpriv->last.tv_sec) + now.tv_usec -
-		devpriv->last.tv_usec;
-	devpriv->last = now;
-	num_scans =
-		(devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
-	devpriv->usec_remainder =
-		(devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
-	async->events = 0;
+	while (nsamples && devpriv->ai_convert_time < now) {
+		unsigned int chanspec = cmd->chanlist[async->cur_chan];
+		sampl_t sample =
+			fake_waveform(dev, CR_CHAN(chanspec),
+				CR_RANGE(chanspec), devpriv->wf_current);
+		u64 wf_time64;
 
-	for (i = 0; i < num_scans; i++) {
-		for (j = 0; j < cmd->chanlist_len; j++) {
-			sampl_t sample =
-				fake_waveform(dev, CR_CHAN(cmd->chanlist[j]),
-					CR_RANGE(cmd->chanlist[j]),
-					devpriv->usec_current +
-					i * devpriv->scan_period +
-					j * devpriv->convert_period);
-
-			comedi_buf_write_samples(dev->read_subdev, &sample, 1);
+		if (comedi_buf_write_samples(s, &sample, 1) == 0)
+			goto overrun;
+		time_increment = devpriv->ai_convert_period;
+		if (async->scan_progress == 0) {
+			/* done last conversion in scan, so add dead time */
+			time_increment +=
+				devpriv->ai_scan_period -
+				(devpriv->ai_convert_period *
+				 cmd->scan_end_arg);
 		}
-		devpriv->ai_count++;
-		if (cmd->stop_src == TRIG_COUNT
-			&& devpriv->ai_count >= cmd->stop_arg) {
-			async->events |= COMEDI_CB_EOA;
-			break;
+		wf_time64 = (u64)devpriv->wf_current + time_increment;
+		if (wf_time64 < devpriv->wf_period) {
+			devpriv->wf_current = wf_time64;
+		} else {
+			div_u64_rem(wf_time64, devpriv->wf_period,
+				&devpriv->wf_current);
 		}
+		devpriv->ai_convert_time += time_increment;
+		nsamples--;
 	}
 
-	devpriv->usec_current += elapsed_time;
-	devpriv->usec_current %= devpriv->usec_period;
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg) {
+		async->events |= COMEDI_CB_EOA;
+	} else {
+		unsigned long flags;
 
-	if ((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
-		mod_timer(&devpriv->timer, jiffies + 1);
-	else
-		timer_delete(&devpriv->timer);
+		if (devpriv->ai_convert_time > now)
+			time_increment = devpriv->ai_convert_time - now;
+		else
+			time_increment = 1;
+		comedi_spin_lock_irqsave(&dev->spinlock, flags);
+		if (devpriv->ai_timer_enable) {
+			mod_timer(&devpriv->ai_timer,
+				  jiffies + usecs_to_jiffies(time_increment));
+		}
+		comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	}
 
-	comedi_event(dev, dev->read_subdev);
+overrun:
+	comedi_handle_events(dev, s);
 }
 
 static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
@@ -214,11 +221,11 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 	if (period <= 0)
 		period = 100000;	// 0.1 sec
 
-	devpriv->uvolt_amplitude = amplitude;
-	devpriv->usec_period = period;
+	devpriv->wf_amplitude = amplitude;
+	devpriv->wf_period = period;
 
-	printk(KERN_CONT "%i microvolt, %li microsecond waveform ",
-		devpriv->uvolt_amplitude, devpriv->usec_period);
+	printk(KERN_CONT "%u microvolt, %u microsecond waveform ",
+		devpriv->wf_amplitude, devpriv->wf_period);
 	dev->n_subdevices = 2;
 	if (alloc_subdevices(dev, dev->n_subdevices) < 0) {
 		printk(KERN_CONT "Allocation error\n");
@@ -260,7 +267,7 @@ static int waveform_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->ao_loopbacks[i] = s->maxdata / 2;
 	}
 
-	timer_setup(&devpriv->timer, waveform_ai_timer, 0);
+	timer_setup(&devpriv->ai_timer, waveform_ai_timer, 0);
 
 	printk(KERN_CONT "attached\n");
 
@@ -439,6 +446,9 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
+	unsigned int first_convert_time;
+	u64 wf_current;
+	unsigned long flags;
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		comedi_error(dev,
@@ -446,39 +456,72 @@ static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -1;
 	}
 
-	devpriv->timer_running = 1;
-	devpriv->ai_count = 0;
-
 	if (cmd->convert_src == TRIG_NOW)
-		devpriv->convert_period = 0;
+		devpriv->ai_convert_period = 0;
 	else /* cmd->convert_src == TRIG_TIMER */
-		devpriv->convert_period = cmd->convert_arg / NSEC_PER_USEC;
+		devpriv->ai_convert_period = cmd->convert_arg / NSEC_PER_USEC;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		devpriv->scan_period =
-			devpriv->convert_period * cmd->scan_end_arg;
+		devpriv->ai_scan_period =
+			devpriv->ai_convert_period * cmd->scan_end_arg;
 	} else {
 		/* cmd->scan_begin_src == TRIG_TIMER */
-		devpriv->scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
+		devpriv->ai_scan_period = cmd->scan_begin_arg / NSEC_PER_USEC;
 	}
-	do_gettimeofday(&devpriv->last);
-	devpriv->usec_current = devpriv->last.tv_usec % devpriv->usec_period;
-	devpriv->usec_remainder = 0;
 
-	devpriv->timer.expires = jiffies + 1;
-	add_timer(&devpriv->timer);
+	/*
+	 * Simulate first conversion to occur at convert period after
+	 * conversion timer starts.  If scan_begin_src is TRIG_FOLLOW, assume
+	 * the conversion timer starts immediately.  If scan_begin_src is
+	 * TRIG_TIMER, assume the conversion timer starts after the scan
+	 * period.
+	 */
+	first_convert_time = devpriv->ai_convert_period;
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		first_convert_time += devpriv->ai_scan_period;
+	devpriv->ai_convert_time = ktime_to_us(ktime_get()) +
+				   first_convert_time;
+
+	/* Determine time within waveform period at time of conversion. */
+	wf_current = devpriv->ai_convert_time;
+	div_u64_rem(devpriv->ai_convert_time, devpriv->wf_period,
+			&devpriv->wf_current);
+
+	/*
+	 * Schedule timer to expire just after first conversion time.
+	 * Seem to need an extra jiffy here, otherwise timer expires slightly
+	 * early!
+	 */
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->ai_timer_enable = true;
+	devpriv->ai_timer.expires =
+		jiffies + usecs_to_jiffies(devpriv->ai_convert_period) + 1;
+	add_timer(&devpriv->ai_timer);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return 0;
 }
 
 static int waveform_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	devpriv->timer_running = 0;
-	timer_delete_sync(&devpriv->timer);
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->ai_timer_enable = false;
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	if (in_softirq()) {
+		/*
+		 * Assume we were called from the timer routing itself
+		 * (via comedi_handle_events()).
+		 */
+		timer_delete(&devpriv->ai_timer);
+	} else {
+		timer_delete_sync(&devpriv->ai_timer);
+	}
 	return 0;
 }
 
 static sampl_t fake_sawtooth(comedi_device * dev, unsigned int range_index,
-	unsigned long current_time)
+	unsigned int current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
@@ -487,45 +530,43 @@ static sampl_t fake_sawtooth(comedi_device * dev, unsigned int range_index,
 	u64 binary_amplitude;
 
 	binary_amplitude = s->maxdata;
-	binary_amplitude *= devpriv->uvolt_amplitude;
-	do_div(binary_amplitude, krange->max - krange->min);
+	binary_amplitude *= devpriv->wf_amplitude;
+	binary_amplitude = div_u64(binary_amplitude, krange->max - krange->min);
 
-	current_time %= devpriv->usec_period;
 	value = current_time;
 	value *= binary_amplitude * 2;
-	do_div(value, devpriv->usec_period);
+	value = div_u64(value, devpriv->wf_period);
 	value -= binary_amplitude;	// get rid of sawtooth's dc offset
 
 	return offset + value;
 }
 static sampl_t fake_squarewave(comedi_device * dev, unsigned int range_index,
-	unsigned long current_time)
+	unsigned int current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
 	u64 value;
 	const comedi_krange *krange = &s->range_table->range[range_index];
-	current_time %= devpriv->usec_period;
 
 	value = s->maxdata;
-	value *= devpriv->uvolt_amplitude;
-	do_div(value, krange->max - krange->min);
+	value *= devpriv->wf_amplitude;
+	value = div_u64(value, krange->max - krange->min);
 
-	if (current_time < devpriv->usec_period / 2)
+	if (current_time < devpriv->wf_period / 2)
 		value *= -1;
 
 	return offset + value;
 }
 
 static sampl_t fake_flatline(comedi_device * dev, unsigned int range_index,
-	unsigned long current_time)
+	unsigned int current_time)
 {
 	return dev->read_subdev->maxdata / 2;
 }
 
 // generates a different waveform depending on what channel is read
 static sampl_t fake_waveform(comedi_device * dev, unsigned int channel,
-	unsigned int range, unsigned long current_time)
+	unsigned int range, unsigned int current_time)
 {
 	enum {
 		SAWTOOTH_CHAN,
