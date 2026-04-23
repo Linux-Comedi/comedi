@@ -159,7 +159,7 @@ struct comedi_subdevice_struct {
 	unsigned runflags;
 	spinlock_t spin_lock;
 
-	int io_bits;
+	unsigned int io_bits;
 
 	lsampl_t maxdata;	/* if maxdata==0, use list */
 	const lsampl_t *maxdata_list;	/* list is channel specific */
