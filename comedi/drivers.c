@@ -487,6 +487,66 @@ static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
+int comedi_check_cmd_triggers_supported( comedi_cmd *cmd,
+	unsigned int start_allowed, unsigned int scan_begin_allowed,
+	unsigned int convert_allowed, unsigned int scan_end_allowed,
+	unsigned int stop_allowed)
+{
+	int err = 0;
+
+	/*
+	 * Step 1: make sure trigger sources are trivially valid 
+	 *
+	 * Clears any unsupported trigger sources and checks that at least
+	 * one trigger source remains for each trigger.
+	 */
+	err += !!comedi_check_trigger_src(&cmd->start_src, start_allowed);
+	err += !!comedi_check_trigger_src(&cmd->scan_begin_src,
+					scan_begin_allowed);
+	err += !!comedi_check_trigger_src(&cmd->convert_src, convert_allowed);
+	err += !!comedi_check_trigger_src(&cmd->scan_end_arg, scan_end_allowed);
+	err += !!comedi_check_trigger_src(&cmd->stop_arg, stop_allowed);
+	return err ? -EINVAL : 0;
+}
+
+int comedi_check_trigger_is_unique_default(unsigned int *src,
+	unsigned int trig_default)
+{
+	if (!*src || comedi_check_trigger_is_unique(*src)) {
+		if (trig_default &&
+			!!comedi_check_trigger_is_unique(trig_default)) {
+			*src = trig_default;
+		}
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int comedi_check_cmd_triggers_unique_default(comedi_cmd *cmd,
+	unsigned int start_default, unsigned int scan_begin_default,
+	unsigned int convert_default, unsigned int scan_end_default,
+	unsigned int stop_default)
+{
+	int err = 0;
+
+	err += !!comedi_check_trigger_is_unique_default(&cmd->start_src,
+			start_default);
+	err += !!comedi_check_trigger_is_unique_default(&cmd->scan_begin_src,
+			scan_begin_default);
+	err += !!comedi_check_trigger_is_unique_default(&cmd->convert_src,
+			convert_default);
+	err += !!comedi_check_trigger_is_unique_default(&cmd->scan_end_src,
+			scan_end_default);
+	err += !!comedi_check_trigger_is_unique_default(&cmd->stop_src,
+			stop_default);
+	return err ? -EINVAL : 0;
+}
+
+int comedi_check_cmd_triggers_unique(comedi_cmd *cmd)
+{
+	return comedi_check_cmd_triggers_unique_default(cmd, 0, 0, 0, 0, 0);
+}
+
 unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd)
 {
 	unsigned int events = subd->async->events;

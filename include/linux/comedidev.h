@@ -476,6 +476,81 @@ static inline int comedi_check_trigger_is_unique(unsigned int src)
 }
 
 /*
+ * comedi_check_trigger_is_unique_default() - Check trigger has a single source
+ *	and possibly change to a default source
+ * @src: Pointer to the trigger source to validate.
+ * @trig_default: If non-zero, default source for trigger.
+ *
+ * Check trigger has exactly one source set.  If trigger source is invalid and
+ * the default trigger source has exactly one source set, sets the trigger
+ * source to its default.
+ *
+ * Return:
+ * 	0 if trigger had exactly one source set.
+ * 	-EINVAL if trigger had 0 or more than one source set. Trigger source
+ * 	may have been changed to the default source.
+ */
+int comedi_check_trigger_is_unique_default(unsigned int *src,
+	unsigned int trig_default);
+
+/*
+ * comedi_check_cmd_triggers_supported() - Make sure trigger source masks OK
+ * @cmd: Pointer to comedi_cmd to check triggers of.
+ * @start_allowed: Bitmask of allowed sources for cmd->start_src.
+ * @scan_begin_allowed: Bitmask of allowed sources for cmd->scan_begin_src.
+ * @convert_allowed: Bitmask of allowed sources for cmd->convert_src.
+ * @scan_end_allowed: Bitmask of allowed sources for cmd->scan_end_src.
+ * @stop_allowed: Bitmask of allowed sources for cmd->stop_src.
+ *
+ * Clears any unsupported trigger sources and checks that at least one trigger
+ * source remains for each trigger.
+ *
+ * Return:
+ *	0 if no sources removed and all triggers have at least one source left.
+ *	-EINVAL if sources removed or a trigger has no source remaining.
+ */
+int comedi_check_cmd_triggers_supported(comedi_cmd *cmd,
+	unsigned int start_allowed, unsigned int scan_begin_allowed,
+	unsigned int convert_allowed, unsigned int scan_end_allowed,
+	unsigned int stop_allowed);
+
+/*
+ * comedi_check_cmd_triggers_unique() - Check each trigger has a single source
+ * @cmd: Pointer to comedi_cmd to check triggers of.
+ *
+ * Check each trigger has exactly one source set.
+ *
+ * Return:
+ * 	0 if all triggers have exactly one source set.
+ * 	-EINVAL if a trigger has 0 or more than one source set.
+ */
+int comedi_check_cmd_triggers_unique(comedi_cmd *cmd);
+
+/*
+ * comedi_check_cmd_triggers_unique_default() - Check each trigger has a single
+ *	source and possibly change incorrect triggers to a default source
+ * @cmd: Pointer to comedi_cmd to check triggers of.
+ * @start_default: If non-zero, default source for cmd->start_src.
+ * @scan_begin_default: If non-zero, default source for cmd->scan_begin_src.
+ * @convert_default: If non-zero, default source for cmd->convert_src.
+ * @scan_end_default: If non-zero, default source for cmd->scan_end_src.
+ * @stop_default: If non-zero, default source for cmd->stop_src.
+ *
+ * Check each trigger has exactly one source set.  If a trigger is invalid and
+ * the default source for the trigger has exactly one source set, sets the
+ * trigger to its default source.
+ *
+ * Return:
+ *	0 if all triggers had exactly one source set.
+ *	-EINVAL if a trigger had 0 or more than one source set.  Invalid
+ *	triggers have been set to their default source.
+ */
+int comedi_check_cmd_triggers_unique_default(comedi_cmd *cmd,
+	unsigned int start_default, unsigned int scan_begin_default,
+	unsigned int convert_default, unsigned int scan_end_default,
+	unsigned int stop_default);
+
+/*
  * comedi_check_trigger_arg_is() - Trivially validate a trigger argument
  * @arg: Pointer to the trigger arg to validate.
  * @val: The value the argument should be.
