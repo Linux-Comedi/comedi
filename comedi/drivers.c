@@ -547,6 +547,40 @@ int comedi_check_cmd_triggers_unique(comedi_cmd *cmd)
 	return comedi_check_cmd_triggers_unique_default(cmd, 0, 0, 0, 0, 0);
 }
 
+int comedi_check_cmd_args_common(comedi_cmd *cmd, comedi_subdevice *s,
+	unsigned int scan_end_max)
+{
+	int err = 0;
+
+	if (cmd->start_src == TRIG_NONE) {
+		err |= !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
+		err |= !!comedi_check_trigger_arg_is(&cmd->scan_begin_src, 0);
+	}
+	if (cmd->convert_src == TRIG_NOW || cmd->convert_src == TRIG_FOLLOW) {
+		err |= !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	}
+	err |= !!comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= !!comedi_check_trigger_arg_max(&cmd->chanlist_len,
+				s->len_chanlist);
+	if (cmd->scan_end_src == TRIG_COUNT) {
+		comedi_check_trigger_arg_min(&scan_end_max, cmd->chanlist_len);
+		err |= !!comedi_check_trigger_arg_min(&cmd->scan_end_arg,
+				cmd->chanlist_len);
+		err |= !!comedi_check_trigger_arg_max(&cmd->scan_end_arg,
+				max(scan_end_max, cmd->chanlist_len));
+	}
+	if (cmd->stop_src == TRIG_NONE) {
+		err |= !!comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+	} else if (cmd->stop_src == TRIG_COUNT) {
+		err |= !!comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
+	}
+	if (err)
+		return -EINVAL;		/* Adjustments were done. */
+	return 0;	/* No adjustments. */
+}
+
 unsigned int comedi_handle_events(comedi_device *dev, comedi_subdevice *subd)
 {
 	unsigned int events = subd->async->events;

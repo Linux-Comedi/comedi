@@ -31,6 +31,7 @@ EXPORT_SYMBOL(comedi_check_trigger_is_unique_default);
 EXPORT_SYMBOL(comedi_check_cmd_triggers_supported);
 EXPORT_SYMBOL(comedi_check_cmd_triggers_unique);
 EXPORT_SYMBOL(comedi_check_cmd_triggers_unique_default);
+EXPORT_SYMBOL(comedi_check_cmd_args_common);
 //EXPORT_SYMBOL(comedi_bufcheck);
 //EXPORT_SYMBOL(comedi_done);
 //EXPORT_SYMBOL(comedi_error_done);

@@ -551,6 +551,29 @@ int comedi_check_cmd_triggers_unique_default(comedi_cmd *cmd,
 	unsigned int stop_default);
 
 /*
+ * comedi_check_cmd_args_common() - Common checks for trigger arguments
+ * @cmd: Pointer to comedi_cmd to check triggers of.
+ * @s: Pointer to comedi subdevice.
+ * @scan_end_max: Maximum cmd->scan_end_arg subject to other checks.
+ *
+ * If cmd->start_src is TRIG_NONE, forces cmd->start_arg to be 0.
+ * If cmd->scan_begin_src is TRIG_FOLLOW, forces cmd->scan_begin_arg to be 0.
+ * If cmd->convert_src is TRIG_NOW or TRIG_FOLLOW, forces cmd->convert_arg to
+ * be 0.
+ * Forces cmd->chanlist_len to be at least 1 and no more than s->len_chanlist.
+ * If cmd->scan_end_src is TRIG_COUNT, forces cmd->scan_begin_end to be at
+ * least cmd->chanlist_len and no more than the maximum of scan_end_max
+ * parameter and cmd->chanlist_len (after adjustment).
+ * If cmd->stop_src is TRIG_NONE, forces cmd->stop_arg to be 0.
+ * If cmd->stop_src is TRIG_COUNT, forces cmd->stop_arg to be at least 1.
+ *
+ * Returns -EINVAL if any adjustments were made.
+ * Returns 0 if no adjustments were necessary.
+ */
+int comedi_check_cmd_args_common(comedi_cmd *cmd, comedi_subdevice *s,
+	unsigned int scan_end_max);
+
+/*
  * comedi_check_trigger_arg_is() - Trivially validate a trigger argument
  * @arg: Pointer to the trigger arg to validate.
  * @val: The value the argument should be.
