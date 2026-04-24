@@ -434,6 +434,110 @@ int comedi_load_firmware(comedi_device *dev, struct device *hw_dev,
 				    size_t size, unsigned long context),
 	unsigned long context);
 
+/*
+ * comedi_check_trigger_src() - Trivially validate a comedi_cmd trigger source
+ * @src: Pointer to the trigger source to validate.
+ * @flags: Bitmask of valid %TRIG_* for the trigger.
+ *
+ * This is used in "step 1" of the do_cmdtest functions of comedi drivers
+ * to validate the comedi_cmd triggers. The mask of the @src against the
+ * @flags allows the userspace comedilib to pass all the comedi_cmd
+ * triggers as %TRIG_ANY and get back a bitmask of the valid trigger sources.
+ *
+ * Return:
+ *	0 if trigger sources in *@src are all supported.
+ *	-EINVAL if any trigger source in *@src is unsupported.
+ */
+static inline int comedi_check_trigger_src(unsigned int *src,
+					   unsigned int flags)
+{
+	unsigned int orig_src = *src;
+
+	*src = orig_src & flags;
+	if (*src == TRIG_INVALID || *src != orig_src)
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * comedi_check_trigger_is_unique() - Make sure a trigger source is unique
+ * @src: The trigger source to check.
+ *
+ * Return:
+ *	0 if no more than one trigger source is set.
+ *	-EINVAL if more than one trigger source is set.
+ */
+static inline int comedi_check_trigger_is_unique(unsigned int src)
+{
+	/* this test is true if more than one _src bit is set */
+	if ((src & (src - 1)) != 0)
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * comedi_check_trigger_arg_is() - Trivially validate a trigger argument
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The value the argument should be.
+ *
+ * Forces *@arg to be @val.
+ *
+ * Return:
+ *	0 if *@arg was already @val.
+ *	-EINVAL if *@arg differed from @val.
+ */
+static inline int comedi_check_trigger_arg_is(unsigned int *arg,
+					      unsigned int val)
+{
+	if (*arg != val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * comedi_check_trigger_arg_min() - Trivially validate a trigger argument min
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The minimum value the argument should be.
+ *
+ * Forces *@arg to be at least @val, setting it to @val if necessary.
+ *
+ * Return:
+ *	0 if *@arg was already at least @val.
+ *	-EINVAL if *@arg was less than @val.
+ */
+static inline int comedi_check_trigger_arg_min(unsigned int *arg,
+					       unsigned int val)
+{
+	if (*arg < val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * comedi_check_trigger_arg_max() - Trivially validate a trigger argument max
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The maximum value the argument should be.
+ *
+ * Forces *@arg to be no more than @val, setting it to @val if necessary.
+ *
+ * Return:
+ *	0 if*@arg was already no more than @val.
+ *	-EINVAL if *@arg was greater than @val.
+ */
+static inline int comedi_check_trigger_arg_max(unsigned int *arg,
+					       unsigned int val)
+{
+	if (*arg > val) {
+		*arg = val;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /* must be used in attach to set dev->hw_dev if you wish to dma directly
 into comedi's buffer */
 int comedi_set_hw_dev(comedi_device * dev, struct device *hw_dev);
