@@ -581,16 +581,11 @@ static int pci9112_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 // Test analog input command
 //
 
-#define pci9112_check_trigger_src(src,flags) \
-  tmp = src; \
-  src &= flags; \
-  if (!src || tmp != src) error++
-
 static int
 pci9112_ai_do_cmd_test(comedi_device * dev,
 	comedi_subdevice * s, comedi_cmd * cmd)
 {
-	int tmp;
+	unsigned int tmp;
 	int error = 0;
 	int range, reference;
 	int i;
@@ -598,102 +593,45 @@ pci9112_ai_do_cmd_test(comedi_device * dev,
 
 	// Step 1 : check if trigger are trivialy valid
 
-	pci9112_check_trigger_src(cmd->start_src, TRIG_NOW);
-	pci9112_check_trigger_src(cmd->scan_begin_src,
-		TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT);
-	pci9112_check_trigger_src(cmd->convert_src, TRIG_TIMER | TRIG_EXT);
-	pci9112_check_trigger_src(cmd->scan_end_src, TRIG_COUNT);
-	pci9112_check_trigger_src(cmd->stop_src, TRIG_COUNT | TRIG_NONE);
-
+	error = !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				// start
+			TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT,	// scan_begin
+			TRIG_TIMER | TRIG_EXT,			// convert
+			TRIG_COUNT,				// scan_end
+			TRIG_COUNT | TRIG_NONE);		// stop
 	if (error)
 		return 1;
 
-	// step 2 : make sure trigger sources are unique and mutually compatible
+	// Step 2a : make sure trigger sources are unique
 
-	if (cmd->start_src != TRIG_NOW)
-		error++;
+	error += !!comedi_check_cmd_triggers_unique(cmd);
 
-	if ((cmd->scan_begin_src != TRIG_TIMER) &&
-		(cmd->scan_begin_src != TRIG_FOLLOW) &&
-		(cmd->scan_begin_src != TRIG_EXT))
-		error++;
+	// Step 2b : make sure trigger sources are mutually compatible
 
-	if ((cmd->convert_src != TRIG_TIMER) && (cmd->convert_src != TRIG_EXT)) {
+	if ((cmd->scan_begin_src != TRIG_FOLLOW) &&
+		(cmd->scan_begin_src != cmd->convert_src)) {
 		error++;
 	}
-	if ((cmd->convert_src == TRIG_TIMER) &&
-		!((cmd->scan_begin_src == TRIG_TIMER) ||
-			(cmd->scan_begin_src == TRIG_FOLLOW))) {
-		error++;
-	}
-	if ((cmd->convert_src == TRIG_EXT) &&
-		!((cmd->scan_begin_src == TRIG_EXT) ||
-			(cmd->scan_begin_src == TRIG_FOLLOW))) {
-		error++;
-	}
-
-	if (cmd->scan_end_src != TRIG_COUNT)
-		error++;
-	if ((cmd->stop_src != TRIG_COUNT) && (cmd->stop_src != TRIG_NONE))
-		error++;
 
 	if (error)
 		return 2;
 
 	// Step 3 : make sure arguments are trivialy compatible
 
-	if (cmd->chanlist_len < 1) {
-		cmd->chanlist_len = 1;
-		error++;
+	error += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		error += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+					board->ai_acquisition_period_min_ns);
+	} else {	/* TRIG_FOLLOW, TRIG_EXT */
+		error += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 
-	if (cmd->chanlist_len > board->ai_channel_nbr) {
-		cmd->chanlist_len = board->ai_channel_nbr;
-		error++;
-	}
-
-	if ((cmd->start_src == TRIG_NOW) && (cmd->start_arg != 0)) {
-		cmd->start_arg = 0;
-		error++;
-	}
-
-	if ((cmd->convert_src == TRIG_TIMER) &&
-		(cmd->convert_arg < board->ai_acquisition_period_min_ns)) {
-		cmd->convert_arg = board->ai_acquisition_period_min_ns;
-		error++;
-	}
-	if ((cmd->convert_src == TRIG_EXT) && (cmd->convert_arg != 0)) {
-		cmd->convert_arg = 0;
-		error++;
-	}
-
-	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-		(cmd->scan_begin_arg < board->ai_acquisition_period_min_ns)) {
-		cmd->scan_begin_arg = board->ai_acquisition_period_min_ns;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_FOLLOW) && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_EXT) && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
-
-	if ((cmd->scan_end_src == TRIG_COUNT) &&
-		(cmd->scan_end_arg != cmd->chanlist_len)) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		error++;
-	}
-
-	if ((cmd->stop_src == TRIG_COUNT) && (cmd->stop_arg < 1)) {
-		cmd->stop_arg = 1;
-		error++;
-	}
-	if ((cmd->stop_src == TRIG_NONE) && (cmd->stop_arg != 0)) {
-		cmd->stop_arg = 0;
-		error++;
+	if (cmd->convert_src == TRIG_TIMER) {
+		error += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					board->ai_acquisition_period_min_ns);
+	} else {	/* TRIG_EXT */
+		error += !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
 	if (error)
@@ -702,39 +640,35 @@ pci9112_ai_do_cmd_test(comedi_device * dev,
 	// Step 4 : fix up any arguments
 
 	if (cmd->convert_src == TRIG_TIMER) {
+		int round_mode = cmd->flags & CMDF_ROUND_MASK;
+
 		tmp = cmd->convert_arg;
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			if (!!comedi_check_trigger_arg_max(&tmp,
+						UINT_MAX / cmd->scan_end_arg)) {
+				round_mode = CMDF_ROUND_DOWN;
+			}
+		}
 		i8253_cascade_ns_to_timer_2div(PCI9112_8254_CLOCK_PERIOD_NS,
 			&(dev_private->timer_divisor_1),
 			&(dev_private->timer_divisor_2),
-			&(cmd->convert_arg), cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			error++;
+			&tmp, round_mode);
+		error += comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 	// There's only one timer on this card, so the scan_begin timer must
 	// be a multiple of chanlist_len*convert_arg
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
+	if (cmd->scan_begin_src == TRIG_TIMER &&
+		cmd->convert_src == TRIG_TIMER) {
 
 		unsigned int scan_begin_min;
-		unsigned int scan_begin_arg;
-		unsigned int scan_factor;
 
-		scan_begin_min = cmd->chanlist_len * cmd->convert_arg;
-
-		if (cmd->scan_begin_arg != scan_begin_min) {
-			if (scan_begin_min < cmd->scan_begin_arg) {
-				scan_factor =
-					cmd->scan_begin_arg / scan_begin_min;
-				scan_begin_arg = scan_factor * scan_begin_min;
-				if (cmd->scan_begin_arg != scan_begin_arg) {
-					cmd->scan_begin_arg = scan_begin_arg;
-					error++;
-				}
-			} else {
-				cmd->scan_begin_arg = scan_begin_min;
-				error++;
-			}
-		}
+		tmp = cmd->scan_begin_arg;
+		scan_begin_min = cmd->scan_end_arg * cmd->convert_arg;
+		comedi_check_trigger_arg_min(&tmp, scan_begin_min);
+		tmp = rounddown(tmp, scan_begin_min);
+		error += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg,
+				tmp);
 	}
 
 	if (error)
