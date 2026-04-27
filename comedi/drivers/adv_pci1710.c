@@ -1055,7 +1055,7 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	unsigned int tmp, divisor1 = 0, divisor2 = 0;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG
@@ -1063,30 +1063,12 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 #endif
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err = !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT,			// start
+			TRIG_FOLLOW,				// scan_begin
+			TRIG_TIMER | TRIG_EXT,			// convert
+			TRIG_COUNT,				// scan_end
+			TRIG_COUNT | TRIG_NONE);		// stop
 
 	if (err) {
 #ifdef PCI171X_EXTDEBUG
@@ -1096,28 +1078,20 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		return 1;
 	}
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2a: make sure trigger sources are unique */
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
+	/* force some trigger sources if not unique */
 
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
+	err += !!comedi_check_cmd_triggers_unique_default(cmd,
+			TRIG_NOW,	/* start default */		
+			0,		/* scan_begin: no default */
+			0,		/* convert: no default */
+			0,		/* scan_end: no default */
+			0);		/* stop: no default */
 
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
+	/* step 2b: make sure trigger sources are mutually compatible */
 
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	/* (no mutually compatible trigger source checks required) */
 
 	if (err) {
 #ifdef PCI171X_EXTDEBUG
@@ -1129,42 +1103,13 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_ns_min) {
-			cmd->convert_arg = this_board->ai_ns_min;
-			err++;
-		}
-	} else {		/* TRIG_FOLLOW */
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				this_board->ai_ns_min);
+	} else {		/* TRIG_EXT */
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
 	if (err) {
@@ -1182,8 +1127,8 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
 			cmd->flags & CMDF_ROUND_MASK);
-		if (cmd->convert_arg < this_board->ai_ns_min)
-			cmd->convert_arg = this_board->ai_ns_min;
+		comedi_check_trigger_arg_min(&cmd->convert_arg,
+				this_board->ai_ns_min);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
