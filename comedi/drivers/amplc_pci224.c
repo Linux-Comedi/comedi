@@ -759,30 +759,12 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 
 	/* Step 1: make sure trigger sources are trivially valid. */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT | TRIG_EXT,			/* start */
+			TRIG_EXT | TRIG_TIMER,			/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_EXT | TRIG_NONE);	/* stop */
 
 	if (err)
 		return 1;
@@ -790,17 +772,7 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 	/* Step 2: make sure trigger sources are unique and mutually
 	 * compatible. */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	/* There's only one external trigger signal (which makes these
 	 * tests easier).  Only one thing can use it. */
@@ -819,13 +791,9 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 
 	/* Step 3: make sure arguments are trivially compatible. */
 
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 	switch (cmd->start_src) {
-	case TRIG_INT:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
-		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->start_arg & ~CR_FLAGS_MASK) != 0) {
@@ -844,18 +812,14 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		if (cmd->scan_begin_arg > MAX_SCAN_PERIOD) {
-			cmd->scan_begin_arg = MAX_SCAN_PERIOD;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+				MAX_SCAN_PERIOD);
 		tmp = cmd->chanlist_len * CONVERT_PERIOD;
 		if (tmp < MIN_SCAN_PERIOD) {
 			tmp = MIN_SCAN_PERIOD;
 		}
-		if (cmd->scan_begin_arg < tmp) {
-			cmd->scan_begin_arg = tmp;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				tmp);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
@@ -874,22 +838,7 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 		break;
 	}
 
-	/* cmd->convert_src == TRIG_NOW */
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-
-	/* cmd->scan_end_arg == TRIG_COUNT */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
 	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* Any count allowed. */
-		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->stop_arg & ~CR_FLAGS_MASK) != 0) {
@@ -901,12 +850,6 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 		if ((cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->stop_arg = COMBINE(cmd->stop_arg, 0,
 				CR_FLAGS_MASK & ~CR_EDGE);
-		}
-		break;
-	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
 		}
 		break;
 	}
