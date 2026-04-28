@@ -1240,6 +1240,7 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 {
 	int err = 0;
 	unsigned int tmp;
+	unsigned int scan_begin_valid;
 
 	/* cmdtest tests a particular command to see if it is valid.
 	 * Using the cmdtest ioctl, a user can create a valid cmd
@@ -1252,12 +1253,6 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * "invalid source" returned by comedilib to user mode process
 	 * if this fails. */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
 	if ((thisboard->min_hwver > 0) && (devpriv->hwver >= 2)) {
 		/*
 		 * For PCI230+ hardware version 2 onwards, allow external
@@ -1273,27 +1268,17 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		 * scan_begin_src==TRIG_EXT support to be a bonus rather than a
 		 * guarantee!
 		 */
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
+		scan_begin_valid = TRIG_TIMER | TRIG_INT | TRIG_EXT;
 	} else {
-		cmd->scan_begin_src &= TRIG_TIMER | TRIG_INT;
+		scan_begin_valid = TRIG_TIMER | TRIG_INT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
 
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT,				/* start */
+			scan_begin_valid,			/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -1302,17 +1287,7 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * "source conflict" returned by comedilib to user mode process
 	 * if this fails. */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
@@ -1321,10 +1296,8 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * "invalid argument" returned by comedilib to user mode process
 	 * if this fails. */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 #define MAX_SPEED_AO	8000	/* 8000 ns => 125 kHz */
 #define MIN_SPEED_AO	4294967295u	/* 4294967295ns = 4.29s */
 			/*- Comedi limit due to unsigned int cmd.  Driver limit
@@ -1333,14 +1306,10 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		if (cmd->scan_begin_arg < MAX_SPEED_AO) {
-			cmd->scan_begin_arg = MAX_SPEED_AO;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED_AO) {
-			cmd->scan_begin_arg = MIN_SPEED_AO;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				MAX_SPEED_AO);
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+				MIN_SPEED_AO);
 		break;
 	case TRIG_EXT:
 		/* External trigger - for PCI230+ hardware version 2 onwards. */
@@ -1361,24 +1330,6 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			err++;
 		}
 		break;
-	default:
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-		break;
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
 	}
 
 	if (err)
@@ -1677,6 +1628,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 {
 	int err = 0;
 	unsigned int tmp;
+	unsigned int scan_begin_allowed;
 
 	/* cmdtest tests a particular command to see if it is valid.
 	 * Using the cmdtest ioctl, a user can create a valid cmd
@@ -1688,40 +1640,23 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* Step 1: make sure trigger sources are trivially valid.
 	 * "invalid source" returned by comedilib to user mode process
 	 * if this fails. */
-
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
 	/* Unfortunately, we cannot trigger a scan off an external source
 	 * on the PCI260 board, since it uses the PPIC0 (DIO) input, which
 	 * isn't present on the PCI260.  For PCI260+ we can use the
 	 * EXTTRIG/EXTCONVCLK input on pin 17 instead. */
 	if ((thisboard->have_dio) || (thisboard->min_hwver > 0)) {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
+		scan_begin_allowed = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
 			| TRIG_EXT;
 	} else {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
+		scan_begin_allowed = TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
 	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
 
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_INT,			/* start */
+			scan_begin_allowed,			/* scan_begin */
+			TRIG_TIMER | TRIG_INT | TRIG_EXT,	/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -1730,17 +1665,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * "source conflict" returned by comedilib to user mode process
 	 * if this fails. */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	/* If scan_begin_src is not TRIG_FOLLOW, then a monostable will be
 	 * set up to generate a fixed number of timed conversion pulses. */
@@ -1755,10 +1680,8 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * "invalid argument" returned by comedilib to user mode process
 	 * if this fails. */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 #define MAX_SPEED_AI_SE		3200	/* PCI230 SE:   3200 ns => 312.5 kHz */
 #define MAX_SPEED_AI_DIFF	8000	/* PCI230 DIFF: 8000 ns => 125 kHz */
 #define MAX_SPEED_AI_PLUS	4000	/* PCI230+:     4000 ns => 250 kHz */
@@ -1789,14 +1712,10 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			max_speed_ai = MAX_SPEED_AI_PLUS;
 		}
 
-		if (cmd->convert_arg < max_speed_ai) {
-			cmd->convert_arg = max_speed_ai;
-			err++;
-		}
-		if (cmd->convert_arg > MIN_SPEED_AI) {
-			cmd->convert_arg = MIN_SPEED_AI;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				max_speed_ai);
+		err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+				MIN_SPEED_AI);
 	} else if (cmd->convert_src == TRIG_EXT) {
 		/*
 		 * external trigger
@@ -1827,29 +1746,12 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			/* Backwards compatibility with previous versions. */
 			/* convert_arg == 0 => trigger on -ve edge. */
 			/* convert_arg == 1 => trigger on +ve edge. */
-			if (cmd->convert_arg > 1) {
-				/* Default to trigger on +ve edge. */
-				cmd->convert_arg = 1;
-				err++;
-			}
+			/* Default to trigger on +ve edge. */
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					1);
 		}
 	} else {
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
@@ -1873,10 +1775,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			err++;
 		}
 	} else {
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 
 	if (err)
