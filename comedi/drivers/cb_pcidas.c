@@ -1133,47 +1133,19 @@ static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_NOW | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT,			/* start */
+			TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT,	/* scan_begin */
+			TRIG_TIMER | TRIG_NOW | TRIG_EXT,	/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	// make sure trigger sources are compatible with each other
 	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
@@ -1190,8 +1162,9 @@ static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	switch (cmd->start_src) {
-	case TRIG_EXT:
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	if (cmd->start_src == TRIG_EXT) {
 		/* External trigger, only CR_EDGE and CR_INVERT flags allowed */
 		if ((cmd->start_arg
 		     & (CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT))) != 0) {
@@ -1203,40 +1176,15 @@ static int cb_pcidas_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
 			err++;
 		}
-		break;
-	default:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
-		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg <
-			thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-				thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ai_speed * cmd->chanlist_len);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				thisboard->ai_speed);
 	}
 
 	if (err)
@@ -1395,69 +1343,32 @@ static int cb_pcidas_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT,				/* start */
+			TRIG_TIMER | TRIG_EXT,			/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < thisboard->ao_scan_speed) {
-			cmd->scan_begin_arg = thisboard->ao_scan_speed;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ao_scan_speed);
 	}
 
 	if (err)
