@@ -2297,48 +2297,27 @@ static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg, tmp_arg2;
 	int i;
 	int aref;
-	unsigned int triggers;
+	unsigned int scan_begin_allowed, convert_allowed;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	if (board(dev)->layout == LAYOUT_4020) {
+		scan_begin_allowed = TRIG_TIMER | TRIG_OTHER;
+		convert_allowed = TRIG_TIMER | TRIG_NOW;
+	} else {
+		scan_begin_allowed = TRIG_TIMER | TRIG_FOLLOW;
+		convert_allowed = TRIG_TIMER | TRIG_EXT;
+	}
 
-	tmp = cmd->scan_begin_src;
-	triggers = TRIG_TIMER;
-	if (board(dev)->layout == LAYOUT_4020)
-		triggers |= TRIG_OTHER;
-	else
-		triggers |= TRIG_FOLLOW;
-	cmd->scan_begin_src &= triggers;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	triggers = TRIG_TIMER;
-	if (board(dev)->layout == LAYOUT_4020)
-		triggers |= TRIG_NOW;
-	else
-		triggers |= TRIG_EXT;
-	cmd->convert_src &= triggers;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT,			/* start */
+			scan_begin_allowed,			/* scan_begin */
+			convert_allowed,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_EXT | TRIG_NONE);	/* stop */
 
 	if (err)
 		return 1;
@@ -2346,18 +2325,7 @@ static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	// uniqueness check
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_OTHER &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	// compatibility check
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
@@ -2371,56 +2339,23 @@ static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (board(dev)->layout == LAYOUT_4020) {
-			if (cmd->convert_arg) {
-				cmd->convert_arg = 0;
-				err++;
-			}
+			err += !!comedi_check_trigger_arg_is(&cmd->convert_arg,
+					0);
 		} else {
-			if (cmd->convert_arg < board(dev)->ai_speed) {
-				cmd->convert_arg = board(dev)->ai_speed;
-				err++;
-			}
+			err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					board(dev)->ai_speed);
 			if (cmd->scan_begin_src == TRIG_TIMER) {
 				// if scans are timed faster than conversion rate allows
-				if (cmd->convert_arg * cmd->chanlist_len >
-					cmd->scan_begin_arg) {
-					cmd->scan_begin_arg =
+				err += !!comedi_check_trigger_arg_min(
+						&cmd->scan_begin_arg,
 						cmd->convert_arg *
-						cmd->chanlist_len;
-					err++;
-				}
+						cmd->chanlist_len);
 			}
 		}
-	}
-
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	switch (cmd->stop_src) {
-	case TRIG_EXT:
-		break;
-	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-		break;
-	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-		break;
-	default:
-		break;
 	}
 
 	if (err)
@@ -3641,36 +3576,17 @@ static int ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg;
 	int i;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT | TRIG_EXT,			/* start */
+			TRIG_TIMER | TRIG_EXT,			/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_NONE);				/* stop */
 
 	if (err)
 		return 1;
@@ -3678,18 +3594,9 @@ static int ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	// uniqueness check
-	if (cmd->start_src != TRIG_INT && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	// compatibility check
-	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
 
 	if (err)
 		return 2;
@@ -3697,25 +3604,14 @@ static int ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 3: make sure arguments are trivially compatible */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < board(dev)->ao_scan_speed) {
-			cmd->scan_begin_arg = board(dev)->ao_scan_speed;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				board(dev)->ao_scan_speed);
 		if (get_ao_divisor(cmd->scan_begin_arg,
 				cmd->flags) > max_counter_value) {
 			cmd->scan_begin_arg =
 				(max_counter_value + 2) * TIMER_BASE;
 			err++;
 		}
-	}
-
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
 	}
 
 	if (err)
