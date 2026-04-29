@@ -45,6 +45,9 @@ Status: experimental
 
 #include "8253.h"
 
+/* Asynchronous command support has not been fully implemented yet. */
+#undef DAS16CS_CMD_SUPPORT
+
 #define DAS16CS_SIZE			18
 
 #define DAS16CS_ADC_DATA		0
@@ -114,12 +117,16 @@ static const comedi_lrange das16cs_ai_range = {
 	},
 };
 
+#ifdef DAS16CS_CMD_SUPPORT
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
+#endif
 static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
+#ifdef DAS16CS_CMD_SUPPORT
 static int das16cs_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
+#endif
 static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
@@ -181,7 +188,9 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pcmcia_device *link;
 	comedi_subdevice *s;
+#ifdef DAS16CS_CMD_SUPPORT
 	int ret;
+#endif
 	int i;
 
 	printk("comedi%d: cb_das16_cs: ", dev->minor);
@@ -205,6 +214,7 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	printk(KERN_CONT "\n");
 
+#ifdef DAS16CS_CMD_SUPPORT
 	ret = comedi_request_irq(
 #ifdef COMEDI_COMPAT_HAVE_CS_IRQ_REQ_T
 		link->irq.AssignedIRQ,
@@ -222,6 +232,7 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = link->irq;
 #endif
 	printk("irq=%u\n", dev->irq);
+#endif	/* DAS16CS_CMD_SUPPORT */
 
 	dev->board_ptr = das16cs_probe(dev, link);
 	if (!dev->board_ptr)
@@ -239,14 +250,20 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
+#ifdef DAS16CS_CMD_SUPPORT
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+#else
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
+#endif
 	s->n_chan = 16;
 	s->maxdata = 0xffff;
 	s->range_table = &das16cs_ai_range;
 	s->len_chanlist = 16;
 	s->insn_read = das16cs_ai_rinsn;
+#ifdef DAS16CS_CMD_SUPPORT
 	s->do_cmd = das16cs_ai_cmd;
 	s->do_cmdtest = das16cs_ai_cmdtest;
+#endif
 
 	s = dev->subdevices + 1;
 	/* analog output subdevice */
@@ -297,18 +314,22 @@ static int das16cs_detach(comedi_device * dev)
 {
 	printk("comedi%d: das16cs: remove\n", dev->minor);
 
+#ifdef DAS16CS_CMD_SUPPORT
 	if (dev->irq) {
 		comedi_free_irq(dev->irq, dev);
 	}
+#endif
 
 	return 0;
 }
 
+#ifdef DAS16CS_CMD_SUPPORT
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	//comedi_device *dev = d;
 	return IRQ_HANDLED;
 }
+#endif
 
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
@@ -356,6 +377,7 @@ static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
+#ifdef DAS16CS_CMD_SUPPORT
 static int das16cs_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	return -EINVAL;
@@ -516,6 +538,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	return 0;
 }
+#endif	/* DAS16CS_CMD_SUPPORT */
 
 static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
