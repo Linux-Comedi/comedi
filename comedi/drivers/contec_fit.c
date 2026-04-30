@@ -358,87 +358,29 @@ static int contec_ai_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_c
 #ifdef DEBUG
 	rt_printk("comedi%d: contec: contec_ai_cmdtest called\n", dev->minor);
 #endif
-	tmp			= cmd->start_src;
-	cmd->start_src	&= TRIG_NOW;
-	if(!cmd->start_src || tmp != cmd->start_src){
-		err++;
-	}
-	
-	tmp			= cmd->scan_begin_src;
-	cmd->scan_begin_src	&= TRIG_TIMER;
-	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src){
-		err++;
-	}
-	
-	tmp			= cmd->convert_src;
-	cmd->convert_src	&= TRIG_NOW;
-	if(!cmd->convert_src || tmp != cmd->convert_src){
-		err++;
-	}
-	
-	tmp			= cmd->stop_src;
-	cmd->stop_src		&= TRIG_COUNT | TRIG_NONE;
-	if(!cmd->stop_src || tmp != cmd->stop_src){
-		err++;
-	}
-	
-	tmp			= cmd->scan_end_src;
-	cmd->scan_end_src	&= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp != cmd->scan_end_src){
-		err++;
-	}
-	
+
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
+
 	if(err){
 		return 1;
 	}
-	
-	if(cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE){
-		err++;
-	}
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 	
 	if(err){
 		return 2;
 	}
 
-	if(cmd->start_arg != 0){
-		cmd->start_arg = 0;
-		err++;
-	}
-	
-	if(!cmd->chanlist_len){
-		cmd->chanlist_len = 1;
-		err++;
-	}else if(cmd->chanlist_len > 4){
-		cmd->chanlist_len = 4;
-		err++;
-	}
-	if(cmd->scan_begin_arg < 10000 * cmd->chanlist_len + 20000){
-		cmd->scan_begin_arg = 10000 * cmd->chanlist_len + 20000;
-		err++;
-	}
-	
-	if(cmd->convert_arg != 0){
-		cmd->convert_arg = 0;
-		err++;
-	}
-	if(cmd->stop_src == TRIG_COUNT)
-	{
-		if(!cmd->stop_arg){
-			cmd->stop_arg = 1;
-			err++;
-		}
-	}else{
-		if(cmd->stop_arg != 0){
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
-	
-	if(cmd->scan_end_arg != cmd->chanlist_len){
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+			10000 * cmd->chanlist_len + 20000);
+
 	if(err){
 		return 3;
 	}
@@ -477,86 +419,34 @@ static int contec_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_c
 #ifdef DEBUG
 	rt_printk("comedi%d: contec: contec_ao_cmdtest called\n", dev->minor);
 #endif
-	tmp			= cmd->start_src;
-	cmd->start_src	&= TRIG_INT;
-	if(!cmd->start_src || tmp != cmd->start_src){
-		err++;
-	}
-	
-	tmp			= cmd->scan_begin_src;
-	cmd->scan_begin_src	&= TRIG_TIMER;
-	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src){
-		err++;
-	}
-	
-	tmp			= cmd->convert_src;
-	cmd->convert_src	&= TRIG_NOW;
-	if(!cmd->convert_src || tmp != cmd->convert_src){
-		err++;
-	}
-	
-	tmp			= cmd->stop_src;
-	cmd->stop_src		&= TRIG_COUNT;
-	if(!cmd->stop_src || tmp != cmd->stop_src){
-		err++;
-	}
-	
-	tmp			= cmd->scan_end_src;
-	cmd->scan_end_src	&= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp != cmd->scan_end_src){
-		err++;
-	}
-	
+
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT,				/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
+
 	if(err){
 		return 1;
 	}
-	
-	if(cmd->stop_src != TRIG_COUNT){
-		err++;
-	}
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 	
 	if(err){
 		return 2;
 	}
-	if(cmd->start_arg != 0){
-		cmd->start_arg = 0;
-		err++;
+	if(err){
+		return 2;
 	}
-	
-	if(!cmd->chanlist_len){
-		cmd->chanlist_len = 1;
-		err++;
-	}else if(cmd->chanlist_len > 4){
-		cmd->chanlist_len = 4;
-		err++;
-	}
-	if(cmd->scan_begin_arg < 10000 * cmd->chanlist_len + 20000){
-		cmd->scan_begin_arg = 10000 * cmd->chanlist_len + 20000;
-		err++;
-	}
-	
-	if(cmd->convert_arg != 0){
-		cmd->convert_arg = 0;
-		err++;
-	}
-	if(cmd->stop_src == TRIG_COUNT)
-	{
-		if(!cmd->stop_arg){
-			cmd->stop_arg = 1;
-			err++;
-		}
-	}else{
-		if(cmd->stop_arg != 0){
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
-	
-	if(cmd->scan_end_arg != cmd->chanlist_len){
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	
+
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+			10000 * cmd->chanlist_len + 20000);
+
 	if(err){
 		return 3;
 	}
