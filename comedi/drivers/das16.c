@@ -774,57 +774,34 @@ struct das16_private_struct {
 static int das16_cmd_test(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
-	int err = 0, tmp;
+	int err = 0;
 	int gain, start_chan, i;
-	int mask;
+	unsigned int scan_begin_mask;
+	unsigned int convert_mask;
 
 	/* make sure triggers are valid */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
 
-	tmp = cmd->scan_begin_src;
-	mask = TRIG_FOLLOW;
+	scan_begin_mask = TRIG_FOLLOW;
+	convert_mask = TRIG_TIMER | TRIG_EXT;
 	// if board supports burst mode
-	if (thisboard->size > 0x400)
-		mask |= TRIG_TIMER | TRIG_EXT;
-	cmd->scan_begin_src &= mask;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
+	if (thisboard->size > 0x400) {
+		scan_begin_mask |= TRIG_TIMER | TRIG_EXT;
+		convert_mask |= TRIG_NOW;
+	}
 
-	tmp = cmd->convert_src;
-	mask = TRIG_TIMER | TRIG_EXT;
-	// if board supports burst mode
-	if (thisboard->size > 0x400)
-		mask |= TRIG_NOW;
-	cmd->convert_src &= mask;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				// start
+			scan_begin_mask,			// scan_begin
+			convert_mask,				// convert
+			TRIG_COUNT,				// scan_end
+			TRIG_COUNT | TRIG_NONE);		// stop
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	// make sure scan_begin_src and convert_src dont conflict
 	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
@@ -836,45 +813,19 @@ static int das16_cmd_test(comedi_device * dev, comedi_subdevice * s,
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
 	// check against maximum frequency
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg <
-			thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-				thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ai_speed * cmd->chanlist_len);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				thisboard->ai_speed);
 	}
 
-	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
 	if (err)
 		return 3;
 
