@@ -396,44 +396,19 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW | TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_FOLLOW | TRIG_TIMER,		/* scan_begin */
+			TRIG_NOW | TRIG_TIMER,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2a: make sure trigger sources are unique */
 
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_TIMER) {
-		err++;
-	}
-	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	/* step 2b: and mutually compatible */
 
@@ -445,61 +420,28 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->convert_src == TRIG_NOW) {
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	} else {
-		/* cmd->convert_src == TRIG_TIMER */
-		if (cmd->scan_begin_src == TRIG_FOLLOW) {
-			if (cmd->convert_arg < NSEC_PER_USEC) {
-				cmd->convert_arg = NSEC_PER_USEC;
-			}
-		}
-	}
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	} else {
-		/* cmd->scan_begin_src == TRIG_TIMER */
-		if (cmd->scan_begin_arg < NSEC_PER_USEC) {
-			cmd->scan_begin_arg = NSEC_PER_USEC;
-			err++;
-		}
-	}
-	if (cmd->scan_begin_src == TRIG_TIMER &&
-		cmd->convert_src == TRIG_TIMER &&
-		cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len) {
-		cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
-		err++;
-	}
-	// XXX these checks are generic and should go in core if not there already
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->scan_begin_src == TRIG_FOLLOW) {
+			err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					NSEC_PER_USEC);
+		} else {
+			/* cmd->scan_begin_src == TRIG_TIMER */
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					UINT_MAX / cmd->scan_end_arg);
 		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
+	}
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* Determine minimum scan time */
+		if (cmd->convert_src == TRIG_NOW) {
+			limit = NSEC_PER_USEC;
+		} else {
+			/* cmd->convert_src == TRIG_TIMER */
+			limit = cmd->convert_arg * cmd->scan_end_arg;
 		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				limit);
 	}
 
 	if (err)
@@ -519,10 +461,7 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			limit = rounddown(limit, (unsigned int)NSEC_PER_USEC);
 			tmp = min(tmp, limit);
 		}
-		if (tmp != cmd->convert_arg) {
-			cmd->convert_arg = tmp;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* round scan_begin_arg to nearest microsecond */
@@ -534,10 +473,7 @@ static int waveform_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			/* but ensure scan_begin_arg is large enough */
 			tmp = max(tmp, cmd->convert_arg * cmd->scan_end_arg);
 		}
-		if (tmp != cmd->scan_begin_arg) {
-			cmd->scan_begin_arg = tmp;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 
 	if (err)
@@ -731,38 +667,19 @@ static int waveform_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_INT,				/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	/* Step 2b : and mutually compatible */
 
@@ -771,36 +688,10 @@ static int waveform_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_arg < NSEC_PER_USEC) {
-		cmd->scan_begin_arg = NSEC_PER_USEC;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-
-	if (cmd->chanlist_len < 1) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+			NSEC_PER_USEC);
 
 	if (err)
 		return 3;
@@ -811,10 +702,7 @@ static int waveform_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	tmp = cmd->scan_begin_arg;
 	tmp = min(tmp, rounddown(UINT_MAX, (unsigned int)NSEC_PER_USEC));
 	tmp = NSEC_PER_USEC * DIV_ROUND_CLOSEST(tmp, NSEC_PER_USEC);
-	if (cmd->scan_begin_arg != tmp) {
-		cmd->scan_begin_arg = tmp;
-		err++;
-	}
+	err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 
 	if (err)
 		return 4;
