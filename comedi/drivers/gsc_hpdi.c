@@ -485,7 +485,8 @@ static int setup_subdevices(comedi_device * dev)
 /*	dev->write_subdev = s; */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags =
-		SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL | SDF_CMD_READ;
+		SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL | SDF_PACKED |
+		SDF_CMD_READ;
 	s->n_chan = 32;
 	s->len_chanlist = 32;
 	s->maxdata = 1;
@@ -795,7 +796,6 @@ static int di_cmd_test(comedi_device * dev, comedi_subdevice * s,
 {
 	int err = 0;
 	int tmp;
-	int i;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -838,10 +838,6 @@ static int di_cmd_test(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 32;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -871,21 +867,6 @@ static int di_cmd_test(comedi_device * dev, comedi_subdevice * s,
 
 	if (err)
 		return 4;
-
-	if (cmd->chanlist) {
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != i) {
-				// XXX could support 8 channels or 16 channels
-				comedi_error(dev,
-					"chanlist must be channels 0 to 31 in order");
-				err++;
-				break;
-			}
-		}
-	}
-
-	if (err)
-		return 5;
 
 	return 0;
 }
