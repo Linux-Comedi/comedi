@@ -1141,37 +1141,18 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
 	unsigned int tmp_arg;
 	int i;
 	int unipolar;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT,			/* start */
+			TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT,	/* scan_begin */
+			TRIG_TIMER | TRIG_EXT,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_EXT | TRIG_NONE);	/* stop */
 
 	if (err)
 		return 1;
@@ -1179,17 +1160,7 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	// uniqueness check
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 	//compatibility check
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 		cmd->convert_src != TRIG_TIMER)
@@ -1200,40 +1171,15 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+	err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				thisboard->ai_speed);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					UINT_MAX / cmd->scan_end_arg);
 		}
-	}
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-		break;
-	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-		break;
-	default:
-		break;
 	}
 
 	if (err)
@@ -1248,39 +1194,30 @@ static int das1800_ai_do_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			/* calculate counter values that give desired timing */
 			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 				&(devpriv->divisor1), &(devpriv->divisor2),
-				&(cmd->convert_arg),
-				cmd->flags & CMDF_ROUND_MASK);
-			if (tmp_arg != cmd->convert_arg)
-				err++;
-		}
-		// if we are in burst mode
-		else {
+				&tmp_arg, cmd->flags & CMDF_ROUND_MASK);
+			err += !!comedi_check_trigger_arg_is(&cmd->convert_arg,
+					tmp_arg);
+		} else {
+			// we are in burst mode
 			// check that convert_arg is compatible
-			tmp_arg = cmd->convert_arg;
-			cmd->convert_arg =
-				burst_convert_arg(cmd->convert_arg,
+			tmp_arg = burst_convert_arg(cmd->convert_arg,
 				cmd->flags & CMDF_ROUND_MASK);
-			if (tmp_arg != cmd->convert_arg)
-				err++;
+			err += !!comedi_check_trigger_arg_is(&cmd->convert_arg,
+					tmp_arg);
 
 			if (cmd->scan_begin_src == TRIG_TIMER) {
 				// if scans are timed faster than conversion rate allows
-				if (cmd->convert_arg * cmd->chanlist_len >
-					cmd->scan_begin_arg) {
-					cmd->scan_begin_arg =
-						cmd->convert_arg *
-						cmd->chanlist_len;
-					err++;
-				}
 				tmp_arg = cmd->scan_begin_arg;
+				comedi_check_trigger_arg_min(&tmp_arg,
+						cmd->convert_arg *
+						cmd->scan_end_arg);
 				/* calculate counter values that give desired timing */
 				i8253_cascade_ns_to_timer_2div(TIMER_BASE,
 					&(devpriv->divisor1),
 					&(devpriv->divisor2),
-					&(cmd->scan_begin_arg),
-					cmd->flags & CMDF_ROUND_MASK);
-				if (tmp_arg != cmd->scan_begin_arg)
-					err++;
+					&tmp_arg, cmd->flags & CMDF_ROUND_MASK);
+				err += !!comedi_check_trigger_arg_is(
+						&cmd->scan_begin_arg, tmp_arg);
 			}
 		}
 	}
