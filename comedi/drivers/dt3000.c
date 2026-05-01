@@ -457,30 +457,12 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_TIMER,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT);				/* stop */
 
 	if (err)
 		return 1;
@@ -492,51 +474,19 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < this_board->ai_speed) {
-			cmd->scan_begin_arg = this_board->ai_speed;
-			err++;
-		}
-		if (cmd->scan_begin_arg > 100 * 16 * 65535) {
-			cmd->scan_begin_arg = 100 * 16 * 65535;
-			err++;
-		}
-	} else {
-		/* not supported */
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				this_board->ai_speed);
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+				100 * 16 * 65536);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_speed) {
-			cmd->convert_arg = this_board->ai_speed;
-			err++;
-		}
-		if (cmd->convert_arg > 50 * 16 * 65535) {
-			cmd->convert_arg = 50 * 16 * 65535;
-			err++;
-		}
-	} else {
-		/* not supported */
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				this_board->ai_speed);
+		err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+				50 * 16 * 65535);
 	}
 
 	if (err)
@@ -550,8 +500,6 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg)
 			err++;
-	} else {
-		/* not supported */
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
@@ -559,15 +507,11 @@ static int dt3k_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			cmd->flags & CMDF_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			err += !!comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->scan_end_arg);
 		}
-	} else {
-		/* not supported */
 	}
 
 	if (err)
