@@ -1591,9 +1591,6 @@ static int me4000_ai_do_cmd_test(comedi_device * dev,
 	PDEBUG("me4000_ai_do_cmd_test(): chanlist_len   = %d\n",
 		cmd->chanlist_len);
 
-	/* Only rounding flags are implemented */
-	cmd->flags &= CMDF_ROUND_NEAREST | CMDF_ROUND_UP | CMDF_ROUND_DOWN;
-
 	/* Round the timer arguments */
 	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
 
