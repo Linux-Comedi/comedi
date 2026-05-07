@@ -435,43 +435,6 @@ static int me_ai_insn_read(comedi_device * dev,
 
 // ------------------------------------------------------------------
 //
-// HARDWARE TRIGGERED ANALOG INPUT SECTION
-//
-// ------------------------------------------------------------------
-
-//
-// Cancel analog input autoscan
-//
-static int me_ai_cancel(comedi_device * dev, comedi_subdevice * s)
-{
-	/* disable interrupts */
-
-	/* stop any running conversion */
-	dev_private->control_1 &= 0xFFFC;
-	writew(dev_private->control_1, dev_private->me_regbase + ME_CONTROL_1);
-
-	return 0;
-}
-
-//
-// Test analog input command
-//
-static int me_ai_do_cmd_test(comedi_device * dev,
-	comedi_subdevice * s, comedi_cmd * cmd)
-{
-	return 0;
-}
-
-//
-// Analog input command
-//
-static int me_ai_do_cmd(comedi_device * dev, comedi_subdevice * subdevice)
-{
-	return 0;
-}
-
-// ------------------------------------------------------------------
-//
 // ANALOG OUTPUT SECTION
 //
 // ------------------------------------------------------------------
@@ -751,15 +714,12 @@ static int me_attach_common(comedi_device * dev)
 
 	subdevice = dev->subdevices + 0;
 	subdevice->type = COMEDI_SUBD_AI;
-	subdevice->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
+	subdevice->subdev_flags = SDF_READABLE | SDF_COMMON;
 	subdevice->n_chan = board->ai_channel_nbr;
 	subdevice->maxdata = board->ai_resolution_mask;
 	subdevice->len_chanlist = board->ai_channel_nbr;
 	subdevice->range_table = board->ai_range_list;
-	subdevice->cancel = me_ai_cancel;
 	subdevice->insn_read = me_ai_insn_read;
-	subdevice->do_cmdtest = me_ai_do_cmd_test;
-	subdevice->do_cmd = me_ai_do_cmd;
 
 	subdevice = dev->subdevices + 1;
 	subdevice->type = COMEDI_SUBD_AO;
