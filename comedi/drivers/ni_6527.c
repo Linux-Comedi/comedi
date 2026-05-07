@@ -268,7 +268,7 @@ static int ni6527_intr_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		err++;
 
 	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
+	cmd->stop_src &= TRIG_NONE;
 	if (!cmd->stop_src || tmp != cmd->stop_src)
 		err++;
 
