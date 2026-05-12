@@ -1026,55 +1026,27 @@ static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp, tmp2;
-	int stop_mask;
+	unsigned int tmp, tmp2;
+	unsigned int stop_mask;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	stop_mask = TRIG_COUNT | TRIG_NONE;
-	if (thisboard->register_layout == labpc_1200_layout)
-		stop_mask |= TRIG_EXT;
-	cmd->stop_src &= stop_mask;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	stop_mask = thisboard->register_layout == labpc_1200_layout
+		? TRIG_COUNT | TRIG_NONE | TRIG_EXT
+		: TRIG_COUNT | TRIG_NONE;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT,			/* start */
+			TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT,	/* scan_begin */
+			TRIG_TIMER | TRIG_EXT,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			stop_mask);				/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_EXT && cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	// can't have external stop and start triggers at once
 	if (cmd->start_src == TRIG_EXT && cmd->stop_src == TRIG_EXT)
@@ -1085,58 +1057,25 @@ static int labpc_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg == TRIG_NOW && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-
-	if (!cmd->chanlist_len) {
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				thisboard->ai_speed);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					UINT_MAX / cmd->scan_end_arg);
 		}
 	}
 	// make sure scan timing is not too fast
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->convert_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->chanlist_len;
-			err++;
-		}
-		if (cmd->scan_begin_arg <
-			thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-				thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
-	}
-	// stop source
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-		break;
-	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-		break;
-		// TRIG_EXT doesn't care since it doesn't trigger off a numbered channel
-	default:
-		break;
+		unsigned int scan_begin_arg_min;
+
+		scan_begin_arg_min = cmd->scan_end_arg *
+			cmd->convert_src == TRIG_TIMER
+				? cmd->convert_arg : thisboard->ai_speed;
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				scan_begin_arg_min);
 	}
 
 	if (err)
