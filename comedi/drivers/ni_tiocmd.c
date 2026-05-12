@@ -239,58 +239,26 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_subdevice *s)
 int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
-	int sources;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	sources = TRIG_NOW | TRIG_INT | TRIG_OTHER;
-	if (ni_tio_counting_mode_registers_present(counter->counter_dev))
-		sources |= TRIG_EXT;
-	cmd->start_src &= sources;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_EXT | TRIG_OTHER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	sources = TRIG_NOW | TRIG_EXT | TRIG_OTHER;
-	cmd->convert_src &= sources;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			ni_tio_counting_mode_registers_present(
+				counter->counter_dev)
+			? TRIG_NOW | TRIG_INT | TRIG_OTHER | TRIG_EXT
+			: TRIG_NOW | TRIG_INT | TRIG_OTHER,	/* start */
+			TRIG_FOLLOW | TRIG_EXT | TRIG_OTHER,	/* scan_begin */
+			TRIG_NOW | TRIG_EXT | TRIG_OTHER,	/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_NONE);				/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique... */
 
-	if (cmd->start_src != TRIG_NOW &&
-		cmd->start_src != TRIG_INT &&
-		cmd->start_src != TRIG_EXT && cmd->start_src != TRIG_OTHER)
-		err++;
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_EXT &&
-		cmd->scan_begin_src != TRIG_OTHER)
-		err++;
-	if (cmd->convert_src != TRIG_OTHER &&
-		cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_NONE)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
+
 	/* ... and mutually compatible */
 	if (cmd->convert_src != TRIG_NOW && cmd->scan_begin_src != TRIG_FOLLOW)
 		err++;
@@ -300,34 +268,21 @@ int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd)
 
 	/* step 3: make sure arguments are trivially compatible */
 	if (cmd->start_src != TRIG_EXT) {
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 	}
 	if (cmd->scan_begin_src != TRIG_EXT) {
-		if (cmd->scan_begin_arg) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 	if (cmd->convert_src != TRIG_EXT) {
-		if (cmd->convert_arg) {
-			cmd->convert_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err += !!comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err += !!comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+			cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
