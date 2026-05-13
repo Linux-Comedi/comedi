@@ -499,34 +499,16 @@ static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_TIMER | TRIG_FOLLOW,		/* scan_begin */
+			TRIG_TIMER | TRIG_NOW,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -534,64 +516,46 @@ static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
-		err++;
-	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 #define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
 
-	if (cmd->scan_begin_src == TRIG_TIMER
-		&& cmd->scan_begin_arg < MAX_SPEED) {
-		cmd->scan_begin_arg = MAX_SPEED;
-		err++;
+	if (cmd->convert_src == TRIG_TIMER) {
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				MAX_SPEED);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			/* If both scan_begin and convert are both timer
+			 * values, the only way that can make sense is if the
+			 * scan time is the number of conversions times the
+			 * convert time, and need an upper bound on the
+			 * conversion time to do the whole scan.
+			 */
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					UINT_MAX / cmd->scan_end_arg);
+			err += !!comedi_check_trigger_arg_is(
+					&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->scan_end_arg);
+			err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					MAX_SPEED);
+		}
 	}
 
-	/* If both scan_begin and convert are both timer values, the only
-	 * way that can make sense is if the scan time is the number of
-	 * conversions times the convert time
-	 */
-
-	if (cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER
-		&& cmd->scan_begin_arg !=
-		cmd->convert_arg * cmd->scan_end_arg) {
-		err++;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				MAX_SPEED);
 	}
 
-	if (cmd->convert_src == TRIG_TIMER && cmd->convert_arg < MAX_SPEED) {
-		cmd->convert_arg = MAX_SPEED;
-		err++;
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_max(&cmd->stop_arg,
+				0x00ffffff);
 	}
 
 	if (err)
@@ -601,18 +565,14 @@ static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		daqp_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		daqp_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		daqp_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
+		daqp_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 
 	if (err)
