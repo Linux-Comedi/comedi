@@ -494,36 +494,18 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp, divisor1 = 0, divisor2 = 0;
+	unsigned int tmp, divisor1 = 0, divisor2 = 0;
 
 	DEBUG(rt_printk("pcl816 pcl812_ai_cmdtest\n");
 		pcl816_cmdtest_out(-1, cmd););
 
 	/* step 1: make sure trigger sources are trivially valid */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_FOLLOW,				/* scan_begin */
+			TRIG_EXT | TRIG_TIMER,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err) {
 		return 1;
@@ -531,69 +513,21 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if (cmd->start_src != TRIG_NOW) {
-		cmd->start_src = TRIG_NOW;
-		err++;
-	}
-
-	if (cmd->scan_begin_src != TRIG_FOLLOW) {
-		cmd->scan_begin_src = TRIG_FOLLOW;
-		err++;
-	}
-
-	if (cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_TIMER) {
-		cmd->convert_src = TRIG_TIMER;
-		err++;
-	}
-
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err) {
 		return 2;
 	}
 
 	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
 
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_ns_min) {
-			cmd->convert_arg = this_board->ai_ns_min;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				this_board->ai_ns_min);
 	} else {		/* TRIG_EXT */
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
-
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
 	if (err) {
@@ -604,12 +538,10 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(this_board->i8254_osc_base,
-			&divisor1, &divisor2, &cmd->convert_arg,
+			&divisor1, &divisor2, &tmp,
 			cmd->flags & CMDF_ROUND_MASK);
-		if (cmd->convert_arg < this_board->ai_ns_min)
-			cmd->convert_arg = this_board->ai_ns_min;
-		if (tmp != cmd->convert_arg)
-			err++;
+		comedi_check_trigger_arg_min(&tmp, this_board->ai_ns_min);
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 
 	if (err) {
