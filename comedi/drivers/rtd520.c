@@ -1708,39 +1708,16 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 	comedi_subdevice * s, comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
-	if (!cmd->start_src || tmp != cmd->start_src) {
-		err++;
-	}
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src) {
-		err++;
-	}
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src) {
-		err++;
-	}
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src) {
-		err++;
-	}
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src) {
-		err++;
-	}
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW,				/* start */
+			TRIG_TIMER | TRIG_EXT,			/* scan_begin */
+			TRIG_TIMER | TRIG_EXT,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -1748,16 +1725,8 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 	/* step 2: make sure trigger sources are unique
 	   and mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT) {
-		err++;
-	}
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT) {
-		err++;
-	}
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE) {
-		err++;
-	}
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err) {
 		return 2;
@@ -1765,101 +1734,50 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* Note: these are time periods, not actual rates */
-		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cmd->scan_begin_arg < RTD_MAX_SPEED_1) {
-				cmd->scan_begin_arg = RTD_MAX_SPEED_1;
-				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					CMDF_ROUND_UP);
-				err++;
-			}
-			if (cmd->scan_begin_arg > RTD_MIN_SPEED_1) {
-				cmd->scan_begin_arg = RTD_MIN_SPEED_1;
-				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					CMDF_ROUND_DOWN);
-				err++;
-			}
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (1 == cmd->scan_end_arg) {	/* no scanning */
+			err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					RTD_MAX_SPEED_1);
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					RTD_MIN_SPEED_1);
 		} else {
-			if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
-				cmd->scan_begin_arg = RTD_MAX_SPEED;
-				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					CMDF_ROUND_UP);
-				err++;
+			err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+					RTD_MAX_SPEED);
+			tmp = RTD_MIN_SPEED;
+			if (cmd->scan_begin_src == TRIG_TIMER) {
+				tmp /= cmd->scan_end_arg;
+				rtd_ns_to_timer(&tmp, CMDF_ROUND_DOWN);
 			}
-			if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
-				cmd->scan_begin_arg = RTD_MIN_SPEED;
-				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					CMDF_ROUND_DOWN);
-				err++;
-			}
+			err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+					tmp);
 		}
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if (cmd->scan_begin_arg > 9) {
-			cmd->scan_begin_arg = 9;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cmd->convert_arg < RTD_MAX_SPEED_1) {
-				cmd->convert_arg = RTD_MAX_SPEED_1;
-				rtd_ns_to_timer(&cmd->convert_arg,
-					CMDF_ROUND_UP);
-				err++;
-			}
-			if (cmd->convert_arg > RTD_MIN_SPEED_1) {
-				cmd->convert_arg = RTD_MIN_SPEED_1;
-				rtd_ns_to_timer(&cmd->convert_arg,
-					CMDF_ROUND_DOWN);
-				err++;
-			}
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* Note: these are time periods, not actual rates */
+		if (1 == cmd->scan_end_arg) {	/* no scanning */
+			err += !!comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg, RTD_MAX_SPEED_1);
+			err += !!comedi_check_trigger_arg_max(
+					&cmd->scan_begin_arg,  RTD_MIN_SPEED_1);
 		} else {
-			if (cmd->convert_arg < RTD_MAX_SPEED) {
-				cmd->convert_arg = RTD_MAX_SPEED;
-				rtd_ns_to_timer(&cmd->convert_arg,
-					CMDF_ROUND_UP);
-				err++;
-			}
-			if (cmd->convert_arg > RTD_MIN_SPEED) {
-				cmd->convert_arg = RTD_MIN_SPEED;
-				rtd_ns_to_timer(&cmd->convert_arg,
-					CMDF_ROUND_DOWN);
-				err++;
-			}
+			err += !!comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg, RTD_MAX_SPEED);
+			err += !!comedi_check_trigger_arg_max(
+					&cmd->scan_begin_arg, RTD_MIN_SPEED);
 		}
 	} else {
 		/* external trigger */
-		/* see above */
-		if (cmd->convert_arg > 9) {
-			cmd->convert_arg = 9;
-			err++;
-		}
-	}
-
-#if 0
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-#endif
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* TODO check for rounding error due to counter wrap */
-
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		/* should be level/edge, hi/lo specification here */
+		/* should specify multiple external triggers */
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
 
 	if (err) {
@@ -1868,31 +1786,19 @@ static int rtd_ai_cmdtest(comedi_device * dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->chanlist_len > RTD_MAX_CHANLIST) {
-		cmd->chanlist_len = RTD_MAX_CHANLIST;
-		err++;
-	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		rtd_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg) {
-			err++;
-		}
+		rtd_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		rtd_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->convert_arg) {
-			err++;
-		}
-		if (cmd->scan_begin_src == TRIG_TIMER
-			&& (cmd->scan_begin_arg
-				< (cmd->convert_arg * cmd->scan_end_arg))) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		rtd_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			err += !!comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->scan_end_arg);
 		}
 	}
 
