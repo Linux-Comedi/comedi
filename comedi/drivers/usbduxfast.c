@@ -600,9 +600,9 @@ static int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 static int usbduxfast_ai_cmdtest(comedi_device * dev,
 	comedi_subdevice * s, comedi_cmd * cmd)
 {
-	int err = 0, stop_mask = 0;
-	long int steps, tmp = 0;
-	int minSamplPer;
+	int err = 0;
+	unsigned int steps, tmp = 0;
+	unsigned int minSamplPer;
 	usbduxfastsub_t *this_usbduxfastsub = dev->private;
 	if (!(this_usbduxfastsub->probed)) {
 		return -ENODEV;
@@ -614,71 +614,26 @@ static int usbduxfast_ai_cmdtest(comedi_device * dev,
 #endif
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	stop_mask = TRIG_COUNT | TRIG_NONE;
-	cmd->stop_src &= stop_mask;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_EXT | TRIG_INT,		/* start */
+			TRIG_FOLLOW | TRIG_EXT,			/* scan_begin */
+			TRIG_TIMER | TRIG_EXT,			/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if (cmd->start_src != TRIG_NOW &&
-		cmd->start_src != TRIG_EXT && cmd->start_src != TRIG_INT)
-		err++;
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_EXT && cmd->stop_src != TRIG_NONE)
-		err++;
-
-	// can't have external stop and start triggers at once
-	if (cmd->start_src == TRIG_EXT && cmd->stop_src == TRIG_EXT)
-		err++;
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_src == TRIG_NOW && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-
-	if (!cmd->chanlist_len) {
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
 	if (cmd->chanlist_len == 1) {
 		minSamplPer = 1;
@@ -687,41 +642,14 @@ static int usbduxfast_ai_cmdtest(comedi_device * dev,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		steps = cmd->convert_arg * 30;
-		if (steps < (minSamplPer * 1000)) {
-			steps = minSamplPer * 1000;
-		}
-		if (steps > (MAX_SAMPLING_PERIOD * 1000)) {
-			steps = MAX_SAMPLING_PERIOD * 1000;
-		}
+		tmp = cmd->convert_arg;
+		comedi_check_trigger_arg_max(&tmp,
+				MAX_SAMPLING_PERIOD * 1000 / 30);
+		steps = tmp * 30;
+		comedi_check_trigger_arg_min(&steps, minSamplPer * 1000);
 		// calc arg again
 		tmp = steps / 30;
-		if (cmd->convert_arg != tmp) {
-			cmd->convert_arg = tmp;
-			err++;
-		}
-	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err++;
-	}
-	// stop source
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-		break;
-	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-		break;
-		// TRIG_EXT doesn't care since it doesn't trigger off a numbered channel
-	default:
-		break;
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 
 	if (err)
