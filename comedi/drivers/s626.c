@@ -261,7 +261,7 @@ static int s626_enc_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static int s626_enc_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
-static int s626_ns_to_timer(int *nanosec, int round_mode);
+static int s626_ns_to_timer(unsigned int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t * ppl, comedi_cmd * cmd);
 static int s626_ai_inttrig(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum);
@@ -1735,7 +1735,7 @@ static int s626_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	case TRIG_TIMER:
 		// set a conter to generate adc trigger at scan_begin_arg interval
 		k = &encpriv[5];
-		tick = s626_ns_to_timer((int *)&cmd->scan_begin_arg,
+		tick = s626_ns_to_timer(&cmd->scan_begin_arg,
 			cmd->flags & CMDF_ROUND_MASK);
 
 		//load timer value and enable interrupt
@@ -1762,7 +1762,7 @@ static int s626_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	case TRIG_TIMER:
 		// set a conter to generate adc trigger at convert_arg interval
 		k = &encpriv[4];
-		tick = s626_ns_to_timer((int *)&cmd->convert_arg,
+		tick = s626_ns_to_timer(&cmd->convert_arg,
 			cmd->flags & CMDF_ROUND_MASK);
 
 		//load timer value and enable interrupt
@@ -1833,7 +1833,7 @@ static int s626_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp;
+	unsigned int tmp;
 
 	/* cmdtest tests a particular command to see if it is valid.  Using
 	 * the cmdtest ioctl, a user can create a valid cmd and then have it
@@ -1844,30 +1844,12 @@ static int s626_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT | TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_INT | TRIG_EXT,		/* start */
+			TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW,	/* scan_begin */
+			TRIG_TIMER | TRIG_EXT | TRIG_NOW,	/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -1876,109 +1858,56 @@ static int s626_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	   compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT
-		&& cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT && cmd->convert_src != TRIG_NOW)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_src != TRIG_EXT && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	if (cmd->start_src != TRIG_EXT) {
+		/* TRIG_NOW or TRIG_INT */
+		err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	} else {
+		/* TRIG_EXT */
+		err += !!comedi_check_trigger_arg_max(&cmd->start_arg, 39);
 	}
 
-	if (cmd->start_src == TRIG_EXT && cmd->start_arg < 0) {
-		cmd->start_arg = 0;
-		err++;
+	if (cmd->scan_begin_src == TRIG_EXT) {
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
 	}
 
-	if (cmd->start_src == TRIG_EXT && cmd->start_arg > 39) {
-		cmd->start_arg = 39;
-		err++;
-	}
-
-	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg < 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-
-	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg > 39) {
-		cmd->scan_begin_arg = 39;
-		err++;
-	}
-
-	if (cmd->convert_src == TRIG_EXT && cmd->convert_arg < 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-
-	if (cmd->convert_src == TRIG_EXT && cmd->convert_arg > 39) {
-		cmd->convert_arg = 39;
-		err++;
+	if (cmd->convert_src == TRIG_EXT) {
+		err += !!comedi_check_trigger_arg_max(&cmd->convert_arg, 39);
 	}
 #define MAX_SPEED	200000	/* in nanoseconds */
 #define MIN_SPEED	2000000000	/* in nanoseconds */
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SPEED) {
-			cmd->scan_begin_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED) {
-			cmd->scan_begin_arg = MIN_SPEED;
-			err++;
-		}
-	} else {
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		/* should specify multiple external triggers */
-/*     if(cmd->scan_begin_arg>9){ */
-/*       cmd->scan_begin_arg=9; */
-/*       err++; */
-/*     } */
-	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < MAX_SPEED) {
-			cmd->convert_arg = MAX_SPEED;
-			err++;
+		err += !!comedi_check_trigger_arg_min(&cmd->convert_arg,
+				MAX_SPEED);
+		tmp = MIN_SPEED;
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			tmp /= cmd->scan_end_arg;
+			s626_ns_to_timer(&tmp, CMDF_ROUND_DOWN);
 		}
-		if (cmd->convert_arg > MIN_SPEED) {
-			cmd->convert_arg = MIN_SPEED;
-			err++;
-		}
-	} else {
-		/* external trigger */
-		/* see above */
-/*     if(cmd->convert_arg>9){ */
-/*       cmd->convert_arg=9; */
-/*       err++; */
-/*     } */
+		err += !!comedi_check_trigger_arg_max(&cmd->convert_arg,
+				tmp);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				MAX_SPEED);
+		err += !!comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+				MIN_SPEED);
 	}
+
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_max(&cmd->stop_arg,
+				0x00ffffff);
 	}
 
 	if (err)
@@ -1988,23 +1917,17 @@ static int s626_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-		s626_ns_to_timer((int *)&cmd->scan_begin_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		s626_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
-		s626_ns_to_timer((int *)&cmd->convert_arg,
-			cmd->flags & CMDF_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-			cmd->scan_begin_arg <
-			cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		s626_ns_to_timer(&tmp, cmd->flags & CMDF_ROUND_MASK);
+		err += !!comedi_check_trigger_arg_is(&cmd->convert_arg, tmp);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			err += !!comedi_check_trigger_arg_min(
+					&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->scan_end_arg);
 		}
 	}
 
@@ -2032,7 +1955,7 @@ static int s626_ai_cancel(comedi_device * dev, comedi_subdevice * s)
  * nanoseconds to a counter value suitable for programming the device.
  * Also, it should adjust ns so that it cooresponds to the actual time
  * that the device will use. */
-static int s626_ns_to_timer(int *nanosec, int round_mode)
+static int s626_ns_to_timer(unsigned int *nanosec, int round_mode)
 {
 	int divider, base;
 
