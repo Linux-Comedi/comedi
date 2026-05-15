@@ -959,8 +959,8 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 			     comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
-	int err = 0, tmp, i;
-	unsigned int tmpTimer;
+	int err = 0;
+	unsigned int tmp, i;
 	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!(this_usbduxsub->probed))
@@ -970,36 +970,13 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
 
 	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* start a new _scan_ with a timer */
-	cmd->scan_begin_src &= TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	/* scanning is continous */
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_INT,			/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -1008,31 +985,20 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 	 * step 2: make sure trigger sources are unique and mutually compatible
 	 * note that mutual compatibility is not an issue here
 	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
+
+	err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
+		tmp = cmd->scan_begin_arg;
 		if (this_usbduxsub->high_speed) {
 			/*
 			 * In high speed mode microframes are possible.
@@ -1041,51 +1007,20 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 			 * are in the channel list the more time we need.
 			 */
 			i = chanToInterval(cmd->chanlist_len);
-			if (cmd->scan_begin_arg < (1000000 / 8 * i)) {
-				cmd->scan_begin_arg = 1000000 / 8 * i;
-				err++;
-			}
+			comedi_check_trigger_arg_min(&tmp, 1000000 / 8 * i);
 			/* now calc the real sampling rate with all the
 			 * rounding errors */
-			tmpTimer =
-			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
-			    125000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
+			tmp = rounddown(tmp, 125000);
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
-			if (cmd->scan_begin_arg < 1000000) {
-				cmd->scan_begin_arg = 1000000;
-				err++;
-			}
+			comedi_check_trigger_arg_min(&tmp, 1000000);
 			/*
 			 * calc the real sampling rate with the rounding errors
 			 */
-			tmpTimer = ((unsigned int)(cmd->scan_begin_arg /
-						   1000000)) * 1000000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
+			tmp = rounddown(tmp, 1000000);
 		}
-	}
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 
 	if (err)
@@ -1619,7 +1554,7 @@ static int usbdux_ao_cmdtest(comedi_device *dev,
 			     comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
-	int err = 0, tmp;
+	int err = 0;
 	struct usbduxsub *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub)
@@ -1632,47 +1567,13 @@ static int usbdux_ao_cmdtest(comedi_device *dev,
 		"comedi%d: usbdux_ao_cmdtest\n", dev->minor);
 
 	/* make sure triggers are valid */
-	/* Only immediate triggers are allowed */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_INT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
 
-	/* trigger should happen timed */
-	tmp = cmd->scan_begin_src;
-	/* just now we scan also in the high speed mode every frame */
-	/* this is due to ehci driver limitations */
-	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* start immidiately a new scan */
-		/* the sampling rate is set by the coversion rate */
-		cmd->scan_begin_src &= TRIG_FOLLOW;
-	} else {
-		/* start a new scan (output at once) with a timer */
-		cmd->scan_begin_src &= TRIG_TIMER;
-	}
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	/* scanning is continous */
-	tmp = cmd->convert_src;
-
-	/* all conversion events happen simultaneously */
-	cmd->convert_src &= TRIG_NOW;
-
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	/* issue a trigger when scan is finished and start a new scan */
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	/* trigger at the end of count events or not, stop condition or not */
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err += !!comedi_check_cmd_triggers_supported(cmd,
+			TRIG_NOW | TRIG_INT,			/* start */
+			TRIG_TIMER,				/* scan_begin */
+			TRIG_NOW,				/* convert */
+			TRIG_COUNT,				/* scan_end */
+			TRIG_COUNT | TRIG_NONE);		/* stop */
 
 	if (err)
 		return 1;
@@ -1682,60 +1583,22 @@ static int usbdux_ao_cmdtest(comedi_device *dev,
 	 * are unique and mutually compatible
 	 * note that mutual compatibility is not an issue here
 	 */
-	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-	    cmd->scan_begin_src != TRIG_EXT &&
-	    cmd->scan_begin_src != TRIG_TIMER)
-		err++;
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
+
+	err += !!comedi_check_cmd_triggers_unique(cmd);
 
 	if (err)
 		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err += !!comedi_check_cmd_args_common(cmd, s, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err += !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* timer */
-		if (cmd->scan_begin_arg < 1000000) {
-			cmd->scan_begin_arg = 1000000;
-			err++;
-		}
-	}
-	/* not used now, is for later use */
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < 125000) {
-			cmd->convert_arg = 125000;
-			err++;
-		}
-	}
-
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* any count is allowed */
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err += !!comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+				1000000);
 	}
 
 	dev_dbg(&this_usbduxsub->interface->dev, "comedi%d: err=%d, "
