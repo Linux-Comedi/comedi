@@ -971,7 +971,6 @@ static int
 pcmuio_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 {
 	int err = 0;
-	unsigned int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
