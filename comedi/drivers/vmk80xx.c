@@ -280,9 +280,9 @@ static void vmk80xx_read_eeprom(struct vmk80xx_private *devpriv, int flag)
 	rx[cnt] = '\0';
 
 	if (flag & IC3_VERSION)
-		strncpy(devpriv->fw.ic3_vers, rx + 1, 24);
+		strscpy(devpriv->fw.ic3_vers, rx + 1, 24);
 	else			/* IC6_VERSION */
-		strncpy(devpriv->fw.ic6_vers, rx + 25, 24);
+		strscpy(devpriv->fw.ic6_vers, rx + 25, 24);
 
 	kfree(tx);
 	kfree(rx);
