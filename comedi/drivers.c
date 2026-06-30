@@ -747,8 +747,7 @@ static int comedi_old_auto_config(struct device *hardware_device,
 	bool matched = false;
 
 	memset(&it, 0, sizeof(it));
-	strncpy(it.board_name, driver->driver_name, COMEDI_NAMELEN);
-	it.board_name[COMEDI_NAMELEN - 1] = '\0';
+	strscpy(it.board_name, driver->driver_name, COMEDI_NAMELEN);
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
 
