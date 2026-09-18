@@ -504,8 +504,8 @@ int comedi_check_cmd_triggers_supported( comedi_cmd *cmd,
 	err += !!comedi_check_trigger_src(&cmd->scan_begin_src,
 					scan_begin_allowed);
 	err += !!comedi_check_trigger_src(&cmd->convert_src, convert_allowed);
-	err += !!comedi_check_trigger_src(&cmd->scan_end_arg, scan_end_allowed);
-	err += !!comedi_check_trigger_src(&cmd->stop_arg, stop_allowed);
+	err += !!comedi_check_trigger_src(&cmd->scan_end_src, scan_end_allowed);
+	err += !!comedi_check_trigger_src(&cmd->stop_src, stop_allowed);
 	return err ? -EINVAL : 0;
 }
 
