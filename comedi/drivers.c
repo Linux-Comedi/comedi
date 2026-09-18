@@ -556,7 +556,7 @@ int comedi_check_cmd_args_common(comedi_cmd *cmd, comedi_subdevice *s,
 		err |= !!comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 	}
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		err |= !!comedi_check_trigger_arg_is(&cmd->scan_begin_src, 0);
+		err |= !!comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 	if (cmd->convert_src == TRIG_NOW || cmd->convert_src == TRIG_FOLLOW) {
 		err |= !!comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
