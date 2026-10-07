@@ -2816,11 +2816,10 @@ static int i_ADDI_Attach_Common(comedi_device * dev, int master)
 	resource_size_t io_addr[5];
 	unsigned int irq;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
-	struct pcilst_struct *card = NULL;
 	unsigned char pci_bus, pci_slot, pci_func;
 
-	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
-				&irq)) < 0) {
+	if ((i_pci_card_data(devpriv->amcc, &pci_bus, &pci_slot, &pci_func,
+				&io_addr[0], &irq)) < 0) {
 		printk(" - Can't get AMCC data!\n");
 		return -EIO;
 	}
@@ -2844,7 +2843,6 @@ static int i_ADDI_Attach_Common(comedi_device * dev, int master)
 		}
 
 		dev->board_name = this_board->pc_DriverName;
-		devpriv->amcc = card;
 		devpriv->iobase = (INT) dev->iobase;
 		devpriv->i_IobaseAmcc = (INT) iobase_a;	//AMCC base address...
 		devpriv->i_IobaseAddon = (INT) iobase_addon;	//ADD ON base address....
@@ -2852,7 +2850,6 @@ static int i_ADDI_Attach_Common(comedi_device * dev, int master)
 	} else {
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
-		devpriv->amcc = card;
 		devpriv->iobase = (INT) io_addr[2];
 		devpriv->i_IobaseReserved = (INT) io_addr[3];
 		printk("ioremap begin\n");
@@ -3177,7 +3174,6 @@ static int i_ADDI_Attach_Common(comedi_device * dev, int master)
 static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	struct pcilst_struct *card = NULL;
 	int i_Dma = 0;
 
 	printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s\n",dev->minor,this_board->pc_DriverName);
@@ -3193,7 +3189,8 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		i_Dma = 1;
 	}
 
-	if ((card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
+	if ((devpriv->amcc = ptr_select_and_alloc_pci_card(
+				this_board->i_VendorId,
 				this_board->i_DeviceId,
 				it->options[0],
 				it->options[1], i_Dma)) == NULL) {
@@ -3227,7 +3224,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 static int i_ADDI_Auto_Attach(comedi_device * dev, unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pcilst_struct *card = NULL;
 	int ret;
 	int i_Dma;
 
@@ -3247,7 +3243,7 @@ static int i_ADDI_Auto_Attach(comedi_device * dev, unsigned long context)
 
 	i_Dma = this_board->i_Dma;
 
-	if ((card = ptr_use_and_alloc_pci_card(pcidev, i_Dma)) == NULL) {
+	if ((devpriv->amcc = ptr_use_and_alloc_pci_card(pcidev, i_Dma)) == NULL) {
 		return -EIO;
 	}
 	devpriv->allocated = 1;
