@@ -177,8 +177,6 @@ static int bonding_detach(comedi_device * dev);
 /** Build Private array of all devices.. */
 static int doDevConfig(comedi_device * dev, comedi_devconfig * it);
 static void doDevUnconfig(comedi_device * dev);
-/* Ugly implementation of realloc that always copies memory around -- I'm lazy, what can I say?  I like to do wasteful memcopies.. :) */
-static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
 static comedi_driver driver_bonding = {
 	.driver_name	= MODULE_NAME,
@@ -359,16 +357,6 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
-{
-	void *newmem = kmalloc(newlen, GFP_KERNEL);
-	if (newmem && oldmem)
-		memcpy(newmem, oldmem, min(oldlen, newlen));
-	if (oldmem)
-		kfree(oldmem);
-	return newmem;
-}
-
 static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 {
 	int i;
@@ -380,8 +368,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		int minor = it->options[i];
 		comedi_t *d;
-		int sdev = -1, nchans, tmp;
-		BondedDevice *bdev = 0;
+		int sdev = -1;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
@@ -405,6 +392,10 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 		/* Do DIO, as that's all we support now.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
 					sdev + 1)) > -1) {
+			BondedDevice *bdev;
+			BondedDevice **devs;
+			int nchans;
+
 			if ((nchans = comedi_get_n_channels(d, sdev)) <= 0) {
 				ERROR("comedi_get_n_channels() returned %d on minor %u subdev %d!\n", nchans, minor, sdev);
 				return -EINVAL;
@@ -428,16 +419,15 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			/* Now put bdev pointer at end of devpriv->devs array list.. */
 
 			/* ergh.. ugly.. we need to realloc :(  */
-			tmp = devpriv->ndevs * sizeof(bdev);
-			devpriv->devs =
-				Realloc(devpriv->devs,
-				++devpriv->ndevs * sizeof(bdev), tmp);
-			if (!devpriv->devs) {
+			devs = krealloc(devpriv->devs,
+					(devpriv->ndevs + 1) * sizeof(*devs),
+					GFP_KERNEL);
+			if (!devs) {
 				ERROR("Could not allocate memory. Out of memory?\n");
 				return -ENOMEM;
 			}
-
-			devpriv->devs[devpriv->ndevs - 1] = bdev;
+			devpriv->devs = devs;
+			devpriv->devs[devpriv->ndevs++] = bdev;
 			{
 	/** Append dev:subdev to devpriv->name */
 				char buf[20];
