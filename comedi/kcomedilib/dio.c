@@ -30,13 +30,16 @@ int comedi_dio_config(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	unsigned int io)
 {
 	comedi_insn insn;
+	lsampl_t data[1];
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_CONFIG;
 	insn.n = 1;
-	insn.data = &io;
+	insn.data = data;
 	insn.subdev = subdev;
 	insn.chanspec = CR_PACK(chan, 0, 0);
+
+	data[0] = io;
 
 	return comedi_do_insn(dev, &insn);
 }
@@ -45,28 +48,36 @@ int comedi_dio_read(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	unsigned int *val)
 {
 	comedi_insn insn;
+	lsampl_t data[1];
+	int ret;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_READ;
 	insn.n = 1;
-	insn.data = val;
+	insn.data = data;
 	insn.subdev = subdev;
 	insn.chanspec = CR_PACK(chan, 0, 0);
 
-	return comedi_do_insn(dev, &insn);
+	ret = comedi_do_insn(dev, &insn);
+	if (ret >= 0)
+		*val = data[0];
+	return ret;
 }
 
 int comedi_dio_write(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	unsigned int val)
 {
 	comedi_insn insn;
+	lsampl_t data[1];
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_WRITE;
 	insn.n = 1;
-	insn.data = &val;
+	insn.data = data;
 	insn.subdev = subdev;
 	insn.chanspec = CR_PACK(chan, 0, 0);
+
+	data[0] = val;
 
 	return comedi_do_insn(dev, &insn);
 }
