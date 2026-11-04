@@ -424,6 +424,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 					GFP_KERNEL);
 			if (!devs) {
 				ERROR("Could not allocate memory. Out of memory?\n");
+				kfree(bdev);
 				return -ENOMEM;
 			}
 			devpriv->devs = devs;
