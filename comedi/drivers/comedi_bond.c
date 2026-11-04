@@ -90,9 +90,6 @@ Configuration Options:
 #include <linux/comedidev.h>
 #include <linux/string.h>
 
-/* The maxiumum number of channels per subdevice. */
-#define MAX_CHANS 256
-
 #define MODULE_NAME "comedi_bond"
 MODULE_LICENSE("GPL");
 MODULE_VERSION(COMEDI_RELEASE);
@@ -142,8 +139,6 @@ struct BondedDevice {
 	unsigned subdev;
 	unsigned subdev_type;
 	unsigned nchans;
-	unsigned chanid_offset;	/* The offset into our unified linear channel-id's
-				   of chanid 0 on this subdevice. */
 };
 typedef struct BondedDevice BondedDevice;
 
@@ -155,7 +150,6 @@ struct Private {
 	char name[MAX_BOARD_NAME];
 	struct BondedDevice **devs;
 	unsigned ndevs;
-	struct BondedDevice *chanIdDevMap[MAX_CHANS];
 	unsigned nchans;
 };
 typedef struct Private Private;
@@ -270,46 +264,59 @@ static int bonding_detach(comedi_device * dev)
 static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-#define LSAMPL_BITS (sizeof(lsampl_t)*8)
-	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
-	if (insn->n != 2)
-		return -EINVAL;
+	unsigned int n_left, n_done, base_chan;
+	unsigned int write_mask, data_bits;
+	BondedDevice **devs;
 
-	if (devpriv->nchans < nchans)
-		nchans = devpriv->nchans;
+	write_mask = data[0];
+	data_bits = data[1];
+	base_chan = CR_CHAN(insn->chanspec);
+	/* Do a maximum of 32 channels, starting from base_chan. */
+	n_left = devpriv->nchans - base_chan;
+	if (n_left > 32)
+		n_left = 32;
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
-		BondedDevice *bdev = devpriv->devs[i];
-		/* Grab the channel mask and data of only the bits corresponding
-		   to this subdevice.. need to shift them to zero position of
-		   course. */
-		lsampl_t subdevMask = ((1 << bdev->nchans) - 1);	/* Bits corresponding
-									   to this subdev. */
-		lsampl_t writeMask, dataBits;
+	n_done = 0;
+	devs = devpriv->devs;
+	do {
+		BondedDevice *bdev = *devs++;
 
-		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
-		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (lsampl_t) (-1);
+		if (base_chan < bdev->nchans) {
+			/* Base channel falls within bonded device. */
+			unsigned int b_chans, b_mask, b_write_mask, b_data_bits;
+			int ret;
 
-		writeMask = (data[0] >> num_done) & subdevMask;
-		dataBits = (data[1] >> num_done) & subdevMask;
-
-		/* Read/Write the new digital lines */
-		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask,
-				&dataBits) != 2)
-			return -EINVAL;
-
-		/* Make room for the new bits in data[1], the return value */
-		data[1] &= ~(subdevMask << num_done);
-		/* Put the bits in the return value */
-		data[1] |= (dataBits & subdevMask) << num_done;
-		/* Save the new bits to the saved state.. */
-		s->state = data[1];
-
-		num_done += bdev->nchans;
-	}
+			/*
+			 * Get num channels to do for bonded device and set up
+			 * mask and data bits for bonded device.
+			 */
+			b_chans = bdev->nchans - base_chan;
+			if (b_chans > n_left)
+				b_chans = n_left;
+			b_mask = (b_chans < 32) ? ((1U << b_chans) - 1)
+						: 0xffffffffu;
+			b_write_mask = (write_mask >> n_done) & b_mask;
+			b_data_bits = (data_bits >> n_done) & b_mask;
+			/* Read/Write the new digital lines. */
+			ret = comedi_dio_bitfield2(bdev->dev, bdev->subdev,
+					b_write_mask, &b_data_bits, base_chan);
+			if (ret < 0)
+				return ret;
+			/* Place read bits into data[1]. */
+			data[1] &= ~(b_mask << n_done);
+			data[1] |= (b_data_bits & b_mask) << n_done;
+			/*
+			 * Set up for following bonded device (if still have
+			 * channels to read/write).
+			 */
+			base_chan = 0;
+			n_done += b_chans;
+			n_left -= b_chans;
+		} else {
+			/* Skip bonded devices before base channel. */
+			base_chan -= bdev->nchans;
+		}
+	} while (n_left);
 
 	return insn->n;
 }
@@ -317,44 +324,46 @@ static int bonding_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
-	unsigned int io;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
 	BondedDevice *bdev;
+	BondedDevice **devs;
+	unsigned int io;
 
-	if (chan < 0 || chan >= devpriv->nchans)
-		return -EINVAL;
-	bdev = devpriv->chanIdDevMap[chan];
+	/*
+	 * Locate bonded subdevice and adjust channel.
+	 */
+	devs = devpriv->devs;
+	for (bdev = *devs++; chan >= bdev->nchans; bdev = *devs++)
+		chan -= bdev->nchans;
 
-	/* The input or output configuration of each digital line is
+	/*
+	 * The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	 * configuration instruction INSN_CONFIG_DIO_OUTPUT,
+	 * INSN_CONFIG_DIO_INPUT or INSN_CONFIG_DIO_QUERY.
+	 *
+	 * Note than INSN_CONFIG_DIO_OUTPUT == COMEDI_OUTPUT, and
+	 * INSN_CONFIG_DIO_INPUT == COMEDI_INPUT.  This is deliberate ;)
+	 */
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		io = COMEDI_OUTPUT;	/* is this really necessary? */
-		io_bits |= 1 << chan;
-		break;
 	case INSN_CONFIG_DIO_INPUT:
-		io = COMEDI_INPUT;	/* is this really necessary? */
-		io_bits &= ~(1 << chan);
+		ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, data[0]);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-			(io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
+		ret = comedi_dio_get_config(bdev->dev, bdev->subdev, chan, &io);
+		if (ret >= 0)
+			data[1] = io;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	chan -= bdev->chanid_offset;	/* 'real' channel id for this subdev.. */
-	ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
-	if (ret != 1)
-		return -EINVAL;
-	/* Finally, save the new io_bits values since we didn't get
-	   an error above. */
-	s->io_bits = io_bits;
-	return insn->n;
+	if (ret >= 0)
+		ret = insn->n;
+	return ret;
 }
 
 static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
@@ -413,11 +422,6 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			bdev->subdev = sdev;
 			bdev->subdev_type = COMEDI_SUBD_DIO;
 			bdev->nchans = nchans;
-			bdev->chanid_offset = devpriv->nchans;
-
-			/* map channel id's to BondedDevice * pointer.. */
-			while (nchans--)
-				devpriv->chanIdDevMap[devpriv->nchans++] = bdev;
 
 			/* Now put bdev pointer at end of devpriv->devs array list.. */
 
@@ -444,6 +448,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 				buf[sizeof(buf) - 1] = 0;
 				strncat(devpriv->name, buf, left);
 			}
+			devpriv->nchans += nchans;
 			nope = 0;	/* keeps the device open */
 		}
 
