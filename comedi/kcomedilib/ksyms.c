@@ -104,6 +104,7 @@ EXPORT_SYMBOL(comedi_data_read);
 EXPORT_SYMBOL(comedi_data_read_hint);
 EXPORT_SYMBOL(comedi_data_read_delayed);
 EXPORT_SYMBOL(comedi_data_write);
+EXPORT_SYMBOL(comedi_dio_get_config);
 EXPORT_SYMBOL(comedi_dio_config);
 EXPORT_SYMBOL(comedi_dio_read);
 EXPORT_SYMBOL(comedi_dio_write);

@@ -26,6 +26,27 @@
 
 #include <linux/string.h>
 
+int comedi_dio_get_config(comedi_t * dev, unsigned int subdev,
+	unsigned int chan, lsampl_t *io)
+{
+	comedi_insn insn;
+	lsampl_t data[2];
+	int ret;
+
+	memset(&insn, 0, sizeof(insn));
+	insn.insn = INSN_CONFIG;
+	insn.n = 2;
+	insn.data = data;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan, 0, 0);
+	data[0] = INSN_CONFIG_DIO_QUERY;
+	data[1] = 0;
+	ret = comedi_do_insn(dev, &insn);
+	if (ret >= 0)
+		*io = data[1];
+	return ret;
+}
+
 int comedi_dio_config(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	unsigned int io)
 {
