@@ -204,6 +204,7 @@ static int bonding_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 static int bonding_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
+	int err;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
@@ -217,8 +218,9 @@ static int bonding_attach(comedi_device * dev, comedi_devconfig * it)
 /*
  * Setup our bonding from config params.. sets up our Private struct..
  */
-	if (!doDevConfig(dev, it))
-		return -EINVAL;
+	err = doDevConfig(dev, it);
+	if (err)
+		return err;
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -383,21 +385,21 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
-			return 0;
+			return -EINVAL;
 		}
 		if (minor == dev->minor) {
 			ERROR("Cannot bond this driver to itself!\n");
-			return 0;
+			return -EINVAL;
 		}
 		if (test_and_set_bit(minor, devs_opened)) {
 			ERROR("Minor %d specified more than once!\n", minor);
-			return 0;
+			return -EINVAL;
 		}
 
 		d = comedi_open_minor_from(minor, dev->minor);
 		if (!d) {
 			ERROR("Minor %u could not be opened\n", minor);
-			return 0;
+			return -ENODEV;
 		}
 
 		/* Do DIO, as that's all we support now.. */
@@ -405,12 +407,12 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 					sdev + 1)) > -1) {
 			if ((nchans = comedi_get_n_channels(d, sdev)) <= 0) {
 				ERROR("comedi_get_n_channels() returned %d on minor %u subdev %d!\n", nchans, minor, sdev);
-				return 0;
+				return -EINVAL;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
 			if (!bdev) {
 				ERROR("Out of memory.\n");
-				return 0;
+				return -ENOMEM;
 			}
 			bdev->dev = d;
 			bdev->minor = minor;
@@ -432,7 +434,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 				++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
 				ERROR("Could not allocate memory. Out of memory?\n");
-				return 0;
+				return -ENOMEM;
 			}
 
 			devpriv->devs[devpriv->ndevs - 1] = bdev;
@@ -453,10 +455,10 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 
 	if (!devpriv->nchans) {
 		ERROR("No channels found!\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	return 1;
+	return 0;
 }
 
 static void doDevUnconfig(comedi_device * dev)
