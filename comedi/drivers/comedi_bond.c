@@ -369,6 +369,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 		int minor = it->options[i];
 		comedi_t *d;
 		int sdev = -1;
+		int nope = 1;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
@@ -398,12 +399,14 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 
 			if ((nchans = comedi_get_n_channels(d, sdev)) <= 0) {
 				ERROR("comedi_get_n_channels() returned %d on minor %u subdev %d!\n", nchans, minor, sdev);
-				return -EINVAL;
+				nope = -EINVAL;
+				break;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
 			if (!bdev) {
 				ERROR("Out of memory.\n");
-				return -ENOMEM;
+				nope = -ENOMEM;
+				break;
 			}
 			bdev->dev = d;
 			bdev->minor = minor;
@@ -425,7 +428,8 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			if (!devs) {
 				ERROR("Could not allocate memory. Out of memory?\n");
 				kfree(bdev);
-				return -ENOMEM;
+				nope = -ENOMEM;
+				break;
 			}
 			devpriv->devs = devs;
 			devpriv->devs[devpriv->ndevs++] = bdev;
@@ -440,7 +444,14 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 				buf[sizeof(buf) - 1] = 0;
 				strncat(devpriv->name, buf, left);
 			}
+			nope = 0;	/* keeps the device open */
+		}
 
+		if (nope) {
+			/* Opened device cannot be used, so close it. */
+			comedi_close_from(d, dev->minor);
+			if (nope < 0)
+				return nope;
 		}
 	}
 
