@@ -370,9 +370,8 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 {
 	int i;
-	comedi_t *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MINORS) = { 0 };
 
-	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;;
 	/* Loop through all comedi devices specified on the command-line,
 	   building our device list */
@@ -390,14 +389,12 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 			ERROR("Cannot bond this driver to itself!\n");
 			return 0;
 		}
-		if (devs_opened[minor]) {
+		if (test_and_set_bit(minor, devs_opened)) {
 			ERROR("Minor %d specified more than once!\n", minor);
 			return 0;
 		}
 
-		d = devs_opened[minor] =
-			comedi_open_minor_from(minor, dev->minor);
-
+		d = comedi_open_minor_from(minor, dev->minor);
 		if (!d) {
 			ERROR("Minor %u could not be opened\n", minor);
 			return 0;
@@ -464,17 +461,15 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 
 static void doDevUnconfig(comedi_device * dev)
 {
-	unsigned long devs_closed = 0;
-
 	if (devpriv) {
+		DECLARE_BITMAP(devs_closed, COMEDI_NUM_BOARD_MINORS) = { 0 };
+
 		while (devpriv->ndevs-- && devpriv->devs) {
 			BondedDevice *bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
 				continue;
-			if (!(devs_closed & (0x1 << bdev->minor))) {
+			if (!test_and_set_bit(bdev->minor, devs_closed))
 				comedi_close_from(bdev->dev, dev->minor);
-				devs_closed |= (0x1 << bdev->minor);
-			}
 			kfree(bdev);
 		}
 		if (devpriv->devs) {
