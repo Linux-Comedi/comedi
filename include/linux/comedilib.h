@@ -85,6 +85,8 @@ int comedi_dio_write(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	unsigned int val);
 int comedi_dio_bitfield(comedi_t * dev, unsigned int subdev, unsigned int mask,
 	unsigned int *bits);
+int comedi_dio_bitfield2(comedi_t * dev, unsigned int subdev, unsigned int mask,
+	unsigned int *bits, unsigned int base_channel);
 int comedi_get_n_subdevices(comedi_t * dev);
 int comedi_get_version_code(comedi_t * dev);
 const char *comedi_get_driver_name(comedi_t * dev);

@@ -71,15 +71,23 @@ int comedi_dio_write(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_dio_bitfield(comedi_t * dev, unsigned int subdev, unsigned int mask,
-	unsigned int *bits)
+int comedi_dio_bitfield2(comedi_t * dev, unsigned int subdev, unsigned int mask,
+	unsigned int *bits, unsigned int base_channel)
 {
 	comedi_insn insn;
 	lsampl_t data[2];
+	unsigned int n_chan;
+	unsigned int shift;
 	int ret;
+
+	base_channel = CR_CHAN(base_channel);
+	n_chan = comedi_get_n_channels(dev, subdev);
+	if (base_channel >= n_chan)
+		return -EINVAL;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_BITS;
+	insn.chanspec = base_channel;
 	insn.n = 2;
 	insn.data = data;
 	insn.subdev = subdev;
@@ -87,9 +95,29 @@ int comedi_dio_bitfield(comedi_t * dev, unsigned int subdev, unsigned int mask,
 	data[0] = mask;
 	data[1] = *bits;
 
-	ret = comedi_do_insn(dev, &insn);
+	/*
+	 * Most drivers ignore the base channel in insn->chanspec.
+	 * Fix this here if the subdevice has <= 32 channels.
+	 */
+	if (n_chan <= 32) {
+		shift = base_channel;
+		if (shift) {
+			insn.chanspec = 0;
+			data[0] <<= shift;
+			data[1] <<= shift;
+		}
+	} else {
+		shift = 0;
+	}
 
-	*bits = data[1];
+	ret = comedi_do_insn(dev, &insn);
+	*bits = data[1] >> shift;
 
 	return ret;
+}
+
+int comedi_dio_bitfield(comedi_t * dev, unsigned int subdev, unsigned int mask,
+	unsigned int *bits)
+{
+	return comedi_dio_bitfield2(dev, subdev, mask, bits, 0);
 }

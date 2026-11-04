@@ -108,6 +108,7 @@ EXPORT_SYMBOL(comedi_dio_config);
 EXPORT_SYMBOL(comedi_dio_read);
 EXPORT_SYMBOL(comedi_dio_write);
 EXPORT_SYMBOL(comedi_dio_bitfield);
+EXPORT_SYMBOL(comedi_dio_bitfield2);
 
 /* slowly varying stuff */
 //EXPORT_SYMBOL(comedi_sv_init);
