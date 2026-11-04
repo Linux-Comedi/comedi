@@ -371,7 +371,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 	int i;
 	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MINORS) = { 0 };
 
-	devpriv->name[0] = 0;;
+	devpriv->name[0] = 0;
 	/* Loop through all comedi devices specified on the command-line,
 	   building our device list */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
@@ -481,10 +481,7 @@ static void doDevUnconfig(comedi_device * dev)
 				comedi_close_from(bdev->dev, dev->minor);
 			kfree(bdev);
 		}
-		if (devpriv->devs) {
-			kfree(devpriv->devs);
-			devpriv->devs = 0;
-		}
+		kfree(devpriv->devs);
 		kfree(devpriv);
 		dev->private = 0;
 	}
