@@ -326,10 +326,11 @@ static void comedi_file_reset(struct file *file)
 		if (!s || (s->subdev_flags & SDF_CMD_WRITE))
 			write_s = s;
 	}
-	cfp->last_attached = dev->attached;
-	cfp->last_detach_count = dev->detach_count;
 	cfp->read_subdev = read_s;
 	cfp->write_subdev = write_s;
+	smp_wmb();
+	cfp->last_attached = dev->attached;
+	cfp->last_detach_count = dev->detach_count;
 }
 
 static void comedi_file_check(struct file *file)
@@ -339,6 +340,7 @@ static void comedi_file_check(struct file *file)
 
 	if (cfp->last_attached != dev->attached || cfp->last_detach_count != dev->detach_count)
 		comedi_file_reset(file);
+	smp_rmb();
 }
 
 static comedi_subdevice* comedi_file_read_subdevice(struct file *file)
@@ -2244,6 +2246,7 @@ static int do_setrsubd_ioctl(comedi_device *dev, unsigned long arg,
 	}
 
 	cfp->read_subdev = s_new;
+	smp_wmb();
 	return 0;
 }
 
@@ -2288,6 +2291,7 @@ static int do_setwsubd_ioctl(comedi_device *dev, unsigned long arg,
 	}
 
 	cfp->write_subdev = s_new;
+	smp_wmb();
 	return 0;
 }
 
