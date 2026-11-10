@@ -27,7 +27,7 @@ Description: Amplicon PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>,
   Steve D Sharples <steve.sharples@nottingham.ac.uk>,
   Ian Abbott <abbotti@mev.co.uk>
-Updated: Wed, 22 Oct 2008 12:34:49 +0100
+Updated: Tue, 10 Nov 2026 13:55:11 +0000
 Devices: [Amplicon] PCI230 (pci230 or amplc_pci230),
   PCI230+ (pci230+ or amplc_pci230),
   PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+ or amplc_pci230)
@@ -104,7 +104,7 @@ AI Commands:
   Note 2: For PCI230 and PCI230+, scan_begin_src == TRIG_EXT uses
           DIO channel 16 (pin 49) which will need to be configured as
           a digital input.  For PCI260+, the EXTTRIG/EXTCONVCLK input
-          (pin 17) is used instead.  For PCI230, scan_begin_src ==
+          (pin 17) is used instead.  For PCI260, scan_begin_src ==
           TRIG_EXT is not supported.  The trigger is a rising edge
           on the input.
 
