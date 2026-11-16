@@ -102,6 +102,21 @@ static int poll_invalid(comedi_device * dev, comedi_subdevice * s);
 comedi_driver *comedi_drivers;
 DEFINE_MUTEX(comedi_drivers_list_lock);
 
+/* Check if any task is sleeping on any subdevice wait queue. */
+static bool comedi_device_has_sleeper(comedi_device *dev)
+{
+	int i;
+	comedi_subdevice *s;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = dev->subdevices + i;
+		if (s->async && wq_has_sleeper(&s->async->wait_head)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static void cleanup_device(comedi_device * dev)
 {
 	int i;
@@ -111,6 +126,25 @@ static void cleanup_device(comedi_device * dev)
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
 			comedi_free_subdevice_minor(s);
+		}
+		while (comedi_device_has_sleeper(dev)) {
+			/*
+			 * Temporarily unlock the attach_lock to allow sleeping
+			 * tasks to remove themselves from the subdevice wait
+			 * queues.
+			 *
+			 * This relies on the poll file operation handler
+			 * returning an unfiltered event.
+			 */
+			up_write(&dev->attach_lock);
+			do {
+				schedule();
+			} while (comedi_device_has_sleeper(dev));
+			/* Lock the attach_lock again. */
+			down_write(&dev->attach_lock);
+		}
+		for (i = 0; i < dev->n_subdevices; i++) {
+			s = dev->subdevices + i;
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
