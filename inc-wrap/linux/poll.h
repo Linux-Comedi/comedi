@@ -50,4 +50,8 @@ typedef unsigned int comedi_poll_t;
 typedef __poll_t comedi_poll_t;
 #endif
 
+#define COMEDI_DEFAULT_POLLMASK	\
+	(COMEDI_EPOLLIN | COMEDI_EPOLLOUT | \
+	 COMEDI_EPOLLRDNORM | COMEDI_EPOLLWRNORM)
+
 #endif
