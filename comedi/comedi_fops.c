@@ -2482,7 +2482,7 @@ done:
 
 static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 {
-	comedi_poll_t mask = 0;
+	comedi_poll_t mask = COMEDI_DEFAULT_POLLMASK;
 	struct comedi_file *cfp = file->private_data;
 	comedi_subdevice *read_subdev;
 	comedi_subdevice *write_subdev;
@@ -2491,17 +2491,18 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 	down_read(&dev->attach_lock);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		mask |= (COMEDI_EPOLLERR | COMEDI_EPOLLPRI);
 		goto done;
 	}
 
 	read_subdev = comedi_file_read_subdevice(file);
 	if (read_subdev && read_subdev->async) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
-		if (read_subdev->busy != file ||
-		    !comedi_is_subdevice_running(read_subdev) ||
-		    (read_subdev->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_read_n_available(read_subdev) > 0) {
-			mask |= COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM;
+		if (read_subdev->busy == file &&
+		    comedi_is_subdevice_running(read_subdev) &&
+		    !(read_subdev->async->cmd.flags & CMDF_WRITE) &&
+		    comedi_buf_read_n_available(read_subdev) == 0) {
+			mask &= ~(COMEDI_EPOLLIN | COMEDI_EPOLLRDNORM);
 		}
 	}
 	write_subdev = comedi_file_write_subdevice(file);
@@ -2509,13 +2510,13 @@ static comedi_poll_t comedi_poll(struct file *file, poll_table * wait)
 		if (write_subdev != read_subdev) {
 			poll_wait(file, &write_subdev->async->wait_head, wait);
 		}
-		if (write_subdev->busy != file ||
-		    !comedi_is_subdevice_running(write_subdev) ||
-		    !(write_subdev->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_write_n_available(write_subdev) >=
+		if (write_subdev->busy == file &&
+		    comedi_is_subdevice_running(write_subdev) &&
+		    (write_subdev->async->cmd.flags & CMDF_WRITE) &&
+		    comedi_buf_write_n_available(write_subdev) <
 			comedi_bytes_per_sample(write_subdev))
 		{
-			mask |= COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM;
+			mask &= ~(COMEDI_EPOLLOUT | COMEDI_EPOLLWRNORM);
 		}
 	}
 
