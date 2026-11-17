@@ -2639,9 +2639,24 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 				retval = -EAGAIN;
 				break;
 			}
+			/*
+			 * Unlock the attach lock while sleeping and lock it
+			 * again afterwards.  Detachment via COMEDI_DEVCONFIG
+			 * will be prevented because the device is busy.
+			 * Detachment because of device removal will wait for
+			 * the queue to clear.
+			 */
+			up_read(&dev->attach_lock);
 			schedule();
+			down_read(&dev->attach_lock);
 			if (signal_pending(current)) {
 				retval = -ERESTARTSYS;
+				break;
+			}
+			if (!dev->attached ||
+				old_detach_count != dev->detach_count) {
+				/* Device is being detached due to removal. */
+				retval = -ENODEV;
 				break;
 			}
 			if (!s->busy) {
@@ -2770,9 +2785,24 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 				retval = -EAGAIN;
 				break;
 			}
+			/*
+			 * Unlock the attach lock while sleeping and lock it
+			 * again afterwards.  Detachment via COMEDI_DEVCONFIG
+			 * will be prevented because the device is busy.
+			 * Detachment because of device removal will wait for
+			 * the queue to clear.
+			 */
+			up_read(&dev->attach_lock);
 			schedule();
+			down_read(&dev->attach_lock);
 			if (signal_pending(current)) {
 				retval = -ERESTARTSYS;
+				break;
+			}
+			if (!dev->attached ||
+				old_detach_count != dev->detach_count) {
+				/* Device is being detached due to removal. */
+				retval = -ENODEV;
 				break;
 			}
 			if (s->busy != file ||
