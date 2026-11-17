@@ -2130,7 +2130,6 @@ static int do_unlock_ioctl(comedi_device * dev, unsigned int arg, void *file)
 static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 {
 	comedi_subdevice *s;
-	int ret;
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
@@ -2147,25 +2146,7 @@ static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 	if (s->busy != file)
 		return -EBUSY;
 
-	ret = do_cancel(dev, s);
-
-	if (comedi_is_runflags_user(comedi_get_subdevice_runflags(s))) {
-		/* wake up waiters */
-		comedi_async *async = s->async;
-
-		if (dev->rt) {
-#ifdef COMEDI_CONFIG_RT
-			// pend wake up
-			comedi_rt_pend_wakeup(&async->wait_head);
-#else
-			printk("BUG: do_cancel_ioctl() code unreachable\n");
-#endif
-		} else {
-			wake_up_interruptible(&async->wait_head);
-		}
-	}
-
-	return ret;
+	return do_cancel(dev, s);
 }
 
 /*
@@ -2875,11 +2856,21 @@ static void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
+		s->busy = NULL;
+		if (dev->rt) {
+#ifdef COMEDI_CONFIG_RT
+			// pend wake up all
+			comedi_rt_pend_wakeup_all(&async->wait_head);
+#else
+			printk("BUG: do_become_nonbusy() code unreachable\n");
+#endif
+		} else {
+			wake_up_interruptible_all(&async->wait_head);
+		}
 	} else {
 		printk("BUG: (?) do_become_nonbusy called with async=0\n");
+		s->busy = NULL;
 	}
-
-	s->busy = NULL;
 }
 
 static int comedi_open(struct inode *inode, struct file *file)
