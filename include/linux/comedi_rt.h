@@ -69,6 +69,7 @@ void comedi_rt_cleanup(void);
 int comedi_switch_to_rt(comedi_device * dev);
 void comedi_switch_to_non_rt(comedi_device * dev);
 void comedi_rt_pend_wakeup(wait_queue_head_t * q);
+void comedi_rt_pend_wakeup_all(wait_queue_head_t * q);
 extern int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1,
 	void *arg2);
 
@@ -81,6 +82,7 @@ extern int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1,
 #define comedi_switch_to_rt(a) (-1)
 #define comedi_switch_to_non_rt(a) do{}while(0)
 #define comedi_rt_pend_wakeup(a) do{}while(0)
+#define comedi_rt_pend_wakeup_all(a) do{}while(0)
 
 #define rt_printk(format,args...)	printk(format,##args)
 

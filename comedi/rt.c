@@ -164,7 +164,7 @@ void comedi_switch_to_non_rt(comedi_device * dev)
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-void wake_up_int_handler(int arg1, void *arg2)
+static void wake_up_int_handler(int arg1, void *arg2)
 {
 	wake_up_interruptible((wait_queue_head_t *) arg2);
 }
@@ -172,6 +172,16 @@ void wake_up_int_handler(int arg1, void *arg2)
 void comedi_rt_pend_wakeup(wait_queue_head_t * q)
 {
 	rt_pend_call(wake_up_int_handler, 0, q);
+}
+
+static void wake_up_all_int_handler(int arg1, void *arg2)
+{
+	wake_up_interruptible((wait_queue_head_t *) arg2);
+}
+
+void comedi_rt_pend_wakeup_all(wait_queue_head_t * q)
+{
+	rt_pend_call(wake_up_all_int_handler, 0, q);
 }
 
 /* RTAI section */
