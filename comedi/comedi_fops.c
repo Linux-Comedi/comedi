@@ -931,7 +931,7 @@ static int do_devconfig_ioctl(comedi_device * dev,
 			}
 			up_write(&dev->attach_lock);
 		}
-		return 0;
+		return rc;
 	}
 
 	if (copy_from_user(&it, arg, sizeof(comedi_devconfig)))
